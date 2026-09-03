@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: worksauto_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-worksauto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-worksauto_secret_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-worksauto_db}
+    command: postgres -c shared_preload_libraries=btree_gist
+    volumes:
+      - worksauto_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U worksauto -d worksauto_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: worksauto_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - worksauto_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: worksauto_minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-worksauto_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-worksauto_minio_2026}
+    command: server /data --console-address ":9001"
+    volumes:
+      - worksauto_miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  worksauto_pgdata:
+  worksauto_redisdata:
+  worksauto_miniodata:

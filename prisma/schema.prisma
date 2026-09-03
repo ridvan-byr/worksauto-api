@@ -1,0 +1,631 @@
+// WorksAuto Ultimate Enterprise Prisma Schema
+// Clean Architecture + Multi-Tenant + Double Exclusion Constraints Ready
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [btree_gist]
+}
+
+// -------------------------------------------------------------
+// ENUMS
+// -------------------------------------------------------------
+
+enum UserRole {
+  OWNER
+  SERVICE_MANAGER
+  TECHNICIAN
+  CASHIER
+  WAREHOUSE_KEEPER
+}
+
+enum CustomerType {
+  INDIVIDUAL
+  CORPORATE
+}
+
+enum FuelType {
+  GASOLINE
+  DIESEL
+  LPG
+  HYBRID
+  ELECTRIC
+}
+
+enum TransmissionType {
+  MANUAL
+  AUTOMATIC
+  SEMI_AUTOMATIC
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_SERVICE
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum WorkOrderStatus {
+  QUEUE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum WorkOrderItemType {
+  SERVICE
+  PART
+}
+
+enum WorkOrderPhotoType {
+  CHECKIN
+  DAMAGE
+  COMPLETED
+}
+
+enum ProductCategory {
+  OILS
+  FILTERS
+  BRAKES
+  IGNITION
+  SUSPENSION
+  GENERAL
+}
+
+enum StockMovementType {
+  IN_PURCHASE
+  OUT_WORK_ORDER
+  ADJUSTMENT
+  RETURN
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  POS
+  BANK_TRANSFER
+  ONLINE
+}
+
+enum CariReferenceType {
+  INVOICE
+  PAYMENT
+  MANUAL_COLLECTION
+}
+
+// -------------------------------------------------------------
+// CORE ORGANIZATIONAL ENTITIES
+// -------------------------------------------------------------
+
+model Tenant {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique
+  title       String
+  legalName   String?
+  taxNumber   String?
+  taxOffice   String?
+  phone       String
+  email       String
+  address     String?
+  city        String?
+  district    String?
+  logoUrl     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  branches        Branch[]
+  users           User[]
+  customers       Customer[]
+  vehicles        Vehicle[]
+  services        Service[]
+  mechanics       Mechanic[]
+  appointments    Appointment[]
+  workOrders      WorkOrder[]
+  products        Product[]
+  stockMovements  StockMovement[]
+  invoices        Invoice[]
+  payments        Payment[]
+  currentAccounts CurrentAccount[]
+  cariMovements   CariMovement[]
+  auditLogs       AuditLog[]
+
+  @@map("tenants")
+}
+
+model Branch {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  code      String
+  isCentral Boolean  @default(false)
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@map("branches")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  branchId     String?  @map("branch_id") @db.Uuid
+  name         String
+  surname      String
+  email        String
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(TECHNICIAN)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+  mechanic      Mechanic?
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  familyId  String   @map("family_id") @db.Uuid
+  isRevoked Boolean  @default(false) @map("is_revoked")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+// -------------------------------------------------------------
+// CUSTOMER & VEHICLE
+// -------------------------------------------------------------
+
+model Customer {
+  id           String       @id @default(uuid()) @db.Uuid
+  tenantId     String       @map("tenant_id") @db.Uuid
+  type         CustomerType @default(INDIVIDUAL)
+  firstName    String       @map("first_name")
+  lastName     String       @map("last_name")
+  companyTitle String?      @map("company_title")
+  phone        String
+  email        String?
+  taxNumber    String?      @map("tax_number")
+  taxOffice    String?      @map("tax_office")
+  creditLimit  Decimal      @default(0) @map("credit_limit") @db.Decimal(12, 2)
+  notes        String?
+  isAnonymized Boolean      @default(false) @map("is_anonymized")
+  deletedAt    DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(6)
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vehicles       Vehicle[]
+  appointments   Appointment[]
+  workOrders     WorkOrder[]
+  invoices       Invoice[]
+  payments       Payment[]
+  currentAccount CurrentAccount?
+
+  @@index([tenantId, phone])
+  @@index([tenantId, deletedAt])
+  @@map("customers")
+}
+
+model Vehicle {
+  id                   String            @id @default(uuid()) @db.Uuid
+  tenantId             String            @map("tenant_id") @db.Uuid
+  customerId           String            @map("customer_id") @db.Uuid
+  plate                String
+  brand                String
+  model                String
+  year                 Int
+  vin                  String?
+  engineNo             String?           @map("engine_no")
+  color                String?
+  fuelType             FuelType          @default(DIESEL) @map("fuel_type")
+  transmission         TransmissionType  @default(MANUAL)
+  currentKm            Int               @default(0) @map("current_km")
+  inspectionValidUntil DateTime?         @map("inspection_valid_until") @db.Date
+  insuranceValidUntil  DateTime?         @map("insurance_valid_until") @db.Date
+  kaskoValidUntil      DateTime?         @map("kasko_valid_until") @db.Date
+  deletedAt            DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  createdAt            DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime          @updatedAt @db.Timestamptz(6)
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  workOrders   WorkOrder[]
+
+  @@unique([tenantId, plate])
+  @@index([tenantId, deletedAt])
+  @@map("vehicles")
+}
+
+// -------------------------------------------------------------
+// SERVICES & STAFF
+// -------------------------------------------------------------
+
+model Service {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  name               String
+  code               String
+  category           String
+  defaultDurationMin Int      @default(60) @map("default_duration_min")
+  basePrice          Decimal  @map("base_price") @db.Decimal(10, 2)
+  kdvRate            Decimal  @default(20) @map("kdv_rate") @db.Decimal(4, 2)
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@unique([tenantId, code])
+  @@map("services")
+}
+
+model Mechanic {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  userId              String   @unique @map("user_id") @db.Uuid
+  specialty           String
+  assignedLift        String?  @map("assigned_lift")
+  dailyCapacityHours  Int      @default(8) @map("daily_capacity_hours")
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  workOrders   WorkOrder[]
+
+  @@map("mechanics")
+}
+
+// -------------------------------------------------------------
+// APPOINTMENTS
+// -------------------------------------------------------------
+
+model Appointment {
+  id                 String            @id @default(uuid()) @db.Uuid
+  tenantId           String            @map("tenant_id") @db.Uuid
+  customerId         String            @map("customer_id") @db.Uuid
+  vehicleId          String            @map("vehicle_id") @db.Uuid
+  serviceId          String            @map("service_id") @db.Uuid
+  assignedMechanicId String?           @map("assigned_mechanic_id") @db.Uuid
+  assignedLift       String?           @map("assigned_lift")
+  slotDate           DateTime          @map("slot_date") @db.Date
+  slotStartTime      DateTime          @map("slot_start_time") @db.Timestamptz(6)
+  slotEndTime        DateTime          @map("slot_end_time") @db.Timestamptz(6)
+  status             AppointmentStatus @default(PENDING)
+  customerNotes      String?           @map("customer_notes")
+  cancellationReason String?           @map("cancellation_reason")
+  createdAt          DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @db.Timestamptz(6)
+
+  tenant           Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer         Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicle          Vehicle    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  service          Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  assignedMechanic Mechanic?  @relation(fields: [assignedMechanicId], references: [id], onDelete: SetNull)
+  workOrder        WorkOrder?
+
+  @@index([tenantId, slotDate])
+  @@map("appointments")
+}
+
+// -------------------------------------------------------------
+// WORK ORDERS (WORKSHOP)
+// -------------------------------------------------------------
+
+model WorkOrder {
+  id                 String          @id @default(uuid()) @db.Uuid
+  tenantId           String          @map("tenant_id") @db.Uuid
+  workOrderNumber    String          @map("work_order_number")
+  appointmentId      String?         @unique @map("appointment_id") @db.Uuid
+  customerId         String          @map("customer_id") @db.Uuid
+  vehicleId          String          @map("vehicle_id") @db.Uuid
+  assignedMechanicId String?         @map("assigned_mechanic_id") @db.Uuid
+  assignedLift       String?         @map("assigned_lift")
+  status             WorkOrderStatus @default(QUEUE)
+  initialKm          Int             @default(0) @map("initial_km")
+  fuelLevel          String?         @map("fuel_level")
+  subtotal           Decimal         @default(0) @db.Decimal(12, 2)
+  kdvAmount          Decimal         @default(0) @map("kdv_amount") @db.Decimal(12, 2)
+  grandTotal         Decimal         @default(0) @map("grand_total") @db.Decimal(12, 2)
+  completedAt        DateTime?       @map("completed_at") @db.Timestamptz(6)
+  createdAt          DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime        @updatedAt @db.Timestamptz(6)
+
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointment      Appointment?     @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  customer         Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicle          Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  assignedMechanic Mechanic?        @relation(fields: [assignedMechanicId], references: [id], onDelete: SetNull)
+  items            WorkOrderItem[]
+  photos           WorkOrderPhoto[]
+  notes            WorkOrderNote[]
+  invoice          Invoice?
+
+  @@unique([tenantId, workOrderNumber])
+  @@index([tenantId, status])
+  @@map("work_orders")
+}
+
+model WorkOrderItem {
+  id          String            @id @default(uuid()) @db.Uuid
+  workOrderId String            @map("work_order_id") @db.Uuid
+  itemType    WorkOrderItemType @map("item_type")
+  itemId      String?           @map("item_id") @db.Uuid
+  name        String
+  quantity    Int               @default(1)
+  unitPrice   Decimal           @map("unit_price") @db.Decimal(10, 2)
+  kdvRate     Decimal           @default(20) @map("kdv_rate") @db.Decimal(4, 2)
+  totalPrice  Decimal           @map("total_price") @db.Decimal(12, 2)
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("work_order_items")
+}
+
+model WorkOrderPhoto {
+  id          String             @id @default(uuid()) @db.Uuid
+  workOrderId String             @map("work_order_id") @db.Uuid
+  url         String
+  caption     String
+  photoType   WorkOrderPhotoType @default(CHECKIN) @map("photo_type")
+  uploadedBy  String             @map("uploaded_by")
+  createdAt   DateTime           @default(now()) @db.Timestamptz(6)
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("work_order_photos")
+}
+
+model WorkOrderNote {
+  id          String   @id @default(uuid()) @db.Uuid
+  workOrderId String   @map("work_order_id") @db.Uuid
+  authorName  String   @map("author_name")
+  text        String
+  isInternal  Boolean  @default(true) @map("is_internal")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("work_order_notes")
+}
+
+// -------------------------------------------------------------
+// INVENTORY & STOCK
+// -------------------------------------------------------------
+
+model Product {
+  id            String          @id @default(uuid()) @db.Uuid
+  tenantId      String          @map("tenant_id") @db.Uuid
+  name          String
+  oemCode       String          @map("oem_code")
+  barcode       String?
+  category      ProductCategory @default(GENERAL)
+  brand         String
+  stockQuantity Int             @default(0) @map("stock_quantity")
+  minStockLevel Int             @default(5) @map("min_stock_level")
+  shelfLocation String          @map("shelf_location")
+  purchasePrice Decimal         @map("purchase_price") @db.Decimal(10, 2)
+  salePrice     Decimal         @map("sale_price") @db.Decimal(10, 2)
+  kdvRate       Decimal         @default(20) @map("kdv_rate") @db.Decimal(4, 2)
+  deletedAt     DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  createdAt     DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(6)
+
+  // v2.0 Advanced WMS Hooks
+  shelfId String? @map("shelf_id") @db.Uuid
+  aisle   String?
+  rack    String?
+  tier    String?
+  bin     String?
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stockMovements StockMovement[]
+
+  @@unique([tenantId, oemCode])
+  @@index([tenantId, category])
+  @@index([tenantId, deletedAt])
+  @@map("products")
+}
+
+model StockMovement {
+  id           String            @id @default(uuid()) @db.Uuid
+  tenantId     String            @map("tenant_id") @db.Uuid
+  productId    String            @map("product_id") @db.Uuid
+  movementType StockMovementType @map("movement_type")
+  quantity     Int
+  referenceId  String?           @map("reference_id")
+  note         String?
+  createdBy    String            @map("created_by")
+  createdAt    DateTime          @default(now()) @db.Timestamptz(6)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, productId])
+  @@map("stock_movements")
+}
+
+// -------------------------------------------------------------
+// INVOICES & PAYMENTS (IMMUTABLE FINANCIAL RECORDS)
+// -------------------------------------------------------------
+
+model Invoice {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  workOrderId     String?       @unique @map("work_order_id") @db.Uuid
+  customerId      String        @map("customer_id") @db.Uuid
+  invoiceNumber   String        @map("invoice_number")
+  issueDate       DateTime      @default(now()) @map("issue_date") @db.Date
+  dueDate         DateTime      @map("due_date") @db.Date
+  subtotal        Decimal       @db.Decimal(12, 2)
+  kdvAmount       Decimal       @map("kdv_amount") @db.Decimal(12, 2)
+  grandTotal      Decimal       @map("grand_total") @db.Decimal(12, 2)
+  paidAmount      Decimal       @default(0) @map("paid_amount") @db.Decimal(12, 2)
+  remainingAmount Decimal       @map("remaining_amount") @db.Decimal(12, 2)
+  status          InvoiceStatus @default(UNPAID)
+  createdAt       DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(6)
+
+  // v2.0 E-Invoice Hooks
+  eInvoiceUuid     String? @map("e_invoice_uuid")
+  eInvoiceStatus   String? @map("e_invoice_status")
+  gibInvoiceNumber String? @map("gib_invoice_number")
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  payments  Payment[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, status])
+  @@map("invoices")
+}
+
+model Payment {
+  id              String        @id @default(uuid()) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  invoiceId       String?       @map("invoice_id") @db.Uuid
+  customerId      String        @map("customer_id") @db.Uuid
+  amount          Decimal       @db.Decimal(12, 2)
+  paymentMethod   PaymentMethod @default(CASH) @map("payment_method")
+  paymentDate     DateTime      @default(now()) @map("payment_date") @db.Timestamptz(6)
+  cashierName     String        @map("cashier_name")
+  posSlipNo       String?       @map("pos_slip_no")
+  notes           String?
+  gatewayProvider String?       @map("gateway_provider")
+  transactionId   String?       @map("transaction_id")
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice  Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, paymentDate])
+  @@map("payments")
+}
+
+// -------------------------------------------------------------
+// CURRENT ACCOUNTS (CARİ HESAPLAR)
+// -------------------------------------------------------------
+
+model CurrentAccount {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  customerId   String   @unique @map("customer_id") @db.Uuid
+  totalDebits  Decimal  @default(0) @map("total_debits") @db.Decimal(12, 2)
+  totalCredits Decimal  @default(0) @map("total_credits") @db.Decimal(12, 2)
+  balance      Decimal  @default(0) @db.Decimal(12, 2)
+  creditLimit  Decimal  @default(0) @map("credit_limit") @db.Decimal(12, 2)
+  isBlocked    Boolean  @default(false) @map("is_blocked")
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  movements CariMovement[]
+
+  @@map("current_accounts")
+}
+
+model CariMovement {
+  id               String            @id @default(uuid()) @db.Uuid
+  tenantId         String            @map("tenant_id") @db.Uuid
+  currentAccountId String            @map("current_account_id") @db.Uuid
+  date             DateTime          @default(now()) @db.Timestamptz(6)
+  description      String
+  referenceType    CariReferenceType @map("reference_type")
+  referenceNo      String?           @map("reference_no")
+  debit            Decimal           @default(0) @db.Decimal(12, 2)
+  credit           Decimal           @default(0) @db.Decimal(12, 2)
+  balanceAfter     Decimal           @map("balance_after") @db.Decimal(12, 2)
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  currentAccount CurrentAccount @relation(fields: [currentAccountId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, currentAccountId])
+  @@map("cari_movements")
+}
+
+// -------------------------------------------------------------
+// AUDIT LOGS & COMPLIANCE
+// -------------------------------------------------------------
+
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String?  @map("user_id") @db.Uuid
+  action        String
+  entityName    String   @map("entity_name")
+  entityId      String   @map("entity_id")
+  changesBefore Json?    @map("changes_before")
+  changesAfter  Json?    @map("changes_after")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, entityName, entityId])
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
+
+// KVKK Meta-Audit Log with Cryptographic Hash Chaining
+model ComplianceRedactionLog {
+  id                  String   @id @default(uuid()) @db.Uuid
+  redactedCustomerId  String   @map("redacted_customer_id") @db.Uuid
+  authorizedByUserId  String   @map("authorized_by_user_id") @db.Uuid
+  legalRequestRef     String   @map("legal_request_ref")
+  affectedAuditLogIds String[] @map("affected_audit_log_ids")
+  previousHash        String   @map("previous_hash")
+  currentHash         String   @map("current_hash")
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([redactedCustomerId])
+  @@map("compliance_redaction_logs")
+}
+
+// -------------------------------------------------------------
+// IDEMPOTENCY RECORD
+// -------------------------------------------------------------
+
+model IdempotencyRecord {
+  id           String   @id @default(uuid()) @db.Uuid
+  key          String   @unique
+  tenantId     String   @map("tenant_id") @db.Uuid
+  endpoint     String
+  statusCode   Int      @map("status_code")
+  responseBody Json     @map("response_body")
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@index([tenantId, key])
+  @@map("idempotency_records")
+}
