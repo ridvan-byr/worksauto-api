@@ -4,9 +4,10 @@ import { PaymentMethod, InvoiceStatus, CariReferenceType } from '@prisma/client'
 
 export interface CreatePaymentDto {
   invoiceId?: string;
-  customerId: string;
+  customerId?: string;
   amount: number;
-  paymentMethod: PaymentMethod;
+  paymentMethod?: PaymentMethod;
+  method?: PaymentMethod;
   posSlipNo?: string;
   notes?: string;
 }
@@ -24,14 +25,29 @@ export class PaymentsService {
   }
 
   async create(tenantId: string, dto: CreatePaymentDto, cashierName: string) {
+    let customerId = dto.customerId;
+    const paymentMethod = dto.paymentMethod || dto.method || PaymentMethod.CASH;
+
+    if (!customerId && dto.invoiceId) {
+      const inv = await this.prisma.invoice.findUnique({
+        where: { id: dto.invoiceId },
+        select: { customerId: true },
+      });
+      if (inv) customerId = inv.customerId;
+    }
+
+    if (!customerId) {
+      throw new BadRequestException('Müşteri ID (customerId) belirtilmelidir.');
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.create({
         data: {
           tenantId,
           invoiceId: dto.invoiceId,
-          customerId: dto.customerId,
+          customerId,
           amount: dto.amount,
-          paymentMethod: dto.paymentMethod,
+          paymentMethod,
           cashierName,
           posSlipNo: dto.posSlipNo,
           notes: dto.notes,

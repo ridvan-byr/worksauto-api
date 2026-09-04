@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { FuelType, TransmissionType } from '@prisma/client';
 
@@ -59,6 +59,16 @@ export class VehiclesService {
   }
 
   async create(tenantId: string, dto: CreateVehicleDto) {
+    const currentYear = new Date().getFullYear();
+    const maxAllowedYear = currentYear + 1; // 2026 için 2027
+    if (dto.year && (dto.year < 1950 || dto.year > maxAllowedYear)) {
+      throw new BadRequestException(`Araç model yılı 1950 ile ${maxAllowedYear} arasında olmalıdır.`);
+    }
+
+    if (dto.currentKm !== undefined && dto.currentKm < 0) {
+      throw new BadRequestException('Araç kilometresi negatif olamaz.');
+    }
+
     const existing = await this.prisma.vehicle.findFirst({
       where: { tenantId, plate: dto.plate.toUpperCase().trim(), deletedAt: null },
     });

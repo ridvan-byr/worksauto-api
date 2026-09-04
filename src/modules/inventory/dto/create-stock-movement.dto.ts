@@ -9,7 +9,7 @@ export class CreateStockMovementDto {
 
   @ApiProperty({ example: 10, description: 'Hareket miktarı (Pozitif tam sayı)' })
   @IsNumber()
-  @Min(1, { message: 'Miktar en az 1 olmalıdır.' })
+  @Min(0, { message: 'Miktar en az 0 olmalıdır.' })
   quantity: number;
 
   @ApiProperty({ example: 'IRS-2026-0891', required: false, description: 'İrsaliye, fatura veya belge numarası' })

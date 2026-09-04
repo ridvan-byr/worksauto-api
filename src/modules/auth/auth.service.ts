@@ -79,6 +79,12 @@ export class AuthService {
       );
     }
 
+    if (user.tenant && !user.tenant.isActive) {
+      throw new UnauthorizedException(
+        'Bağlı olduğunuz oto servisinin lisansı askıya alınmıştır. Lütfen platform yöneticisi ile görüşünüz.',
+      );
+    }
+
     // 6 Haneli OTP Kod Üretimi (Geliştirme aşamasında hızlı test için '123456' veya rastgele)
     const otpCode = process.env.NODE_ENV === 'production'
       ? Math.floor(100000 + Math.random() * 900000).toString()
@@ -104,23 +110,6 @@ export class AuthService {
    */
   async verifyOtp(dto: VerifyOtpDto) {
     const normalizedPhone = this.normalizePhone(dto.phone);
-    const redisKey = `otp:${normalizedPhone}`;
-
-    const cachedCode = await this.redis.get(redisKey);
-
-    // Geliştirme ortamında sabit 123456 bypass desteği veya Redis'teki kod kontrolü
-    const isMasterDevCode = process.env.NODE_ENV !== 'production' && dto.code === '123456';
-    if (!cachedCode && !isMasterDevCode) {
-      throw new UnauthorizedException('Doğrulama kodunun süresi dolmuş veya hiç istenmemiş.');
-    }
-
-    if (cachedCode && cachedCode !== dto.code && !isMasterDevCode) {
-      throw new UnauthorizedException('Girdiğiniz doğrulama kodu hatalı. Lütfen kontrol ediniz.');
-    }
-
-    // Kod doğrulandı, tek kullanımlık kodu Redis'ten sil
-    await this.redis.del(redisKey);
-
     const raw10 = normalizedPhone.slice(-10);
     const formattedWithSpaces = `${raw10.slice(0, 3)} ${raw10.slice(3, 6)} ${raw10.slice(6, 8)} ${raw10.slice(8, 10)}`;
     const formattedAlt = `${raw10.slice(0, 3)} ${raw10.slice(3, 6)} ${raw10.slice(6)}`;
@@ -141,8 +130,30 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Kullanıcı hesabı bulunamadı.');
+      throw new UnauthorizedException('Bu telefon numarasına ait kullanıcı hesabı bulunamadı.');
     }
+
+    if (user.tenant && !user.tenant.isActive) {
+      throw new UnauthorizedException(
+        'Bağlı olduğunuz oto servisinin lisansı askıya alınmıştır. Lütfen platform yöneticisi ile görüşünüz.',
+      );
+    }
+
+    const redisKey = `otp:${normalizedPhone}`;
+    const cachedCode = await this.redis.get(redisKey);
+
+    // Geliştirme ortamında sabit 123456 bypass desteği veya Redis'teki kod kontrolü
+    const isMasterDevCode = process.env.NODE_ENV !== 'production' && dto.code === '123456';
+    if (!cachedCode && !isMasterDevCode) {
+      throw new UnauthorizedException('Doğrulama kodunun süresi dolmuş veya hiç istenmemiş.');
+    }
+
+    if (cachedCode && cachedCode !== dto.code && !isMasterDevCode) {
+      throw new UnauthorizedException('Girdiğiniz doğrulama kodu hatalı. Lütfen kontrol ediniz.');
+    }
+
+    // Kod doğrulandı, tek kullanımlık kodu Redis'ten sil
+    await this.redis.del(redisKey);
 
     // 30 GÜNLÜK (1 AY) REFRESH TOKEN ÜRET
     const tokens = await this.generateTokens(user, user.tenantId);
@@ -257,6 +268,12 @@ export class AuthService {
 
       if (!user || !user.isActive) {
         throw new UnauthorizedException('Kullanıcı hesabı bulunamadı veya pasif durumda.');
+      }
+
+      if (user.tenant && !user.tenant.isActive) {
+        throw new UnauthorizedException(
+          'Bağlı olduğunuz oto servisinin lisansı askıya alınmıştır. Giriş yetkiniz geçersizdir.',
+        );
       }
 
       return this.generateTokens(user, user.tenantId, tokenRecord.familyId);

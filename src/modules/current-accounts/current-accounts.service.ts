@@ -8,7 +8,10 @@ export class CurrentAccountsService {
   async findAll(tenantId: string) {
     return this.prisma.currentAccount.findMany({
       where: { tenantId },
-      include: { customer: true },
+      include: {
+        customer: true,
+        movements: { orderBy: { date: 'desc' } },
+      },
       orderBy: { balance: 'desc' },
     });
   }

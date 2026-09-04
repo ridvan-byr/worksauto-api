@@ -20,6 +20,8 @@ export class ServicesService {
 
     if (filters?.isActive !== undefined) {
       where.isActive = filters.isActive;
+    } else {
+      where.isActive = true;
     }
     if (filters?.category) {
       where.category = filters.category;
@@ -119,19 +121,30 @@ export class ServicesService {
 
   async remove(tenantId: string, id: string, userId?: string) {
     await this.findOne(tenantId, id);
-    const deactivated = await this.prisma.service.update({
-      where: { id },
-      data: { isActive: false },
+
+    const appointmentsCount = await this.prisma.appointment.count({
+      where: { serviceId: id },
     });
+
+    if (appointmentsCount > 0) {
+      await this.prisma.service.update({
+        where: { id },
+        data: { isActive: false },
+      });
+    } else {
+      await this.prisma.service.delete({
+        where: { id },
+      });
+    }
 
     await this.auditService.log({
       tenantId,
       userId,
-      action: 'service.deactivated',
+      action: 'service.deleted',
       entityName: 'Service',
       entityId: id,
     });
 
-    return { success: true, message: 'Hizmet pasife alındı.' };
+    return { success: true, message: 'Hizmet başarıyla kaldırıldı.' };
   }
 }

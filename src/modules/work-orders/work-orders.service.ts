@@ -145,13 +145,14 @@ export class WorkOrdersService {
   }
 
   async updateStatus(tenantId: string, id: string, newStatus: WorkOrderStatus, userId?: string) {
+    const statusToSave = (newStatus as any) === 'PENDING' ? WorkOrderStatus.QUEUE : newStatus;
     const wo = await this.findOne(tenantId, id);
 
     const updated = await this.prisma.workOrder.update({
       where: { id },
       data: {
-        status: newStatus,
-        completedAt: newStatus === WorkOrderStatus.COMPLETED ? new Date() : undefined,
+        status: statusToSave,
+        completedAt: statusToSave === WorkOrderStatus.COMPLETED ? new Date() : undefined,
       },
       include: { items: true },
     });

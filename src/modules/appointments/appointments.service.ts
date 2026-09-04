@@ -39,6 +39,11 @@ export class AppointmentsService {
   }
 
   async findOne(tenantId: string, id: string) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      throw new NotFoundException('Geçersiz veya bulunamayan randevu.');
+    }
+
     const app = await this.prisma.appointment.findFirst({
       where: { id, tenantId },
       include: {
@@ -56,6 +61,26 @@ export class AppointmentsService {
   async create(tenantId: string, dto: CreateAppointmentDto, userId?: string) {
     const start = new Date(dto.slotStartTime);
     const end = new Date(dto.slotEndTime);
+
+    let serviceId = dto.serviceId;
+    if (!serviceId) {
+      const srv = await this.prisma.service.findFirst({ where: { tenantId } });
+      if (srv) {
+        serviceId = srv.id;
+      } else {
+        const created = await this.prisma.service.create({
+          data: {
+            tenant: { connect: { id: tenantId } },
+            name: 'Genel Servis & Bakım',
+            code: 'SRV-' + Date.now(),
+            category: 'GENERAL',
+            basePrice: 750,
+            defaultDurationMin: 60,
+          },
+        });
+        serviceId = created.id;
+      }
+    }
 
     // Concurrency Check 1: Mechanic Double Booking Prevention
     if (dto.assignedMechanicId) {
@@ -96,7 +121,7 @@ export class AppointmentsService {
         tenantId,
         customerId: dto.customerId,
         vehicleId: dto.vehicleId,
-        serviceId: dto.serviceId,
+        serviceId,
         assignedMechanicId: dto.assignedMechanicId,
         assignedLift: dto.assignedLift,
         slotDate: new Date(dto.slotDate),

@@ -104,7 +104,8 @@ export class StaffService {
       });
 
       // Update or create mechanic profile if technician
-      if (dto.role === UserRole.TECHNICIAN || dto.specialty || dto.assignedLift) {
+      const isTechnician = (dto.role || user.role) === UserRole.TECHNICIAN;
+      if (isTechnician || dto.specialty !== undefined || dto.assignedLift !== undefined) {
         const existingMechanic = await tx.mechanic.findUnique({
           where: { userId: id },
         });
@@ -113,12 +114,12 @@ export class StaffService {
           await tx.mechanic.update({
             where: { userId: id },
             data: {
-              ...(dto.specialty ? { specialty: dto.specialty } : {}),
+              ...(dto.specialty !== undefined ? { specialty: dto.specialty } : {}),
               ...(dto.assignedLift !== undefined ? { assignedLift: dto.assignedLift } : {}),
-              ...(dto.dailyCapacityHours ? { dailyCapacityHours: dto.dailyCapacityHours } : {}),
+              ...(dto.dailyCapacityHours !== undefined ? { dailyCapacityHours: dto.dailyCapacityHours } : {}),
             },
           });
-        } else if (user.role === UserRole.TECHNICIAN) {
+        } else if (isTechnician) {
           await tx.mechanic.create({
             data: {
               tenantId,
@@ -139,10 +140,32 @@ export class StaffService {
   }
 
   async remove(tenantId: string, id: string) {
-    await this.findOne(tenantId, id);
-    return this.prisma.user.update({
-      where: { id },
-      data: { isActive: false },
-    });
+    const user = await this.findOne(tenantId, id);
+
+    const mechanic = user.mechanic;
+    let hasReferences = false;
+    if (mechanic) {
+      const woCount = await this.prisma.workOrder.count({
+        where: { assignedMechanicId: mechanic.id },
+      });
+      const appCount = await this.prisma.appointment.count({
+        where: { assignedMechanicId: mechanic.id },
+      });
+      if (woCount > 0 || appCount > 0) hasReferences = true;
+    }
+
+    if (!hasReferences) {
+      if (mechanic) {
+        await this.prisma.mechanic.delete({ where: { id: mechanic.id } });
+      }
+      await this.prisma.user.delete({ where: { id } });
+      return { success: true, message: 'Personel kaydı silindi.' };
+    } else {
+      await this.prisma.user.update({
+        where: { id },
+        data: { isActive: false },
+      });
+      return { success: true, message: 'Personel geçmiş kayıtları bulunduğu için pasife alındı.' };
+    }
   }
 }

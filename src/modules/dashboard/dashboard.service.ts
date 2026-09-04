@@ -15,7 +15,9 @@ export class DashboardService {
     const [
       activeWorkOrdersCount,
       todayAppointmentsCount,
-      criticalStockCount,
+      criticalStockRows,
+      totalCustomersCount,
+      totalVehiclesCount,
       unpaidInvoices,
       todayPayments,
       monthlyPayments,
@@ -37,12 +39,28 @@ export class DashboardService {
         },
       }),
 
-      // 3. Kritik stok seviyesinin altına düşen parçalar
-      this.prisma.product.count({
+      // 3. Kritik stok seviyesinin altına düşen parçalar (stock_quantity <= min_stock_level)
+      this.prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(*)::bigint as count
+        FROM products
+        WHERE tenant_id = ${tenantId}::uuid
+          AND deleted_at IS NULL
+          AND stock_quantity <= min_stock_level
+      `,
+
+      // 4. Toplam aktif müşteri sayısı
+      this.prisma.customer.count({
         where: {
           tenantId,
           deletedAt: null,
-          stockQuantity: { lte: 10 },
+        },
+      }),
+
+      // 5. Toplam aktif araç sayısı
+      this.prisma.vehicle.count({
+        where: {
+          tenantId,
+          deletedAt: null,
         },
       }),
 
@@ -99,7 +117,9 @@ export class DashboardService {
     return {
       activeWorkOrdersCount,
       todayAppointmentsCount,
-      criticalStockCount,
+      criticalStockCount: Number(criticalStockRows[0]?.count || 0),
+      totalCustomersCount,
+      totalVehiclesCount,
       unpaidInvoicesCount: unpaidInvoices.length,
       unpaidTotal,
       todayRevenue: Number(todayPayments._sum.amount || 0),
