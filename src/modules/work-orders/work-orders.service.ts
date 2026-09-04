@@ -1,7 +1,10 @@
+import { InvoicesService } from '../invoices/invoices.service';
+import { AuditService } from '../audit/audit.service';
+import { AddWorkOrderItemDto } from './dto/add-item.dto';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
-import { WorkOrderStatus, WorkOrderItemType, WorkOrderPhotoType } from '@prisma/client';
+import { WorkOrderStatus, WorkOrderItemType, WorkOrderPhotoType, StockMovementType } from '@prisma/client';
 
 export interface CreateWorkOrderDto {
   appointmentId?: string;
@@ -26,6 +29,8 @@ export class WorkOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly inventoryService: InventoryService,
+    private readonly invoicesService: InvoicesService,
+    private readonly auditService: AuditService,
   ) {}
 
   async findAll(tenantId: string, status?: WorkOrderStatus) {
@@ -113,7 +118,7 @@ export class WorkOrdersService {
           await tx.workOrderItem.create({
             data: {
               workOrderId: workOrder.id,
-              itemType: item.itemType,
+              itemType: item.itemType || (item as any).type || WorkOrderItemType.SERVICE,
               itemId: item.itemId,
               name: item.name,
               quantity: item.quantity,
@@ -139,16 +144,70 @@ export class WorkOrdersService {
     });
   }
 
-  async updateStatus(tenantId: string, id: string, newStatus: WorkOrderStatus) {
+  async updateStatus(tenantId: string, id: string, newStatus: WorkOrderStatus, userId?: string) {
     const wo = await this.findOne(tenantId, id);
 
-    return this.prisma.workOrder.update({
+    const updated = await this.prisma.workOrder.update({
       where: { id },
       data: {
         status: newStatus,
         completedAt: newStatus === WorkOrderStatus.COMPLETED ? new Date() : undefined,
       },
+      include: { items: true },
     });
+
+    await this.auditService.log({
+      tenantId,
+      userId,
+      action: 'work_order.status_changed',
+      entityName: 'WorkOrder',
+      entityId: id,
+      changesBefore: { status: wo.status },
+      changesAfter: { status: newStatus },
+    });
+
+    // AUTO-INVOICE RULE: If tenant configured autoInvoiceOnComplete, automatically create invoice
+    if (newStatus === WorkOrderStatus.COMPLETED) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { autoInvoiceOnComplete: true },
+      });
+
+      if (tenant?.autoInvoiceOnComplete) {
+        const existingInv = await this.prisma.invoice.findFirst({
+          where: { tenantId, workOrderId: id },
+        });
+
+        if (!existingInv && Number(wo.grandTotal) > 0) {
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 7);
+
+          const invoice = await this.invoicesService.create(tenantId, {
+            workOrderId: id,
+            customerId: wo.customerId,
+            dueDate: dueDate.toISOString().split('T')[0],
+            subtotal: Number(wo.subtotal),
+            kdvAmount: Number(wo.kdvAmount),
+            grandTotal: Number(wo.grandTotal),
+          });
+
+          await this.auditService.log({
+            tenantId,
+            userId,
+            action: 'invoice.auto_created_on_wo_complete',
+            entityName: 'Invoice',
+            entityId: invoice.id,
+            changesAfter: {
+              workOrderId: id,
+              invoiceNumber: invoice.invoiceNumber,
+              grandTotal: invoice.grandTotal,
+            },
+          });
+        }
+      }
+    }
+
+    return updated;
   }
 
   /**
@@ -182,6 +241,180 @@ export class WorkOrdersService {
         photoType,
         uploadedBy,
       },
+    });
+  }
+  async addItem(tenantId: string, workOrderId: string, dto: AddWorkOrderItemDto, author: string) {
+    const wo = await this.findOne(tenantId, workOrderId);
+    if (wo.status === WorkOrderStatus.COMPLETED || wo.status === WorkOrderStatus.CANCELLED) {
+      throw new BadRequestException('Tamamlanmış veya iptal edilmiş iş emrine yeni kalem eklenemez.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. If PART, atomically check and deduct stock
+      if (dto.itemType === WorkOrderItemType.PART && dto.itemId) {
+        const product = await tx.product.findFirst({
+          where: { id: dto.itemId, tenantId },
+        });
+
+        if (!product) {
+          throw new NotFoundException('Belirtilen yedek parça depoda bulunamadı.');
+        }
+
+        if (product.stockQuantity < dto.quantity) {
+          throw new BadRequestException(
+            `Yetersiz stok! "${product.name}" için mevcut stok: ${product.stockQuantity}, talep edilen: ${dto.quantity}`,
+          );
+        }
+
+        await tx.product.update({
+          where: { id: dto.itemId },
+          data: { stockQuantity: { decrement: dto.quantity } },
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            tenantId,
+            productId: dto.itemId,
+            movementType: StockMovementType.OUT_WORK_ORDER,
+            quantity: dto.quantity,
+            reason: `İş Emri Sarfiyatı: ${wo.workOrderNumber}`,
+            referenceId: wo.id,
+            createdBy: author,
+          },
+        });
+      }
+
+      // 2. Add WorkOrderItem
+      const kdvRate = dto.kdvRate ?? 20;
+      const basePrice = Number(dto.unitPrice) * Number(dto.quantity);
+      const kdvAmount = (basePrice * kdvRate) / 100;
+      const totalPrice = basePrice + kdvAmount;
+
+      await tx.workOrderItem.create({
+        data: {
+          workOrderId: wo.id,
+          itemType: dto.itemType,
+          itemId: dto.itemId || null,
+          name: dto.name,
+          quantity: dto.quantity,
+          unitPrice: dto.unitPrice,
+          kdvRate,
+          totalPrice,
+        },
+      });
+
+      // 3. Recalculate totals
+      const allItems = await tx.workOrderItem.findMany({
+        where: { workOrderId: wo.id },
+      });
+
+      let newSubtotal = 0;
+      let newKdvTotal = 0;
+
+      for (const item of allItems) {
+        const itemBase = Number(item.unitPrice) * item.quantity;
+        const itemKdv = (itemBase * Number(item.kdvRate)) / 100;
+        newSubtotal += itemBase;
+        newKdvTotal += itemKdv;
+      }
+
+      const newGrandTotal = newSubtotal + newKdvTotal;
+
+      await tx.workOrder.update({
+        where: { id: wo.id },
+        data: {
+          subtotal: newSubtotal,
+          kdvAmount: newKdvTotal,
+          grandTotal: newGrandTotal,
+        },
+      });
+
+      return tx.workOrder.findUnique({
+        where: { id: wo.id },
+        include: {
+          customer: true,
+          vehicle: true,
+          assignedMechanic: { include: { user: true } },
+          items: true,
+          photos: true,
+        },
+      });
+    });
+  }
+
+  async removeItem(tenantId: string, workOrderId: string, itemId: string, author: string) {
+    const wo = await this.findOne(tenantId, workOrderId);
+    if (wo.status === WorkOrderStatus.COMPLETED || wo.status === WorkOrderStatus.CANCELLED) {
+      throw new BadRequestException('Tamamlanmış veya iptal edilmiş iş emrinden kalem silinemez.');
+    }
+
+    const item = await this.prisma.workOrderItem.findFirst({
+      where: { id: itemId, workOrderId },
+    });
+
+    if (!item) {
+      throw new NotFoundException('İş emri kalemi bulunamadı.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      if (item.itemType === WorkOrderItemType.PART && item.itemId) {
+        await tx.product.update({
+          where: { id: item.itemId },
+          data: { stockQuantity: { increment: item.quantity } },
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            tenantId,
+            productId: item.itemId,
+            movementType: StockMovementType.RETURN,
+            quantity: item.quantity,
+            reason: `İş Emrinden İade: ${wo.workOrderNumber}`,
+            referenceId: wo.id,
+            createdBy: author,
+          },
+        });
+      }
+
+      await tx.workOrderItem.delete({
+        where: { id: itemId },
+      });
+
+      const remainingItems = await tx.workOrderItem.findMany({
+        where: { workOrderId: wo.id },
+      });
+
+      let newSubtotal = 0;
+      let newKdvTotal = 0;
+
+      for (const it of remainingItems) {
+        const itemBase = Number(it.unitPrice) * it.quantity;
+        const itemKdv = (itemBase * Number(it.kdvRate)) / 100;
+        newSubtotal += itemBase;
+        newKdvTotal += itemKdv;
+      }
+
+      const newGrandTotal = newSubtotal + newKdvTotal;
+
+      await tx.workOrder.update({
+        where: { id: wo.id },
+        data: {
+          subtotal: newSubtotal,
+          kdvAmount: newKdvTotal,
+          grandTotal: newGrandTotal,
+        },
+      });
+
+      return tx.workOrder.findUnique({
+        where: { id: wo.id },
+        include: {
+          customer: true,
+          vehicle: true,
+          assignedMechanic: { include: { user: true } },
+          items: true,
+          photos: true,
+        },
+      });
     });
   }
 }

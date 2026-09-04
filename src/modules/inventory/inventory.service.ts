@@ -1,3 +1,4 @@
+import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { ProductCategory, StockMovementType } from '@prisma/client';
@@ -149,6 +150,63 @@ export class InventoryService {
       });
 
       return product;
+    });
+  }
+  async addStockMovement(
+    tenantId: string,
+    productId: string,
+    dto: CreateStockMovementDto,
+    author: string,
+  ) {
+    const product = await this.findOne(tenantId, productId);
+
+    return this.prisma.$transaction(async (tx) => {
+      let stockChange = 0;
+
+      if (dto.movementType === StockMovementType.IN_PURCHASE || dto.movementType === StockMovementType.RETURN) {
+        stockChange = dto.quantity;
+      } else if (dto.movementType === StockMovementType.OUT_WORK_ORDER) {
+        if (product.stockQuantity < dto.quantity) {
+          throw new BadRequestException(
+            `Yetersiz stok! Mevcut: ${product.stockQuantity}, Çıkış yapılmak istenen: ${dto.quantity}`,
+          );
+        }
+        stockChange = -dto.quantity;
+      } else if (dto.movementType === StockMovementType.ADJUSTMENT) {
+        // Düzeltme hareketinde girilen miktar doğrudan yeni stok adedi olarak atanır
+        stockChange = dto.quantity - product.stockQuantity;
+      }
+
+      // Stok miktarını güncelle
+      const updatedProduct = await tx.product.update({
+        where: { id: productId },
+        data: {
+          stockQuantity: product.stockQuantity + stockChange,
+        },
+      });
+
+      // Stok hareket kaydı oluştur
+      await tx.stockMovement.create({
+        data: {
+          tenantId,
+          productId,
+          movementType: dto.movementType,
+          quantity: dto.quantity,
+          referenceId: dto.referenceId || null,
+          note: dto.note || `Stok Hareketi: ${dto.movementType}`,
+          createdBy: author,
+        },
+      });
+
+      return updatedProduct;
+    });
+  }
+
+  async getMovements(tenantId: string, productId: string) {
+    await this.findOne(tenantId, productId);
+    return this.prisma.stockMovement.findMany({
+      where: { tenantId, productId },
+      orderBy: { createdAt: 'desc' },
     });
   }
 }

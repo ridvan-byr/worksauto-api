@@ -17,6 +17,7 @@ datasource db {
 // -------------------------------------------------------------
 
 enum UserRole {
+  SUPER_ADMIN
   OWNER
   SERVICE_MANAGER
   TECHNICIAN
@@ -124,6 +125,7 @@ model Tenant {
   district    String?
   logoUrl     String?
   isActive    Boolean  @default(true)
+  autoInvoiceOnComplete Boolean @default(false) @map("auto_invoice_on_complete")
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
@@ -164,22 +166,24 @@ model Branch {
 
 model User {
   id           String   @id @default(uuid()) @db.Uuid
-  tenantId     String   @map("tenant_id") @db.Uuid
+  tenantId     String?  @map("tenant_id") @db.Uuid
   branchId     String?  @map("branch_id") @db.Uuid
   name         String
   surname      String
-  email        String
-  passwordHash String   @map("password_hash")
+  phone        String   @unique
+  email        String?
+  passwordHash String?  @map("password_hash")
   role         UserRole @default(TECHNICIAN)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   refreshTokens RefreshToken[]
   mechanic      Mechanic?
 
-  @@unique([tenantId, email])
+  @@index([tenantId, phone])
+  @@index([email])
   @@map("users")
 }
 
@@ -579,7 +583,7 @@ model CariMovement {
 
 model AuditLog {
   id            String   @id @default(uuid()) @db.Uuid
-  tenantId      String   @map("tenant_id") @db.Uuid
+  tenantId      String?  @map("tenant_id") @db.Uuid
   userId        String?  @map("user_id") @db.Uuid
   action        String
   entityName    String   @map("entity_name")
@@ -590,10 +594,11 @@ model AuditLog {
   userAgent     String?  @map("user_agent")
   createdAt     DateTime @default(now()) @db.Timestamptz(6)
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, entityName, entityId])
   @@index([tenantId, createdAt])
+  @@index([action, createdAt])
   @@map("audit_logs")
 }
 

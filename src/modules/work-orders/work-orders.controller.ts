@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { AddWorkOrderItemDto } from './dto/add-item.dto';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { WorkOrdersService, CreateWorkOrderDto } from './work-orders.service';
@@ -44,10 +45,11 @@ export class WorkOrdersController {
   @ApiOperation({ summary: 'İş emri aşamasını ilerletir (QUEUE -> IN_PROGRESS -> COMPLETED)' })
   updateStatus(
     @CurrentTenant() tenantId: string,
+    @CurrentUser() user: any,
     @Param('id') id: string,
     @Body('status') status: WorkOrderStatus,
   ) {
-    return this.workOrdersService.updateStatus(tenantId, id, status);
+    return this.workOrdersService.updateStatus(tenantId, id, status, user?.id);
   }
 
   @Post(':id/rollback')
@@ -69,5 +71,28 @@ export class WorkOrdersController {
     @CurrentUser('name') userName: string,
   ) {
     return this.workOrdersService.addPhoto(tenantId, id, url, caption, photoType || WorkOrderPhotoType.CHECKIN, userName || 'Personel');
+  }
+  @Post(':id/items')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Açık iş emrine yeni parça veya işçilik kalemi ekler (Stoktan atomik düşer)' })
+  addItem(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: AddWorkOrderItemDto,
+    @CurrentUser('name') userName: string,
+  ) {
+    return this.workOrdersService.addItem(tenantId, id, dto, userName || 'Teknisyen');
+  }
+
+  @Delete(':id/items/:itemId')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'İş emrinden kalem çıkarır (Parça stoğunu depoya iade eder)' })
+  removeItem(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @CurrentUser('name') userName: string,
+  ) {
+    return this.workOrdersService.removeItem(tenantId, id, itemId, userName || 'Teknisyen');
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
-import { AppointmentStatus } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import { AppointmentStatus, WorkOrderStatus } from '@prisma/client';
 
 export interface CreateAppointmentDto {
   customerId: string;
@@ -16,7 +17,10 @@ export interface CreateAppointmentDto {
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async findAll(tenantId: string, date?: string) {
     return this.prisma.appointment.findMany({
@@ -49,7 +53,7 @@ export class AppointmentsService {
     return app;
   }
 
-  async create(tenantId: string, dto: CreateAppointmentDto) {
+  async create(tenantId: string, dto: CreateAppointmentDto, userId?: string) {
     const start = new Date(dto.slotStartTime);
     const end = new Date(dto.slotEndTime);
 
@@ -87,7 +91,7 @@ export class AppointmentsService {
       }
     }
 
-    return this.prisma.appointment.create({
+    const app = await this.prisma.appointment.create({
       data: {
         tenantId,
         customerId: dto.customerId,
@@ -103,13 +107,120 @@ export class AppointmentsService {
       },
       include: { customer: true, vehicle: true, service: true },
     });
+
+    await this.auditService.log({
+      tenantId,
+      userId,
+      action: 'appointment.created',
+      entityName: 'Appointment',
+      entityId: app.id,
+      changesAfter: {
+        customerId: app.customerId,
+        vehicleId: app.vehicleId,
+        slotDate: app.slotDate,
+        status: app.status,
+      },
+    });
+
+    return app;
   }
 
-  async updateStatus(tenantId: string, id: string, status: AppointmentStatus, cancellationReason?: string) {
-    await this.findOne(tenantId, id);
-    return this.prisma.appointment.update({
+  async updateStatus(
+    tenantId: string,
+    id: string,
+    status: AppointmentStatus,
+    cancellationReason?: string,
+    userId?: string,
+  ) {
+    const current = await this.findOne(tenantId, id);
+    const updated = await this.prisma.appointment.update({
       where: { id },
       data: { status, cancellationReason },
     });
+
+    await this.auditService.log({
+      tenantId,
+      userId,
+      action: 'appointment.status_changed',
+      entityName: 'Appointment',
+      entityId: id,
+      changesBefore: { status: current.status },
+      changesAfter: { status: updated.status, cancellationReason },
+    });
+
+    return updated;
+  }
+
+  async markNoShow(tenantId: string, id: string, userId?: string) {
+    const current = await this.findOne(tenantId, id);
+    const updated = await this.prisma.appointment.update({
+      where: { id },
+      data: { status: AppointmentStatus.NO_SHOW },
+    });
+
+    await this.auditService.log({
+      tenantId,
+      userId,
+      action: 'appointment.no_show',
+      entityName: 'Appointment',
+      entityId: id,
+      changesBefore: { status: current.status },
+      changesAfter: { status: AppointmentStatus.NO_SHOW },
+    });
+
+    return {
+      success: true,
+      message: 'Randevu "Gelmedi (No-Show)" olarak işaretlendi.',
+      appointment: updated,
+    };
+  }
+
+  async cancelAppointment(
+    tenantId: string,
+    id: string,
+    reason: string,
+    userId?: string,
+  ) {
+    const current = await this.findOne(tenantId, id);
+
+    // If there is an associated active work order in QUEUE, cancel it too
+    if (current.workOrder && current.workOrder.status === WorkOrderStatus.QUEUE) {
+      await this.prisma.workOrder.update({
+        where: { id: current.workOrder.id },
+        data: { status: WorkOrderStatus.CANCELLED },
+      });
+      await this.auditService.log({
+        tenantId,
+        userId,
+        action: 'work_order.auto_cancelled',
+        entityName: 'WorkOrder',
+        entityId: current.workOrder.id,
+        changesAfter: { reason: 'Appointment cancelled: ' + reason },
+      });
+    }
+
+    const updated = await this.prisma.appointment.update({
+      where: { id },
+      data: {
+        status: AppointmentStatus.CANCELLED,
+        cancellationReason: reason,
+      },
+    });
+
+    await this.auditService.log({
+      tenantId,
+      userId,
+      action: 'appointment.cancelled',
+      entityName: 'Appointment',
+      entityId: id,
+      changesBefore: { status: current.status },
+      changesAfter: { status: AppointmentStatus.CANCELLED, cancellationReason: reason },
+    });
+
+    return {
+      success: true,
+      message: 'Randevu başarıyla iptal edildi.',
+      appointment: updated,
+    };
   }
 }

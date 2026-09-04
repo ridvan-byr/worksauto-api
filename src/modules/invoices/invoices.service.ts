@@ -69,9 +69,18 @@ export class InvoicesService {
       });
 
       // Update Current Account (Cari Hesap Borç Ekle)
-      const currentAccount = await tx.currentAccount.findUnique({
+      let currentAccount = await tx.currentAccount.findUnique({
         where: { customerId: dto.customerId },
       });
+
+      if (!currentAccount) {
+        currentAccount = await tx.currentAccount.create({
+          data: {
+            tenantId,
+            customerId: dto.customerId,
+          },
+        });
+      }
 
       if (currentAccount) {
         const newTotalDebits = Number(currentAccount.totalDebits) + dto.grandTotal;

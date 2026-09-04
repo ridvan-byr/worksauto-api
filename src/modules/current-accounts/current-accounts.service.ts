@@ -13,15 +13,25 @@ export class CurrentAccountsService {
     });
   }
 
-  async findByCustomerId(tenantId: string, customerId: string) {
-    const ca = await this.prisma.currentAccount.findFirst({
+    async findByCustomerId(tenantId: string, customerId: string) {
+    let ca = await this.prisma.currentAccount.findFirst({
       where: { tenantId, customerId },
       include: {
         customer: true,
         movements: { orderBy: { date: 'desc' } },
       },
     });
-    if (!ca) throw new NotFoundException('Cari hesap bulunamadı.');
+    if (!ca) {
+      const customer = await this.prisma.customer.findFirst({ where: { id: customerId, tenantId } });
+      if (!customer) throw new NotFoundException('Müşteri bulunamadı.');
+      ca = await this.prisma.currentAccount.create({
+        data: { tenantId, customerId },
+        include: {
+          customer: true,
+          movements: { orderBy: { date: 'desc' } },
+        },
+      });
+    }
     return ca;
   }
 }

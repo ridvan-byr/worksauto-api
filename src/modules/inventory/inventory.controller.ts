@@ -1,3 +1,4 @@
+import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
 import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
@@ -41,5 +42,23 @@ export class InventoryController {
     @CurrentUser('name') userName: string,
   ) {
     return this.inventoryService.create(tenantId, dto, userName || 'Depo Sorumlusu');
+  }
+  @Post(':id/stock-movement')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.WAREHOUSE_KEEPER)
+  @ApiOperation({ summary: 'Stok hareketi (Mal Kabul / İrsaliye / Sayım Düzeltmesi) kaydeder' })
+  addStockMovement(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: CreateStockMovementDto,
+    @CurrentUser('name') userName: string,
+  ) {
+    return this.inventoryService.addStockMovement(tenantId, id, dto, userName || 'Depo Sorumlusu');
+  }
+
+  @Get(':id/movements')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.WAREHOUSE_KEEPER)
+  @ApiOperation({ summary: 'Bir parçanın geçmiş stok hareket dökümünü getirir' })
+  getMovements(@CurrentTenant() tenantId: string, @Param('id') id: string) {
+    return this.inventoryService.getMovements(tenantId, id);
   }
 }

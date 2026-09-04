@@ -166,4 +166,45 @@ export class CustomersService {
       return anonymized;
     });
   }
+
+  async getCustomerStats(tenantId: string, id: string) {
+    const customer = await this.findOne(tenantId, id);
+
+    const appointments = await this.prisma.appointment.findMany({
+      where: { tenantId, customerId: id },
+      select: { status: true },
+    });
+
+    const total = appointments.length;
+    const completed = appointments.filter((a) => a.status === 'COMPLETED').length;
+    const cancelled = appointments.filter((a) => a.status === 'CANCELLED').length;
+    const noShow = appointments.filter((a) => a.status === 'NO_SHOW').length;
+    const active = appointments.filter((a) => ['PENDING', 'CONFIRMED', 'IN_SERVICE'].includes(a.status)).length;
+
+    const evaluated = total - active;
+    const reliabilityRate = evaluated > 0 ? Math.round((completed / evaluated) * 100) : 100;
+    const noShowRate = evaluated > 0 ? Math.round((noShow / evaluated) * 100) : 0;
+
+    let reliabilityBadge = 'GÜVENİLİR (YÜKSEK)';
+    if (noShow >= 2 || reliabilityRate < 70) {
+      reliabilityBadge = 'RİSKLİ (NO-SHOW SIK)';
+    } else if (reliabilityRate < 90) {
+      reliabilityBadge = 'ORTA';
+    }
+
+    return {
+      customerId: id,
+      customerName: `${customer.firstName} ${customer.lastName}`,
+      totalAppointments: total,
+      completedAppointments: completed,
+      cancelledAppointments: cancelled,
+      noShowAppointments: noShow,
+      activeAppointments: active,
+      reliabilityRate: `${reliabilityRate}%`,
+      noShowRate: `${noShowRate}%`,
+      reliabilityBadge,
+      creditLimit: customer.creditLimit,
+      balance: customer.currentAccount?.balance ?? 0,
+    };
+  }
 }

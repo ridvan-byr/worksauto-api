@@ -21,7 +21,15 @@ export class CustomersController {
     return this.customersService.findAll(tenantId, search);
   }
 
-  @Get(':id')
+
+  @Get(':id/stats')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN, UserRole.CASHIER)
+  @ApiOperation({ summary: 'Müşterinin randevu karnesi, güvenilirlik ve no-show istatistiklerini döner' })
+  getStats(@CurrentTenant() tenantId: string, @Param('id') id: string) {
+    return this.customersService.getCustomerStats(tenantId, id);
+  }
+
+    @Get(':id')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
   @ApiOperation({ summary: 'Müşteri detayını ve geçmiş iş emirlerini döner' })
   findOne(@CurrentTenant() tenantId: string, @Param('id') id: string) {
