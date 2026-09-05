@@ -1,6 +1,5 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { AppointmentsService, CreateAppointmentDto, CreatePublicAppointmentDto } from './appointments.service';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
@@ -37,6 +36,42 @@ export class AppointmentsController {
     @Body() dto: CreateAppointmentDto,
   ) {
     return this.appointmentsService.create(tenantId, dto, user?.id);
+  }
+
+  @Post(':id/approve')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Randevuyu onaylar (CONFIRMED durumuna alır)' })
+  approve(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+  ) {
+    return this.appointmentsService.approve(tenantId, id, user?.id);
+  }
+
+  @Post(':id/reschedule')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Randevu tarih ve saatini yeniden planlar (Usta/Lift çakışma kilitli)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        slotDate: { type: 'string', example: '2026-09-12' },
+        slotStartTime: { type: 'string', example: '2026-09-12T09:00:00.000Z' },
+        slotEndTime: { type: 'string', example: '2026-09-12T10:00:00.000Z' },
+        assignedMechanicId: { type: 'string' },
+        assignedLift: { type: 'string' },
+      },
+      required: ['slotDate', 'slotStartTime', 'slotEndTime'],
+    },
+  })
+  reschedule(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: { slotDate: string; slotStartTime: string; slotEndTime: string; assignedMechanicId?: string; assignedLift?: string },
+  ) {
+    return this.appointmentsService.reschedule(tenantId, id, dto, user?.id);
   }
 
   @Patch(':id/status')

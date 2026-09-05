@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -270,6 +270,115 @@ export class AppointmentsService {
         plate,
       });
     }
+
+    return updated;
+  }
+
+  async approve(tenantId: string, id: string, userId?: string) {
+    return this.updateStatus(tenantId, id, AppointmentStatus.CONFIRMED, undefined, userId);
+  }
+
+  async reschedule(
+    tenantId: string,
+    id: string,
+    dto: { slotDate: string; slotStartTime: string; slotEndTime: string; assignedMechanicId?: string; assignedLift?: string },
+    userId?: string,
+  ) {
+    const current = await this.findOne(tenantId, id);
+    const start = new Date(dto.slotStartTime);
+    const end = new Date(dto.slotEndTime);
+
+    const targetMechanicId = dto.assignedMechanicId !== undefined ? dto.assignedMechanicId : current.assignedMechanicId;
+    const targetLift = dto.assignedLift !== undefined ? dto.assignedLift : current.assignedLift;
+
+    if (targetMechanicId) {
+      const mechConflict = await this.prisma.appointment.findFirst({
+        where: {
+          tenantId,
+          id: { not: id },
+          assignedMechanicId: targetMechanicId,
+          status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.IN_SERVICE] },
+          slotStartTime: { lt: end },
+          slotEndTime: { gt: start },
+        },
+      });
+      if (mechConflict) {
+        throw new BadRequestException('Seçilen teknisyen belirtilen yeni saat aralığında başka bir randevudadır.');
+      }
+    }
+
+    if (targetLift) {
+      const liftConflict = await this.prisma.appointment.findFirst({
+        where: {
+          tenantId,
+          id: { not: id },
+          assignedLift: targetLift,
+          status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.IN_SERVICE] },
+          slotStartTime: { lt: end },
+          slotEndTime: { gt: start },
+        },
+      });
+      if (liftConflict) {
+        throw new BadRequestException(`Lift ${targetLift} belirtilen yeni saat aralığında doludur.`);
+      }
+    }
+
+    const updated = await this.prisma.appointment.update({
+      where: { id },
+      data: {
+        slotDate: new Date(dto.slotDate),
+        slotStartTime: start,
+        slotEndTime: end,
+        assignedMechanicId: targetMechanicId || null,
+        assignedLift: targetLift || null,
+        status: AppointmentStatus.CONFIRMED,
+      },
+      include: { customer: true, vehicle: true, service: true },
+    });
+
+    await this.auditService.log({
+      tenantId,
+      userId,
+      action: 'appointment.rescheduled',
+      entityName: 'Appointment',
+      entityId: id,
+      changesBefore: {
+        slotDate: current.slotDate,
+        slotStartTime: current.slotStartTime,
+        slotEndTime: current.slotEndTime,
+        assignedMechanicId: current.assignedMechanicId,
+        assignedLift: current.assignedLift,
+      },
+      changesAfter: {
+        slotDate: updated.slotDate,
+        slotStartTime: updated.slotStartTime,
+        slotEndTime: updated.slotEndTime,
+        assignedMechanicId: updated.assignedMechanicId,
+        assignedLift: updated.assignedLift,
+      },
+    });
+
+    const plate = updated.vehicle?.plate || 'Araç';
+    const dateStr = updated.slotDate ? new Date(updated.slotDate).toLocaleDateString('tr-TR') : '';
+
+    await this.notificationsService.createNotification({
+      tenantId,
+      actorUserId: userId,
+      targetRoles: ['OWNER', 'SERVICE_MANAGER', 'TECHNICIAN'],
+      category: 'APPOINTMENT',
+      type: 'INFO' as any,
+      title: `Randevu Yeniden Planlandı: ${plate}`,
+      message: `${plate} randevusu ${dateStr} tarihine yeniden planlandı.`,
+      link: '/appointments',
+      metadata: { appointmentId: id, plate, slotDate: updated.slotDate },
+    });
+
+    this.eventsGateway.emitToTenant(tenantId, 'appointment:rescheduled', {
+      appointmentId: id,
+      plate,
+      slotDate: updated.slotDate,
+      slotStartTime: updated.slotStartTime,
+    });
 
     return updated;
   }

@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
-import { InvoiceStatus, CariReferenceType } from '@prisma/client';
+import { InvoiceStatus, CariReferenceType, NotificationType } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface CreateInvoiceDto {
   workOrderId?: string;
@@ -17,6 +18,7 @@ export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async findAll(tenantId: string, status?: InvoiceStatus) {
@@ -111,6 +113,30 @@ export class InvoicesService {
             balanceAfter: newBalance,
           },
         });
+
+        // CREDIT LIMIT CHECK (Şartname Madde 28): Limit aşılırsa işlem engellenmez, uyarı bildirimi üretilir
+        const customer = await tx.customer.findUnique({
+          where: { id: dto.customerId },
+          select: { firstName: true, lastName: true, companyTitle: true, creditLimit: true },
+        });
+
+        if (customer && Number(customer.creditLimit) > 0 && newBalance > Number(customer.creditLimit)) {
+          const custName = customer.companyTitle || `${customer.firstName} ${customer.lastName}`.trim();
+          try {
+            await this.notificationsService.createNotification({
+              tenantId,
+              targetRoles: ['OWNER', 'SERVICE_MANAGER', 'CASHIER'],
+              category: 'FINANCE',
+              type: NotificationType.WARNING,
+              title: `Borç Limiti Aşıldı: ${custName}`,
+              message: `${custName} için belirlenen ${Number(customer.creditLimit).toLocaleString('tr-TR')} ₺ borç limiti aşıldı! Güncel Bakiye: ${newBalance.toLocaleString('tr-TR')} ₺`,
+              link: '/current-accounts',
+              metadata: { customerId: dto.customerId, balance: newBalance, creditLimit: Number(customer.creditLimit) },
+            });
+          } catch (e) {
+            // Notification error resilience
+          }
+        }
       }
 
       try {
