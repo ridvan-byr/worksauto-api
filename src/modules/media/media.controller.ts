@@ -58,14 +58,20 @@ export class MediaController {
 
   @Get('presigned-url/*')
   @ApiOperation({ summary: 'MinIO nesnesi için güvenli geçici indirme linki üret' })
-  async getPresignedUrl(@Param('0') objectKey: string) {
-    const url = await this.mediaService.getPresignedUrl(objectKey);
+  async getPresignedUrl(
+    @CurrentTenant() tenantId: string,
+    @Param('0') objectKey: string,
+  ) {
+    const url = await this.mediaService.getPresignedUrl(tenantId, objectKey);
     return { url };
   }
 
   @Delete('work-orders/photos/:photoId')
   @ApiOperation({ summary: 'İş emri fotoğrafını sil' })
-  async deleteWorkOrderPhoto(@Param('photoId') photoId: string) {
-    return this.mediaService.deleteWorkOrderPhoto(photoId);
+  async deleteWorkOrderPhoto(
+    @CurrentTenant() tenantId: string,
+    @Param('photoId') photoId: string,
+  ) {
+    return this.mediaService.deleteWorkOrderPhoto(tenantId, photoId);
   }
 }

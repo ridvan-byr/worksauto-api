@@ -108,14 +108,11 @@ export class InventoryService {
    * Prevents negative stock under extreme concurrency.
    */
   async decrementStockAtomic(tenantId: string, productId: string, quantity: number, refId: string, author: string) {
-    const updated = await this.prisma.$executeRawUnsafe(
-      `UPDATE products 
-       SET stock_quantity = stock_quantity - $1 
-       WHERE id = $2::uuid AND tenant_id = $3::uuid AND stock_quantity >= $1`,
-      quantity,
-      productId,
-      tenantId,
-    );
+    const updated = await this.prisma.$executeRaw`
+      UPDATE products 
+      SET stock_quantity = stock_quantity - ${quantity} 
+      WHERE id = ${productId}::uuid AND tenant_id = ${tenantId}::uuid AND stock_quantity >= ${quantity}
+    `;
 
     if (updated === 0) {
       throw new BadRequestException('Yetersiz stok! Talep edilen miktar mevcut stoktan fazladır.');

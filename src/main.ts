@@ -11,6 +11,7 @@ async function bootstrap() {
   // 1. CORS Configuration for Next.js Web App
   app.enableCors({
     origin: [
+      'http://localhost',
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'https://worksauto.local',
@@ -19,6 +20,12 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Idempotency-Key, X-Tenant-Id',
   });
+
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.includes('super_secret_jwt_key_2026_production_grade')) {
+      logger.warn('⚠️ GÜVENLİK UYARISI: Varsayılan JWT_SECRET anahtarı kullanılıyor! Canlı sunucuda lütfen .env dosyasında rastgele ve güçlü bir JWT_SECRET tanımlayınız.');
+    }
+  }
 
   // 2. Global Request Validation
   app.useGlobalPipes(

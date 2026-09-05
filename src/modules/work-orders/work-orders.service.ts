@@ -207,6 +207,32 @@ export class WorkOrdersService {
       },
     });
 
+    // STOCK ROLLBACK RULE: If work order is cancelled, restore reserved parts back to inventory
+    if (statusToSave === WorkOrderStatus.CANCELLED && wo.status !== WorkOrderStatus.CANCELLED) {
+      await this.prisma.$transaction(async (tx) => {
+        for (const item of wo.items) {
+          if (item.itemType === WorkOrderItemType.PART && item.itemId) {
+            await tx.product.update({
+              where: { id: item.itemId },
+              data: { stockQuantity: { increment: item.quantity } },
+            });
+
+            await tx.stockMovement.create({
+              data: {
+                tenantId,
+                productId: item.itemId,
+                movementType: StockMovementType.RETURN,
+                quantity: item.quantity,
+                referenceId: id,
+                note: `İş emri iptali nedeniyle stok iadesi (#${wo.workOrderNumber})`,
+                createdBy: userId || 'SYSTEM',
+              },
+            });
+          }
+        }
+      });
+    }
+
     // AUTO-INVOICE RULE: If tenant configured autoInvoiceOnComplete, automatically create invoice
     if (newStatus === WorkOrderStatus.COMPLETED) {
       const tenant = await this.prisma.tenant.findUnique({

@@ -1,15 +1,15 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { AppointmentsService, CreateAppointmentDto } from './appointments.service';
+import { AppointmentsService, CreateAppointmentDto, CreatePublicAppointmentDto } from './appointments.service';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { Public } from '../../shared/decorators/public.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { UserRole, AppointmentStatus } from '@prisma/client';
 
 @ApiTags('Appointments (Randevu Takvimi)')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(AuthGuard('jwt'))
 @Controller('appointments')
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
@@ -74,5 +74,15 @@ export class AppointmentsController {
     @Body('reason') reason: string,
   ) {
     return this.appointmentsService.cancelAppointment(tenantId, id, reason || 'Belirtilmedi', user?.id);
+  }
+
+  @Public()
+  @Post('public/:slug')
+  @ApiOperation({ summary: 'Dış müşteri randevu formu (Oturumsuz, herkese açık online randevu)' })
+  createPublic(
+    @Param('slug') slug: string,
+    @Body() dto: CreatePublicAppointmentDto,
+  ) {
+    return this.appointmentsService.createPublicAppointment(slug, dto);
   }
 }

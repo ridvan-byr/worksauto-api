@@ -140,6 +140,17 @@ export class AuthService {
     }
 
     const redisKey = `otp:${normalizedPhone}`;
+    const attemptKey = `otp_attempts:${normalizedPhone}`;
+
+    // Brute-force deneme kontrolü (Maksimum 5 deneme)
+    const attempts = parseInt((await this.redis.get(attemptKey)) || '0', 10);
+    if (attempts >= 5) {
+      await this.redis.del(redisKey);
+      throw new UnauthorizedException(
+        'Çok fazla hatalı kod denemesi yapıldı. Güvenliğiniz için doğrulama kodu iptal edildi. Lütfen 15 dakika sonra yeni bir kod isteyiniz.',
+      );
+    }
+
     const cachedCode = await this.redis.get(redisKey);
 
     // Geliştirme ortamında sabit 123456 bypass desteği veya Redis'teki kod kontrolü
@@ -149,11 +160,20 @@ export class AuthService {
     }
 
     if (cachedCode && cachedCode !== dto.code && !isMasterDevCode) {
-      throw new UnauthorizedException('Girdiğiniz doğrulama kodu hatalı. Lütfen kontrol ediniz.');
+      const newAttempts = attempts + 1;
+      await this.redis.set(attemptKey, newAttempts.toString(), 900); // 15 dakika TTL
+      if (newAttempts >= 5) {
+        await this.redis.del(redisKey);
+        throw new UnauthorizedException(
+          'Çok fazla hatalı kod denemesi yapıldı. Güvenliğiniz için doğrulama kodu iptal edildi. Lütfen 15 dakika sonra yeni bir kod isteyiniz.',
+        );
+      }
+      throw new UnauthorizedException(`Girdiğiniz doğrulama kodu hatalı. Kalan deneme hakkı: ${5 - newAttempts}`);
     }
 
-    // Kod doğrulandı, tek kullanımlık kodu Redis'ten sil
+    // Kod başarıyla doğrulandı, tek kullanımlık kodu ve deneme sayacını Redis'ten sil
     await this.redis.del(redisKey);
+    await this.redis.del(attemptKey);
 
     // 30 GÜNLÜK (1 AY) REFRESH TOKEN ÜRET
     const tokens = await this.generateTokens(user, user.tenantId);

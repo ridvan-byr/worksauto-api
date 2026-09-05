@@ -4,7 +4,19 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EventsGateway } from '../events/events.gateway';
 import { QueueService } from '../queues/queue.service';
-import { AppointmentStatus, WorkOrderStatus } from '@prisma/client';
+import { AppointmentStatus, WorkOrderStatus, NotificationType } from '@prisma/client';
+
+export interface CreatePublicAppointmentDto {
+  customerName: string;
+  customerPhone: string;
+  plate: string;
+  brandModel?: string;
+  serviceId?: string;
+  slotDate: string; // YYYY-MM-DD
+  slotStartTime: string; // ISO
+  slotEndTime: string; // ISO
+  customerNotes?: string;
+}
 
 export interface CreateAppointmentDto {
   customerId: string;
@@ -294,12 +306,44 @@ export class AppointmentsService {
   ) {
     const current = await this.findOne(tenantId, id);
 
-    // If there is an associated active work order in QUEUE, cancel it too
-    if (current.workOrder && current.workOrder.status === WorkOrderStatus.QUEUE) {
-      await this.prisma.workOrder.update({
-        where: { id: current.workOrder.id },
-        data: { status: WorkOrderStatus.CANCELLED },
+    // If there is an associated active work order, cancel it too and restore reserved parts
+    if (
+      current.workOrder &&
+      current.workOrder.status !== WorkOrderStatus.CANCELLED &&
+      current.workOrder.status !== WorkOrderStatus.COMPLETED
+    ) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.workOrder.update({
+          where: { id: current.workOrder!.id },
+          data: { status: WorkOrderStatus.CANCELLED },
+        });
+
+        const items = await tx.workOrderItem.findMany({
+          where: { workOrderId: current.workOrder!.id },
+        });
+
+        for (const item of items) {
+          if (item.itemType === 'PART' && item.itemId) {
+            await tx.product.update({
+              where: { id: item.itemId },
+              data: { stockQuantity: { increment: item.quantity } },
+            });
+
+            await tx.stockMovement.create({
+              data: {
+                tenantId,
+                productId: item.itemId,
+                movementType: 'RETURN',
+                quantity: item.quantity,
+                referenceId: current.workOrder!.id,
+                note: `Randevu iptali nedeniyle iş emrinden stok iadesi`,
+                createdBy: userId || 'SYSTEM',
+              },
+            });
+          }
+        }
       });
+
       await this.auditService.log({
         tenantId,
         userId,
@@ -332,6 +376,128 @@ export class AppointmentsService {
       success: true,
       message: 'Randevu başarıyla iptal edildi.',
       appointment: updated,
+    };
+  }
+
+  async createPublicAppointment(slug: string, dto: CreatePublicAppointmentDto) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { slug },
+    });
+
+    if (!tenant || !tenant.isActive) {
+      throw new NotFoundException('Belirtilen oto servisi bulunamadı veya hizmete kapalıdır.');
+    }
+
+    const cleanPhone = dto.customerPhone.replace(/\D/g, '');
+    const cleanPlate = dto.plate.toUpperCase().trim();
+
+    // 1. Müşteri bul veya oluştur
+    let customer = await this.prisma.customer.findFirst({
+      where: {
+        tenantId: tenant.id,
+        phone: { contains: cleanPhone.slice(-10) },
+      },
+    });
+
+    if (!customer) {
+      const parts = dto.customerName.trim().split(' ');
+      const firstName = parts[0] || 'Müşteri';
+      const lastName = parts.slice(1).join(' ') || '-';
+      customer = await this.prisma.customer.create({
+        data: {
+          tenantId: tenant.id,
+          firstName,
+          lastName,
+          phone: dto.customerPhone,
+        },
+      });
+    }
+
+    // 2. Araç bul veya oluştur
+    let vehicle = await this.prisma.vehicle.findFirst({
+      where: {
+        tenantId: tenant.id,
+        plate: cleanPlate,
+      },
+    });
+
+    if (!vehicle) {
+      const brandParts = (dto.brandModel || 'Genel Araç').trim().split(' ');
+      vehicle = await this.prisma.vehicle.create({
+        data: {
+          tenantId: tenant.id,
+          customerId: customer.id,
+          plate: cleanPlate,
+          brand: brandParts[0] || 'Genel',
+          model: brandParts.slice(1).join(' ') || 'Model',
+          year: new Date().getFullYear(),
+        },
+      });
+    }
+
+    // 3. Hizmet belirle veya oluştur
+    let targetServiceId = dto.serviceId;
+    if (!targetServiceId) {
+      let defaultService = await this.prisma.service.findFirst({
+        where: { tenantId: tenant.id, isActive: true },
+      });
+      if (!defaultService) {
+        defaultService = await this.prisma.service.create({
+          data: {
+            tenant: { connect: { id: tenant.id } },
+            name: 'Genel Bakım & Kontrol',
+            code: 'SRV-GENEL',
+            category: 'Periyodik Bakım',
+            defaultDurationMin: 60,
+            basePrice: 500,
+          },
+        });
+      }
+      targetServiceId = defaultService.id;
+    }
+
+    // 4. Randevu oluştur
+    const appointment = await this.prisma.appointment.create({
+      data: {
+        tenant: { connect: { id: tenant.id } },
+        customer: { connect: { id: customer.id } },
+        vehicle: { connect: { id: vehicle.id } },
+        service: { connect: { id: targetServiceId } },
+        slotDate: new Date(dto.slotDate),
+        slotStartTime: new Date(dto.slotStartTime),
+        slotEndTime: new Date(dto.slotEndTime),
+        customerNotes: dto.customerNotes || 'Web üzerinden online randevu oluşturuldu.',
+        status: AppointmentStatus.PENDING,
+      },
+      include: {
+        customer: true,
+        vehicle: true,
+        service: true,
+      },
+    });
+
+    // 4. WebSocket & Bildirim
+    this.eventsGateway.emitToTenant(tenant.id, 'appointment:created', {
+      appointmentId: appointment.id,
+      customerName: `${customer.firstName} ${customer.lastName}`,
+      plate: vehicle.plate,
+      slotDate: dto.slotDate,
+      isOnlineBooking: true,
+    });
+
+    await this.notificationsService.createNotification({
+      tenantId: tenant.id,
+      title: 'Yeni Online Randevu!',
+      message: `${vehicle.plate} plakalı araç için ${dto.slotDate} tarihine randevu talebi alındı.`,
+      type: NotificationType.INFO,
+      category: 'APPOINTMENT',
+      link: '/appointments',
+    });
+
+    return {
+      success: true,
+      message: 'Randevu talebiniz başarıyla alındı. Servis danışmanımız sizinle iletişime geçecektir.',
+      appointment,
     };
   }
 }

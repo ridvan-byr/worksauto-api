@@ -589,23 +589,23 @@ export class AdminService {
       const matchingCustomerIds = matchingCustomers.map((c) => c.id);
 
       // 3. JSON Payload (changes_after & changes_before) Derin Arama
-      const matchingJsonRows: { id: string }[] = await this.prisma.$queryRawUnsafe(
-        `SELECT id FROM audit_logs 
-         WHERE (CAST(changes_after AS TEXT) ILIKE $1 OR CAST(changes_before AS TEXT) ILIKE $1)
-         LIMIT 100`,
-        `%${search}%`
-      );
+      const searchPattern = `%${search}%`;
+      const matchingJsonRows = await this.prisma.$queryRaw<{ id: string }[]>`
+        SELECT id FROM audit_logs 
+        WHERE (CAST(changes_after AS TEXT) ILIKE ${searchPattern} OR CAST(changes_before AS TEXT) ILIKE ${searchPattern})
+        LIMIT 100
+      `;
       const matchingJsonIds = matchingJsonRows.map((r) => r.id);
 
       // Boşluksuz plaka araması da JSON içinde taranır (örn: 34abc789 -> 34 ABC 789)
       const cleanPlateQ = search.replace(/\s/g, '');
       if (cleanPlateQ.length >= 4 && cleanPlateQ !== search) {
-        const plateJsonRows: { id: string }[] = await this.prisma.$queryRawUnsafe(
-          `SELECT id FROM audit_logs 
-           WHERE (CAST(changes_after AS TEXT) ILIKE $1 OR CAST(changes_before AS TEXT) ILIKE $1)
-           LIMIT 50`,
-          `%${cleanPlateQ}%`
-        );
+        const cleanPlatePattern = `%${cleanPlateQ}%`;
+        const plateJsonRows = await this.prisma.$queryRaw<{ id: string }[]>`
+          SELECT id FROM audit_logs 
+          WHERE (CAST(changes_after AS TEXT) ILIKE ${cleanPlatePattern} OR CAST(changes_before AS TEXT) ILIKE ${cleanPlatePattern})
+          LIMIT 50
+        `;
         for (const pr of plateJsonRows) {
           if (!matchingJsonIds.includes(pr.id)) matchingJsonIds.push(pr.id);
         }

@@ -29,4 +29,50 @@ export class TenantsService {
       data: dto,
     });
   }
+
+  async getBySlugPublic(slug: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        phone: true,
+        email: true,
+        address: true,
+        city: true,
+        district: true,
+        logoUrl: true,
+        isActive: true,
+        services: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            defaultDurationMin: true,
+            basePrice: true,
+            category: true,
+            code: true,
+          },
+          orderBy: { name: 'asc' },
+        },
+      },
+    });
+
+    if (!tenant || !tenant.isActive) {
+      throw new NotFoundException(`"${slug}" adresine sahip aktif bir servis bulunamadı.`);
+    }
+
+    return {
+      ...tenant,
+      services: tenant.services.map((s) => ({
+        id: s.id,
+        name: s.name,
+        code: s.code,
+        durationMinutes: s.defaultDurationMin,
+        laborPrice: Number(s.basePrice),
+        category: s.category,
+      })),
+    };
+  }
 }

@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -118,7 +118,7 @@ export class MediaService implements OnModuleInit {
     });
 
     // Generate presigned URL for display
-    const presignedUrl = await this.getPresignedUrl(objectKey);
+    const presignedUrl = await this.getPresignedUrl(tenantId, objectKey);
 
     return {
       ...photo,
@@ -127,9 +127,14 @@ export class MediaService implements OnModuleInit {
   }
 
   /**
-   * Generate temporary presigned download URL
+   * Generate temporary presigned download URL (Tenant-scoped security check)
    */
-  async getPresignedUrl(objectKey: string, expiresInSeconds = 3600): Promise<string> {
+  async getPresignedUrl(tenantId: string, objectKey: string, expiresInSeconds = 3600): Promise<string> {
+    // Cross-tenant protection: ObjectKey must belong to the requesting tenant or be public
+    if (tenantId && !objectKey.startsWith(`${tenantId}/`) && !objectKey.startsWith('public/')) {
+      throw new ForbiddenException('Bu medyaya erişim yetkiniz bulunmamaktadır.');
+    }
+
     try {
       const command = new GetObjectCommand({
         Bucket: this.bucketName,
@@ -143,15 +148,25 @@ export class MediaService implements OnModuleInit {
   }
 
   /**
-   * Delete object from MinIO and DB
+   * Delete object from MinIO and DB with strict tenant verification
    */
-  async deleteWorkOrderPhoto(photoId: string) {
+  async deleteWorkOrderPhoto(tenantId: string, photoId: string) {
     const photo = await this.prisma.workOrderPhoto.findUnique({
       where: { id: photoId },
+      include: {
+        workOrder: {
+          select: { tenantId: true },
+        },
+      },
     });
 
     if (!photo) {
       throw new BadRequestException('Fotoğraf bulunamadı.');
+    }
+
+    // Strict Cross-tenant validation
+    if (photo.workOrder && photo.workOrder.tenantId !== tenantId) {
+      throw new ForbiddenException('Bu fotoğrafı silme yetkiniz bulunmamaktadır.');
     }
 
     // Delete from MinIO
