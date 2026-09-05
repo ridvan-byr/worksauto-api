@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
-import { PaymentMethod, InvoiceStatus, CariReferenceType } from '@prisma/client';
+import { PaymentMethod, InvoiceStatus, CariReferenceType, NotificationType } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { EventsGateway } from '../events/events.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
+import { QueueService } from '../queues/queue.service';
 
 export interface CreatePaymentDto {
   invoiceId?: string;
@@ -18,6 +21,9 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly eventsGateway: EventsGateway,
+    private readonly notificationsService: NotificationsService,
+    private readonly queueService: QueueService,
   ) {}
 
   async findAll(tenantId: string) {
@@ -28,7 +34,7 @@ export class PaymentsService {
     });
   }
 
-  async create(tenantId: string, dto: CreatePaymentDto, cashierName: string) {
+  async create(tenantId: string, dto: CreatePaymentDto, cashierName: string, actorUserId?: string) {
     let customerId = dto.customerId;
     const paymentMethod = dto.paymentMethod || dto.method || PaymentMethod.CASH;
 
@@ -44,7 +50,7 @@ export class PaymentsService {
       throw new BadRequestException('Müşteri ID (customerId) belirtilmelidir.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const createdPayment = await this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.create({
         data: {
           tenantId,
@@ -131,6 +137,32 @@ export class PaymentsService {
 
       return payment;
     });
+
+    // Real-time WebSocket emission & in-app notification
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { firstName: true, lastName: true, phone: true },
+    });
+    const customerName = customer ? `${customer.firstName} ${customer.lastName}`.trim() : 'Müşteri';
+
+    this.eventsGateway.emitToTenant(tenantId, 'payment:received', {
+      ...createdPayment,
+      customerName,
+    });
+
+    await this.notificationsService.createNotification({
+      tenantId,
+      actorUserId,
+      targetRoles: ['OWNER', 'SERVICE_MANAGER', 'CASHIER'],
+      type: NotificationType.SUCCESS,
+      category: 'FINANCE',
+      title: 'Yeni Tahsilat Alındı',
+      message: `${Number(dto.amount).toLocaleString('tr-TR')} ₺ tahsilat kaydedildi (${paymentMethod}). Müşteri: ${customerName}`,
+      link: '/billing/payments',
+      metadata: { paymentId: createdPayment.id, amount: dto.amount, method: paymentMethod },
+    });
+
+    return createdPayment;
   }
 
   /**

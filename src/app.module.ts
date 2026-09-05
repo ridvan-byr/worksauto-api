@@ -25,6 +25,9 @@ import { StaffModule } from './modules/staff/staff.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { EventsModule } from './modules/events/events.module';
+import { QueueModule } from './modules/queues/queue.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -45,6 +48,9 @@ import { AdminModule } from './modules/admin/admin.module';
         limit: 100,
       },
     ]),
+    EventsModule,
+    QueueModule,
+    NotificationsModule,
     AuthModule,
     CustomersModule,
     VehiclesModule,

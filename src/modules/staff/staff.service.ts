@@ -110,11 +110,29 @@ export class StaffService {
   async update(tenantId: string, id: string, dto: UpdateStaffDto) {
     await this.findOne(tenantId, id);
 
+    let normalizedPhone: string | undefined;
+    if (dto.phone) {
+      normalizedPhone = this.normalizePhone(dto.phone);
+      const existing = await this.prisma.user.findFirst({
+        where: {
+          id: { not: id },
+          OR: [
+            { phone: normalizedPhone },
+            { phone: '+' + normalizedPhone },
+          ],
+        },
+      });
+
+      if (existing) {
+        throw new ConflictException(`Bu telefon numarası (${dto.phone}) zaten başka bir personele (${existing.name} ${existing.surname}) kayıtlıdır.`);
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const updateData: any = {};
       if (dto.name) updateData.name = dto.name;
       if (dto.surname) updateData.surname = dto.surname;
-      if (dto.phone) updateData.phone = this.normalizePhone(dto.phone);
+      if (normalizedPhone) updateData.phone = normalizedPhone;
       if (dto.email !== undefined) updateData.email = dto.email;
       if (dto.role) updateData.role = dto.role;
       if (dto.isActive !== undefined) updateData.isActive = dto.isActive;

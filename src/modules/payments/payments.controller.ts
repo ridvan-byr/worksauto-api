@@ -27,9 +27,9 @@ export class PaymentsController {
   create(
     @CurrentTenant() tenantId: string,
     @Body() dto: CreatePaymentDto,
-    @CurrentUser('name') userName: string,
+    @CurrentUser() user: any,
   ) {
-    return this.paymentsService.create(tenantId, dto, userName || 'Kasa Görevlisi');
+    return this.paymentsService.create(tenantId, dto, user?.name || 'Kasa Görevlisi', user?.id);
   }
 
   @Get('daily-summary')

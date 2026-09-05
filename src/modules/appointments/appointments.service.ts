@@ -1,12 +1,15 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { EventsGateway } from '../events/events.gateway';
+import { QueueService } from '../queues/queue.service';
 import { AppointmentStatus, WorkOrderStatus } from '@prisma/client';
 
 export interface CreateAppointmentDto {
   customerId: string;
   vehicleId: string;
-  serviceId: string;
+  serviceId?: string;
   assignedMechanicId?: string;
   assignedLift?: string;
   slotDate: string; // YYYY-MM-DD
@@ -20,6 +23,9 @@ export class AppointmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly notificationsService: NotificationsService,
+    private readonly eventsGateway: EventsGateway,
+    private readonly queueService: QueueService,
   ) {}
 
   async findAll(tenantId: string, date?: string) {
@@ -129,7 +135,7 @@ export class AppointmentsService {
         slotEndTime: end,
         customerNotes: dto.customerNotes,
         status: AppointmentStatus.CONFIRMED,
-      },
+      } as any,
       include: { customer: true, vehicle: true, service: true },
     });
 
@@ -147,6 +153,48 @@ export class AppointmentsService {
         status: app.status,
       },
     });
+
+    const custName = `${app.customer?.firstName || ''} ${app.customer?.lastName || ''}`.trim() || 'Müşteri';
+    const plate = app.vehicle?.plate || 'Plaka Belirtilmedi';
+    const dateStr = app.slotDate ? new Date(app.slotDate).toLocaleDateString('tr-TR') : '';
+
+    // Canlı WebSocket & In-App Bildirim
+    await this.notificationsService.createNotification({
+      tenantId,
+      actorUserId: userId,
+      targetRoles: ['OWNER', 'SERVICE_MANAGER', 'CASHIER'],
+      category: 'APPOINTMENT',
+      type: 'INFO' as any,
+      title: `Yeni Randevu: ${plate}`,
+      message: `${custName} - ${app.service?.name || 'Genel Servis'} (${dateStr}) randevusu oluşturuldu.`,
+      link: '/appointments',
+      recipientPhone: app.customer?.phone || undefined,
+      sendSms: true,
+      metadata: { appointmentId: app.id, plate, customerName: custName },
+    });
+
+    this.eventsGateway.emitToTenant(tenantId, 'appointment:created', {
+      appointmentId: app.id,
+      plate,
+      customerName: custName,
+      slotDate: app.slotDate,
+      slotStartTime: app.slotStartTime,
+    });
+
+    // Randevudan 24 saat öncesi için BullMQ zamanlanmış hatırlatıcı planla
+    try {
+      const reminderTime = new Date(app.slotStartTime).getTime() - 24 * 60 * 60 * 1000;
+      const delayMs = Math.max(1000, reminderTime - Date.now());
+      await this.queueService.scheduleAppointmentReminder(app.id, delayMs, {
+        tenantId,
+        customerName: custName,
+        customerPhone: app.customer?.phone,
+        plate,
+        slotDate: dateStr,
+      });
+    } catch (e: any) {
+      // Background schedule fallback
+    }
 
     return app;
   }
@@ -183,6 +231,33 @@ export class AppointmentsService {
         plate: updated.vehicle?.plate,
       },
     });
+
+    const plate = updated.vehicle?.plate || 'Araç';
+    if (status === AppointmentStatus.CANCELLED) {
+      await this.notificationsService.createNotification({
+        tenantId,
+        actorUserId: userId,
+        targetRoles: ['OWNER', 'SERVICE_MANAGER', 'CASHIER'],
+        category: 'APPOINTMENT',
+        type: 'WARNING' as any,
+        title: `Randevu İptal Edildi: ${plate}`,
+        message: cancellationReason ? `İptal Gerekçesi: ${cancellationReason}` : `${plate} plakalı randevu iptal edildi.`,
+        link: '/appointments',
+        metadata: { appointmentId: id, plate, cancellationReason },
+      });
+
+      this.eventsGateway.emitToTenant(tenantId, 'appointment:cancelled', {
+        appointmentId: id,
+        plate,
+        cancellationReason,
+      });
+    } else {
+      this.eventsGateway.emitToTenant(tenantId, 'appointment:status_changed', {
+        appointmentId: id,
+        status,
+        plate,
+      });
+    }
 
     return updated;
   }

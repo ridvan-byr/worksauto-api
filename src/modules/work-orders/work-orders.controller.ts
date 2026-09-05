@@ -35,9 +35,9 @@ export class WorkOrdersController {
   create(
     @CurrentTenant() tenantId: string,
     @Body() dto: CreateWorkOrderDto,
-    @CurrentUser('name') userName: string,
+    @CurrentUser() user: any,
   ) {
-    return this.workOrdersService.create(tenantId, dto, userName || 'Servis Danışmanı');
+    return this.workOrdersService.create(tenantId, dto, user?.name || 'Servis Danışmanı', user?.id);
   }
 
   @Patch(':id/status')

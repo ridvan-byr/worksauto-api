@@ -4,7 +4,10 @@ import { AddWorkOrderItemDto } from './dto/add-item.dto';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
-import { WorkOrderStatus, WorkOrderItemType, WorkOrderPhotoType, StockMovementType } from '@prisma/client';
+import { EventsGateway } from '../events/events.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
+import { QueueService } from '../queues/queue.service';
+import { WorkOrderStatus, WorkOrderItemType, WorkOrderPhotoType, StockMovementType, NotificationType } from '@prisma/client';
 
 export interface CreateWorkOrderDto {
   appointmentId?: string;
@@ -31,6 +34,9 @@ export class WorkOrdersService {
     private readonly inventoryService: InventoryService,
     private readonly invoicesService: InvoicesService,
     private readonly auditService: AuditService,
+    private readonly eventsGateway: EventsGateway,
+    private readonly notificationsService: NotificationsService,
+    private readonly queueService: QueueService,
   ) {}
 
   async findAll(tenantId: string, status?: WorkOrderStatus) {
@@ -67,12 +73,12 @@ export class WorkOrdersService {
     return wo;
   }
 
-  async create(tenantId: string, dto: CreateWorkOrderDto, author: string) {
+  async create(tenantId: string, dto: CreateWorkOrderDto, author: string, actorUserId?: string) {
     // Generate sequential work order number
     const count = await this.prisma.workOrder.count({ where: { tenantId } });
     const woNumber = `WO-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
 
-    return this.prisma.$transaction(async (tx) => {
+    const createdWorkOrder = await this.prisma.$transaction(async (tx) => {
       let subtotal = 0;
       let kdvTotal = 0;
 
@@ -142,6 +148,30 @@ export class WorkOrdersService {
 
       return workOrder;
     });
+
+    // Emit WebSocket live event & create in-app notification
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: dto.vehicleId },
+      select: { plate: true, brand: true, model: true },
+    });
+
+    this.eventsGateway.emitToTenant(tenantId, 'work_order:created', {
+      ...createdWorkOrder,
+      vehicle,
+    });
+
+    await this.notificationsService.createNotification({
+      tenantId,
+      actorUserId,
+      type: NotificationType.INFO,
+      category: 'WORK_ORDER',
+      title: 'Yeni İş Emri Açıldı',
+      message: `${woNumber} nolu iş emri kabul edildi. Araç: ${vehicle?.plate || 'Belirtilmedi'}`,
+      link: `/work-orders/${createdWorkOrder.id}`,
+      metadata: { workOrderId: createdWorkOrder.id, workOrderNumber: woNumber, plate: vehicle?.plate },
+    });
+
+    return createdWorkOrder;
   }
 
   async updateStatus(tenantId: string, id: string, newStatus: WorkOrderStatus, userId?: string) {
@@ -218,6 +248,47 @@ export class WorkOrdersService {
       }
     }
 
+    // Emit WebSocket live events & create in-app notification
+    this.eventsGateway.emitToTenant(tenantId, 'work_order:status_changed', {
+      workOrderId: id,
+      status: newStatus,
+      workOrderNumber: wo.workOrderNumber,
+      plate: wo.vehicle?.plate,
+    });
+
+    if (newStatus === WorkOrderStatus.COMPLETED) {
+      this.eventsGateway.emitToTenant(tenantId, 'work_order:completed', {
+        workOrderId: id,
+        workOrderNumber: wo.workOrderNumber,
+        plate: wo.vehicle?.plate,
+      });
+
+      await this.notificationsService.createNotification({
+        tenantId,
+        actorUserId: userId,
+        type: NotificationType.SUCCESS,
+        category: 'WORK_ORDER',
+        title: 'İş Emri Tamamlandı',
+        message: `${wo.workOrderNumber} nolu iş emri (${wo.vehicle?.plate || ''}) başarıyla tamamlandı.`,
+        link: `/work-orders/${id}`,
+        metadata: { workOrderId: id, workOrderNumber: wo.workOrderNumber },
+        recipientPhone: wo.customer?.phone,
+        sendSms: !!wo.customer?.phone,
+        sendWhatsApp: !!wo.customer?.phone,
+      });
+    } else {
+      await this.notificationsService.createNotification({
+        tenantId,
+        actorUserId: userId,
+        type: NotificationType.INFO,
+        category: 'WORK_ORDER',
+        title: 'İş Emri Durumu Değişti',
+        message: `${wo.workOrderNumber} (${wo.vehicle?.plate || ''}) durumu "${newStatus}" yapıldı.`,
+        link: `/work-orders/${id}`,
+        metadata: { workOrderId: id, workOrderNumber: wo.workOrderNumber, status: newStatus },
+      });
+    }
+
     return updated;
   }
 
@@ -236,10 +307,19 @@ export class WorkOrdersService {
       throw new BadRequestException('Kuyruktaki bir iş emri daha geri alınamaz.');
     }
 
-    return this.prisma.workOrder.update({
+    const rolledBack = await this.prisma.workOrder.update({
       where: { id },
       data: { status: prevStatus, completedAt: null },
     });
+
+    this.eventsGateway.emitToTenant(tenantId, 'work_order:status_changed', {
+      workOrderId: id,
+      status: prevStatus,
+      workOrderNumber: wo.workOrderNumber,
+      plate: wo.vehicle?.plate,
+    });
+
+    return rolledBack;
   }
 
   async addPhoto(tenantId: string, id: string, url: string, caption: string, photoType: WorkOrderPhotoType, uploadedBy: string) {
@@ -260,7 +340,7 @@ export class WorkOrdersService {
       throw new BadRequestException('Tamamlanmış veya iptal edilmiş iş emrine yeni kalem eklenemez.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       // 1. If PART, atomically check and deduct stock
       if (dto.itemType === WorkOrderItemType.PART && dto.itemId) {
         const product = await tx.product.findFirst({
@@ -372,6 +452,15 @@ export class WorkOrdersService {
         },
       });
     });
+
+    this.eventsGateway.emitToTenant(tenantId, 'work_order:item_added', {
+      workOrderId: wo.id,
+      workOrderNumber: wo.workOrderNumber,
+      plate: wo.vehicle?.plate,
+      item: dto.name,
+    });
+
+    return result;
   }
 
   async removeItem(tenantId: string, workOrderId: string, itemId: string, author: string) {
@@ -388,7 +477,7 @@ export class WorkOrdersService {
       throw new NotFoundException('İş emri kalemi bulunamadı.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const updatedWo = await this.prisma.$transaction(async (tx) => {
       if (item.itemType === WorkOrderItemType.PART && item.itemId) {
         await tx.product.update({
           where: { id: item.itemId },
@@ -469,5 +558,14 @@ export class WorkOrdersService {
         },
       });
     });
+
+    this.eventsGateway.emitToTenant(tenantId, 'work_order:item_removed', {
+      workOrderId: wo.id,
+      workOrderNumber: wo.workOrderNumber,
+      plate: wo.vehicle?.plate,
+      item: item.name,
+    });
+
+    return updatedWo;
   }
 }

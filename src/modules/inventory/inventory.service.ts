@@ -1,7 +1,9 @@
 import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
-import { ProductCategory, StockMovementType } from '@prisma/client';
+import { ProductCategory, StockMovementType, NotificationType } from '@prisma/client';
+import { EventsGateway } from '../events/events.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface CreateProductDto {
   name: string;
@@ -23,7 +25,11 @@ export interface CreateProductDto {
 
 @Injectable()
 export class InventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsGateway: EventsGateway,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async findAll(tenantId: string, search?: string, category?: ProductCategory) {
     return this.prisma.product.findMany({
@@ -127,12 +133,20 @@ export class InventoryService {
       },
     });
 
+    const prod = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, name: true, oemCode: true, stockQuantity: true, minStockLevel: true },
+    });
+    if (prod) {
+      await this.checkAndEmitLowStock(tenantId, prod);
+    }
+
     return true;
   }
 
   async incrementStock(tenantId: string, productId: string, quantity: number, refId: string, author: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const product = await tx.product.update({
+    const product = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.product.update({
         where: { id: productId },
         data: { stockQuantity: { increment: quantity } },
       });
@@ -149,9 +163,13 @@ export class InventoryService {
         },
       });
 
-      return product;
+      return updated;
     });
+
+    await this.checkAndEmitLowStock(tenantId, product);
+    return product;
   }
+
   async addStockMovement(
     tenantId: string,
     productId: string,
@@ -160,7 +178,7 @@ export class InventoryService {
   ) {
     const product = await this.findOne(tenantId, productId);
 
-    return this.prisma.$transaction(async (tx) => {
+    const updatedProduct = await this.prisma.$transaction(async (tx) => {
       let stockChange = 0;
 
       if (dto.movementType === StockMovementType.IN_PURCHASE || dto.movementType === StockMovementType.RETURN) {
@@ -178,7 +196,7 @@ export class InventoryService {
       }
 
       // Stok miktarını güncelle
-      const updatedProduct = await tx.product.update({
+      const updated = await tx.product.update({
         where: { id: productId },
         data: {
           stockQuantity: product.stockQuantity + stockChange,
@@ -198,8 +216,42 @@ export class InventoryService {
         },
       });
 
-      return updatedProduct;
+      return updated;
     });
+
+    await this.checkAndEmitLowStock(tenantId, updatedProduct);
+    return updatedProduct;
+  }
+
+  private async checkAndEmitLowStock(
+    tenantId: string,
+    product: { id: string; name: string; oemCode: string; stockQuantity: number; minStockLevel: number },
+  ) {
+    this.eventsGateway.emitToTenant(tenantId, 'inventory:stock_changed', {
+      productId: product.id,
+      stockQuantity: product.stockQuantity,
+      name: product.name,
+    });
+
+    if (product.stockQuantity <= product.minStockLevel) {
+      this.eventsGateway.emitToTenant(tenantId, 'inventory:low_stock', product);
+
+      await this.notificationsService.createNotification({
+        tenantId,
+        targetRoles: ['OWNER', 'SERVICE_MANAGER', 'WAREHOUSE_KEEPER'],
+        type: NotificationType.WARNING,
+        category: 'INVENTORY',
+        title: 'Kritik Stok Uyarısı',
+        message: `"${product.name}" (${product.oemCode}) kritik stok seviyesine indi! Kalan: ${product.stockQuantity}, Min: ${product.minStockLevel}`,
+        link: '/inventory',
+        metadata: {
+          productId: product.id,
+          oemCode: product.oemCode,
+          stockQuantity: product.stockQuantity,
+          minStockLevel: product.minStockLevel,
+        },
+      });
+    }
   }
 
   async getMovements(tenantId: string, productId: string) {
