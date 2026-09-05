@@ -120,13 +120,14 @@ export class ServicesService {
   }
 
   async remove(tenantId: string, id: string, userId?: string) {
-    await this.findOne(tenantId, id);
+    const service = await this.findOne(tenantId, id);
 
     const appointmentsCount = await this.prisma.appointment.count({
       where: { serviceId: id },
     });
 
-    if (appointmentsCount > 0) {
+    const isDeactivated = appointmentsCount > 0;
+    if (isDeactivated) {
       await this.prisma.service.update({
         where: { id },
         data: { isActive: false },
@@ -140,11 +141,31 @@ export class ServicesService {
     await this.auditService.log({
       tenantId,
       userId,
-      action: 'service.deleted',
+      action: isDeactivated ? 'service.deactivated' : 'service.deleted',
       entityName: 'Service',
       entityId: id,
+      changesBefore: {
+        id: service.id,
+        name: service.name,
+        code: service.code,
+        category: service.category,
+        basePrice: Number(service.basePrice),
+        defaultDurationMin: service.defaultDurationMin,
+        isActive: service.isActive,
+      },
+      changesAfter: {
+        status: isDeactivated ? 'PASİFE ALINDI (INACTIVE)' : 'KALICI SİLİNDİ (DELETED)',
+        reason: isDeactivated
+          ? `Bu hizmete bağlı ${appointmentsCount} adet randevu geçmişi korunduğu için pasife alındı.`
+          : 'Hizmet kataloğundan kalıcı olarak kaldırıldı.',
+      },
     });
 
-    return { success: true, message: 'Hizmet başarıyla kaldırıldı.' };
+    return { 
+      success: true, 
+      message: isDeactivated 
+        ? 'Hizmete bağlı randevular bulunduğu için geçmişi korumak adına pasife alındı.' 
+        : 'Hizmet başarıyla kaldırıldı.' 
+    };
   }
 }

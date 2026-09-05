@@ -163,8 +163,18 @@ export class WorkOrdersService {
       action: 'work_order.status_changed',
       entityName: 'WorkOrder',
       entityId: id,
-      changesBefore: { status: wo.status },
-      changesAfter: { status: newStatus },
+      changesBefore: {
+        workOrderNumber: wo.workOrderNumber,
+        status: wo.status,
+        plate: wo.vehicle?.plate || 'Plaka Belirtilmedi',
+        customerName: `${wo.customer?.firstName || ''} ${wo.customer?.lastName || ''}`.trim() || 'Müşteri Belirtilmedi',
+      },
+      changesAfter: {
+        workOrderNumber: wo.workOrderNumber,
+        status: newStatus,
+        plate: wo.vehicle?.plate || 'Plaka Belirtilmedi',
+        customerName: `${wo.customer?.firstName || ''} ${wo.customer?.lastName || ''}`.trim() || 'Müşteri Belirtilmedi',
+      },
     });
 
     // AUTO-INVOICE RULE: If tenant configured autoInvoiceOnComplete, automatically create invoice
@@ -330,6 +340,27 @@ export class WorkOrdersService {
         },
       });
 
+      try {
+        await this.auditService.log({
+          tenantId,
+          action: 'work_order.item_added',
+          entityName: 'WorkOrder',
+          entityId: wo.id,
+          changesAfter: {
+            itemName: dto.name,
+            itemType: dto.itemType,
+            quantity: dto.quantity,
+            unitPrice: dto.unitPrice,
+            totalPrice,
+            plate: wo.vehicle?.plate || 'Belirtilmedi',
+            workOrderNumber: wo.workOrderNumber,
+            author,
+          },
+        });
+      } catch (err) {
+        console.error('Audit log failed for work_order.item_added:', err);
+      }
+
       return tx.workOrder.findUnique({
         where: { id: wo.id },
         include: {
@@ -405,6 +436,27 @@ export class WorkOrdersService {
           grandTotal: newGrandTotal,
         },
       });
+
+      try {
+        await this.auditService.log({
+          tenantId,
+          action: 'work_order.item_removed',
+          entityName: 'WorkOrder',
+          entityId: wo.id,
+          changesBefore: {
+            itemName: item.name,
+            itemType: item.itemType,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            plate: wo.vehicle?.plate || 'Belirtilmedi',
+            workOrderNumber: wo.workOrderNumber,
+            author,
+          },
+        });
+      } catch (err) {
+        console.error('Audit log failed for work_order.item_removed:', err);
+      }
 
       return tx.workOrder.findUnique({
         where: { id: wo.id },

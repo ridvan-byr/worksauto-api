@@ -18,15 +18,17 @@ export class AuditController {
   @ApiOperation({ summary: 'Servis içindeki tüm kritik işlem ve denetim loglarını listeler' })
   @ApiQuery({ name: 'entityName', required: false, description: 'Filtrelenecek varlık adı (örn: appointment, work_order, invoice)' })
   @ApiQuery({ name: 'action', required: false, description: 'Filtrelenecek eylem (örn: create, complete, no_show, cancel)' })
+  @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   findAll(
     @CurrentTenant() tenantId: string,
     @Query('entityName') entityName?: string,
     @Query('action') action?: string,
+    @Query('search') search?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
   ) {
-    return this.auditService.findAll(tenantId, { entityName, action, page, limit });
+    return this.auditService.findAll(tenantId, { entityName, action, search, page, limit });
   }
 }

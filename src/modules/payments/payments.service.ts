@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { PaymentMethod, InvoiceStatus, CariReferenceType } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 
 export interface CreatePaymentDto {
   invoiceId?: string;
@@ -14,7 +15,10 @@ export interface CreatePaymentDto {
 
 @Injectable()
 export class PaymentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async findAll(tenantId: string) {
     return this.prisma.payment.findMany({
@@ -103,6 +107,26 @@ export class PaymentsService {
             balanceAfter: newBalance,
           },
         });
+      }
+
+      try {
+        await this.auditService.log({
+          tenantId,
+          action: 'payment.created',
+          entityName: 'Payment',
+          entityId: payment.id,
+          changesAfter: {
+            amount: dto.amount,
+            paymentMethod,
+            cashierName,
+            posSlipNo: dto.posSlipNo,
+            notes: dto.notes,
+            invoiceId: dto.invoiceId,
+            customerId,
+          },
+        });
+      } catch (err) {
+        console.error('Audit log failed for payment.created:', err);
       }
 
       return payment;

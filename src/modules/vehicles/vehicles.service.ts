@@ -24,20 +24,54 @@ export class VehiclesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(tenantId: string, search?: string) {
+    let searchCondition: any = undefined;
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      const cleanQ = q.replace(/\s+/g, '');
+      const parts = q.split(/\s+/).filter(Boolean);
+
+      const orList: any[] = [
+        { plate: { contains: q, mode: 'insensitive' } },
+        { plate: { contains: cleanQ, mode: 'insensitive' } },
+        { brand: { contains: q, mode: 'insensitive' } },
+        { model: { contains: q, mode: 'insensitive' } },
+        { vin: { contains: q, mode: 'insensitive' } },
+        { engineNo: { contains: q, mode: 'insensitive' } },
+        {
+          customer: {
+            OR: [
+              { firstName: { contains: q, mode: 'insensitive' } },
+              { lastName: { contains: q, mode: 'insensitive' } },
+              { companyTitle: { contains: q, mode: 'insensitive' } },
+              { phone: { contains: q } },
+              { phone: { contains: cleanQ } },
+            ],
+          },
+        },
+      ];
+
+      if (parts.length >= 2) {
+        const firstPart = parts[0];
+        const restPart = parts.slice(1).join(' ');
+        orList.push({
+          customer: {
+            AND: [
+              { firstName: { contains: firstPart, mode: 'insensitive' } },
+              { lastName: { contains: restPart, mode: 'insensitive' } },
+            ],
+          },
+        });
+      }
+
+      searchCondition = { OR: orList };
+    }
+
     return this.prisma.vehicle.findMany({
       where: {
         tenantId,
         deletedAt: null,
-        ...(search
-          ? {
-              OR: [
-                { plate: { contains: search, mode: 'insensitive' } },
-                { brand: { contains: search, mode: 'insensitive' } },
-                { model: { contains: search, mode: 'insensitive' } },
-                { vin: { contains: search, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
+        ...(searchCondition || {}),
       },
       include: { customer: true },
       orderBy: { createdAt: 'desc' },

@@ -3,10 +3,14 @@ import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { UserRole } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 
 @Injectable()
 export class StaffService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   normalizePhone(phone: string): string {
     const digits = phone.replace(/\D/g, '');
@@ -79,6 +83,23 @@ export class StaffService {
         });
       }
 
+      try {
+        await this.auditService.log({
+          tenantId,
+          action: 'staff.created',
+          entityName: 'User',
+          entityId: user.id,
+          changesAfter: {
+            name: `${dto.name} ${dto.surname || ''}`.trim(),
+            role: dto.role,
+            phone: normalizedPhone,
+            specialty: dto.specialty,
+          },
+        });
+      } catch (err) {
+        console.error('Audit log failed for staff.created:', err);
+      }
+
       return tx.user.findUnique({
         where: { id: user.id },
         include: { mechanic: true },
@@ -132,6 +153,22 @@ export class StaffService {
         }
       }
 
+      try {
+        await this.auditService.log({
+          tenantId,
+          action: 'staff.updated',
+          entityName: 'User',
+          entityId: id,
+          changesAfter: {
+            name: `${user.name} ${user.surname || ''}`.trim(),
+            role: user.role,
+            isActive: user.isActive,
+          },
+        });
+      } catch (err) {
+        console.error('Audit log failed for staff.updated:', err);
+      }
+
       return tx.user.findUnique({
         where: { id },
         include: { mechanic: true },
@@ -152,6 +189,25 @@ export class StaffService {
         where: { assignedMechanicId: mechanic.id },
       });
       if (woCount > 0 || appCount > 0) hasReferences = true;
+    }
+
+    try {
+      await this.auditService.log({
+        tenantId,
+        action: hasReferences ? 'staff.deactivated' : 'staff.deleted',
+        entityName: 'User',
+        entityId: id,
+        changesBefore: {
+          name: `${user.name} ${user.surname || ''}`.trim(),
+          role: user.role,
+          phone: user.phone,
+        },
+        changesAfter: {
+          reason: hasReferences ? 'Geçmiş iş emri/randevu kayıtları olduğu için pasife alındı' : 'Kadro kaydı kalıcı silindi',
+        },
+      });
+    } catch (err) {
+      console.error('Audit log failed for staff remove:', err);
     }
 
     if (!hasReferences) {

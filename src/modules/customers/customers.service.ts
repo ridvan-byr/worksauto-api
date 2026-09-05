@@ -20,20 +20,53 @@ export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(tenantId: string, search?: string) {
+    let searchCondition: any = undefined;
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      const cleanQ = q.replace(/\s+/g, '');
+      const parts = q.split(/\s+/).filter(Boolean);
+
+      const orList: any[] = [
+        { firstName: { contains: q, mode: 'insensitive' } },
+        { lastName: { contains: q, mode: 'insensitive' } },
+        { companyTitle: { contains: q, mode: 'insensitive' } },
+        { phone: { contains: q } },
+        { phone: { contains: cleanQ } },
+        { email: { contains: q, mode: 'insensitive' } },
+        { taxNumber: { contains: q } },
+        {
+          vehicles: {
+            some: {
+              deletedAt: null,
+              OR: [
+                { plate: { contains: q, mode: 'insensitive' } },
+                { plate: { contains: cleanQ, mode: 'insensitive' } },
+              ],
+            },
+          },
+        },
+      ];
+
+      if (parts.length >= 2) {
+        const firstPart = parts[0];
+        const restPart = parts.slice(1).join(' ');
+        orList.push({
+          AND: [
+            { firstName: { contains: firstPart, mode: 'insensitive' } },
+            { lastName: { contains: restPart, mode: 'insensitive' } },
+          ],
+        });
+      }
+
+      searchCondition = { OR: orList };
+    }
+
     return this.prisma.customer.findMany({
       where: {
         tenantId,
         deletedAt: null,
-        ...(search
-          ? {
-              OR: [
-                { firstName: { contains: search, mode: 'insensitive' } },
-                { lastName: { contains: search, mode: 'insensitive' } },
-                { phone: { contains: search } },
-                { companyTitle: { contains: search, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
+        ...(searchCondition || {}),
       },
       include: {
         vehicles: { where: { deletedAt: null } },

@@ -140,8 +140,9 @@ export class AppointmentsService {
       entityName: 'Appointment',
       entityId: app.id,
       changesAfter: {
-        customerId: app.customerId,
-        vehicleId: app.vehicleId,
+        customerName: `${app.customer?.firstName || ''} ${app.customer?.lastName || ''}`.trim() || 'Müşteri Belirtilmedi',
+        plate: app.vehicle?.plate || 'Plaka Belirtilmedi',
+        serviceName: app.service?.name || 'Genel Servis',
         slotDate: app.slotDate,
         status: app.status,
       },
@@ -161,16 +162,26 @@ export class AppointmentsService {
     const updated = await this.prisma.appointment.update({
       where: { id },
       data: { status, cancellationReason },
+      include: { customer: true, vehicle: true, service: true },
     });
 
     await this.auditService.log({
       tenantId,
       userId,
-      action: 'appointment.status_changed',
+      action: status === AppointmentStatus.CANCELLED ? 'appointment.cancelled' : 'appointment.status_changed',
       entityName: 'Appointment',
       entityId: id,
-      changesBefore: { status: current.status },
-      changesAfter: { status: updated.status, cancellationReason },
+      changesBefore: { 
+        status: current.status,
+        customerName: `${current.customer?.firstName || ''} ${current.customer?.lastName || ''}`.trim(),
+        plate: current.vehicle?.plate,
+      },
+      changesAfter: { 
+        status: updated.status, 
+        cancellationReason: cancellationReason || undefined,
+        customerName: `${updated.customer?.firstName || ''} ${updated.customer?.lastName || ''}`.trim(),
+        plate: updated.vehicle?.plate,
+      },
     });
 
     return updated;

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { InvoiceStatus, CariReferenceType } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
 
 export interface CreateInvoiceDto {
   workOrderId?: string;
@@ -13,7 +14,10 @@ export interface CreateInvoiceDto {
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditService: AuditService,
+  ) {}
 
   async findAll(tenantId: string, status?: InvoiceStatus) {
     return this.prisma.invoice.findMany({
@@ -109,6 +113,25 @@ export class InvoicesService {
         });
       }
 
+      try {
+        await this.auditService.log({
+          tenantId,
+          action: 'invoice.created',
+          entityName: 'Invoice',
+          entityId: invoice.id,
+          changesAfter: {
+            invoiceNumber: invNumber,
+            grandTotal: dto.grandTotal,
+            subtotal: dto.subtotal,
+            kdvAmount: dto.kdvAmount,
+            customerId: dto.customerId,
+            workOrderId: dto.workOrderId,
+          },
+        });
+      } catch (err) {
+        console.error('Audit log failed for invoice.created:', err);
+      }
+
       return invoice;
     });
   }
@@ -159,6 +182,26 @@ export class InvoicesService {
             balanceAfter: newBalance,
           },
         });
+      }
+
+      try {
+        await this.auditService.log({
+          tenantId,
+          action: 'invoice.cancelled',
+          entityName: 'Invoice',
+          entityId: inv.id,
+          changesBefore: {
+            invoiceNumber: inv.invoiceNumber,
+            status: inv.status,
+            grandTotal: inv.grandTotal,
+          },
+          changesAfter: {
+            status: InvoiceStatus.CANCELLED,
+            reason,
+          },
+        });
+      } catch (err) {
+        console.error('Audit log failed for invoice.cancelled:', err);
       }
 
       return cancelled;

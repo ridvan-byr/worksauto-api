@@ -53,7 +53,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     this.cls.set('userRole', payload.role);
 
     return {
+      id: payload.sub,
       userId: payload.sub,
+      sub: payload.sub,
       email: payload.email,
       role: payload.role,
       tenantId: payload.tenantId || null,

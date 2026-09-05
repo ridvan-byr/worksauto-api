@@ -191,11 +191,27 @@ export class AdminService {
     }
 
     if (filters?.search) {
+      const search = filters.search.trim();
       where.OR = [
-        { title: { contains: filters.search, mode: 'insensitive' } },
-        { legalName: { contains: filters.search, mode: 'insensitive' } },
-        { phone: { contains: filters.search } },
-        { email: { contains: filters.search, mode: 'insensitive' } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { legalName: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { taxNumber: { contains: search } },
+        { district: { contains: search, mode: 'insensitive' } },
+        { city: { contains: search, mode: 'insensitive' } },
+        {
+          users: {
+            some: {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { surname: { contains: search, mode: 'insensitive' } },
+                { phone: { contains: search } },
+                { email: { contains: search, mode: 'insensitive' } },
+              ],
+            },
+          },
+        },
       ];
     }
 
@@ -487,19 +503,139 @@ export class AdminService {
     const limit = Math.max(1, Math.min(100, options?.limit ? Number(options.limit) : 10));
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (options?.action && options.action !== 'ALL') {
-      where.action = { contains: options.action, mode: 'insensitive' };
+    const conditions: any[] = [];
+    const hasSearch = Boolean(options?.search?.trim());
+    const actionFilter = options?.action || (hasSearch ? 'ALL' : 'PLATFORM');
+
+    if (actionFilter && actionFilter !== 'ALL') {
+      if (actionFilter === 'PLATFORM') {
+        conditions.push({
+          OR: [
+            { action: { startsWith: 'TENANT_' } },
+            { action: { startsWith: 'SECURITY_' } },
+          ],
+        });
+      } else if (actionFilter === 'TENANT') {
+        conditions.push({ action: { startsWith: 'TENANT_' } });
+      } else if (actionFilter === 'SECURITY') {
+        conditions.push({ action: { startsWith: 'SECURITY_' } });
+      } else if (actionFilter === 'OPERATIONS') {
+        conditions.push({
+          OR: [
+            { action: { startsWith: 'work_order' } },
+            { action: { startsWith: 'appointment' } },
+            { action: { startsWith: 'service' } },
+            { action: { startsWith: 'invoice' } },
+            { action: { startsWith: 'payment' } },
+          ],
+        });
+      } else {
+        conditions.push({ action: { contains: actionFilter, mode: 'insensitive' } });
+      }
     }
 
     if (options?.search) {
-      where.OR = [
-        { action: { contains: options.search, mode: 'insensitive' } },
-        { entityName: { contains: options.search, mode: 'insensitive' } },
-        { ipAddress: { contains: options.search } },
-        { userAgent: { contains: options.search, mode: 'insensitive' } },
+      const search = options.search.trim();
+      const searchLower = search.toLowerCase();
+      const actionKeywords: string[] = [search];
+      if (searchLower.includes('fatura')) actionKeywords.push('invoice');
+      if (searchLower.includes('randevu')) actionKeywords.push('appointment');
+      if (searchLower.includes('iş emri') || searchLower.includes('is emri')) actionKeywords.push('work_order');
+      if (searchLower.includes('hizmet')) actionKeywords.push('service');
+      if (searchLower.includes('personel') || searchLower.includes('usta')) actionKeywords.push('staff', 'user');
+      if (searchLower.includes('araç') || searchLower.includes('arac')) actionKeywords.push('vehicle');
+      if (searchLower.includes('müşteri') || searchLower.includes('musteri')) actionKeywords.push('customer');
+      if (searchLower.includes('ödeme') || searchLower.includes('tahsilat')) actionKeywords.push('payment');
+      if (searchLower.includes('stok') || searchLower.includes('parça') || searchLower.includes('parca')) actionKeywords.push('inventory', 'product');
+      if (searchLower.includes('lisans') || searchLower.includes('servis')) actionKeywords.push('tenant', 'status');
+
+      // 1. Aktör/Kullanıcı eşleşmesi (tekil ve çok kelimeli)
+      const userOrFilters: any[] = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { surname: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search } },
+        { email: { contains: search, mode: 'insensitive' } },
       ];
+      const nameParts = search.split(/\s+/).filter(Boolean);
+      if (nameParts.length >= 2) {
+        userOrFilters.push({
+          AND: [
+            { name: { contains: nameParts[0], mode: 'insensitive' } },
+            { surname: { contains: nameParts.slice(1).join(' '), mode: 'insensitive' } },
+          ],
+        });
+      }
+
+      const matchingUsers = await this.prisma.user.findMany({
+        where: { OR: userOrFilters },
+        select: { id: true },
+        take: 50,
+      });
+      const matchingUserIds = matchingUsers.map((u) => u.id);
+
+      // 2. Müşteri eşleşmesi
+      const matchingCustomers = await this.prisma.customer.findMany({
+        where: {
+          OR: [
+            { firstName: { contains: search, mode: 'insensitive' } },
+            { lastName: { contains: search, mode: 'insensitive' } },
+            { phone: { contains: search } },
+            { companyTitle: { contains: search, mode: 'insensitive' } },
+          ],
+        },
+        select: { id: true },
+        take: 50,
+      });
+      const matchingCustomerIds = matchingCustomers.map((c) => c.id);
+
+      // 3. JSON Payload (changes_after & changes_before) Derin Arama
+      const matchingJsonRows: { id: string }[] = await this.prisma.$queryRawUnsafe(
+        `SELECT id FROM audit_logs 
+         WHERE (CAST(changes_after AS TEXT) ILIKE $1 OR CAST(changes_before AS TEXT) ILIKE $1)
+         LIMIT 100`,
+        `%${search}%`
+      );
+      const matchingJsonIds = matchingJsonRows.map((r) => r.id);
+
+      // Boşluksuz plaka araması da JSON içinde taranır (örn: 34abc789 -> 34 ABC 789)
+      const cleanPlateQ = search.replace(/\s/g, '');
+      if (cleanPlateQ.length >= 4 && cleanPlateQ !== search) {
+        const plateJsonRows: { id: string }[] = await this.prisma.$queryRawUnsafe(
+          `SELECT id FROM audit_logs 
+           WHERE (CAST(changes_after AS TEXT) ILIKE $1 OR CAST(changes_before AS TEXT) ILIKE $1)
+           LIMIT 50`,
+          `%${cleanPlateQ}%`
+        );
+        for (const pr of plateJsonRows) {
+          if (!matchingJsonIds.includes(pr.id)) matchingJsonIds.push(pr.id);
+        }
+      }
+
+      const orConditions: any[] = [
+        ...actionKeywords.map((kw) => ({ action: { contains: kw, mode: 'insensitive' } })),
+        { entityName: { contains: search, mode: 'insensitive' } },
+        { entityId: { contains: search, mode: 'insensitive' } },
+        { ipAddress: { contains: search } },
+        { userAgent: { contains: search, mode: 'insensitive' } },
+        { tenant: { title: { contains: search, mode: 'insensitive' } } },
+      ];
+
+      if (matchingUserIds.length > 0) {
+        orConditions.push({ userId: { in: matchingUserIds } });
+      }
+
+      if (matchingCustomerIds.length > 0) {
+        orConditions.push({ entityId: { in: matchingCustomerIds } });
+      }
+
+      if (matchingJsonIds.length > 0) {
+        orConditions.push({ id: { in: matchingJsonIds } });
+      }
+
+      conditions.push({ OR: orConditions });
     }
+
+    const where: any = conditions.length > 0 ? { AND: conditions } : {};
 
     const [total, logs] = await Promise.all([
       this.prisma.auditLog.count({ where }),
