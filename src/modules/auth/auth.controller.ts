@@ -26,7 +26,7 @@ const getRefreshTokenCookieOptions = () => ({
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 Gün (milisaniye)
-  path: '/',
+  path: '/api/v1/auth',
 });
 
 @ApiTags('Authentication & Security (Telefon + SMS OTP)')
