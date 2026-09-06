@@ -6,7 +6,7 @@ import { EventsGateway } from './events.gateway';
 @Module({
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'worksauto_super_secret_jwt_key_2026_production_grade',
+      secret: process.env.JWT_SECRET,
     }),
   ],
   providers: [EventsGateway],

@@ -15,6 +15,9 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
-  }
+    "noFallthroughCasesInSwitch": false,
+    "types": ["vitest/globals", "node"]
+  },
+  "include": ["src", "test"],
+  "exclude": ["node_modules", "dist", "prisma"]
 }

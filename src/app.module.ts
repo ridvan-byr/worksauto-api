@@ -1,3 +1,4 @@
+import { HealthModule } from './modules/health/health.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { ServicesModule } from './modules/services/services.module';
 import { Module } from '@nestjs/common';
@@ -67,6 +68,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     AuditModule,
     AdminModule,
     ServicesModule,
+    HealthModule,
   ],
   providers: [
     PrismaService,

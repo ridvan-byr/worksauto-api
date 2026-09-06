@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { PaymentMethod, InvoiceStatus, CariReferenceType, NotificationType } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';

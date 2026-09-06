@@ -11,7 +11,12 @@ import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: [
+      'http://localhost',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://worksauto.local',
+    ],
     credentials: true,
   },
   namespace: '/events',
@@ -26,7 +31,7 @@ export class EventsGateway
 
   constructor(private readonly jwtService: JwtService) {}
 
-  afterInit(server: Server) {
+  afterInit(_server: Server) {
     this.logger.log('⚡ WebSocket EventsGateway initialized on namespace /events');
   }
 
@@ -42,7 +47,7 @@ export class EventsGateway
         return;
       }
 
-      const jwtSecret = process.env.JWT_SECRET || 'worksauto_super_secret_jwt_key_2026_production_grade';
+      const jwtSecret = process.env.JWT_SECRET;
       const payload: any = this.jwtService.verify(rawToken, { secret: jwtSecret });
 
       const userId = payload.sub || payload.id;

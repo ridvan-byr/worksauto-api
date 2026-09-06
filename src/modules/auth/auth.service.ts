@@ -6,7 +6,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { RedisService } from '../../shared/infrastructure/redis/redis.service';
@@ -101,7 +100,10 @@ export class AuthService {
       message: 'Doğrulama kodu telefonunuza SMS ile gönderildi.',
       phone: normalizedPhone,
       expiresInSeconds: 180,
-      devCode: process.env.NODE_ENV !== 'production' ? otpCode : undefined,
+      devCode:
+        process.env.NODE_ENV === 'development' && process.env.ENABLE_DEV_OTP_BYPASS === 'true'
+          ? otpCode
+          : undefined,
     };
   }
 
@@ -153,8 +155,11 @@ export class AuthService {
 
     const cachedCode = await this.redis.get(redisKey);
 
-    // Geliştirme ortamında sabit 123456 bypass desteği veya Redis'teki kod kontrolü
-    const isMasterDevCode = process.env.NODE_ENV !== 'production' && dto.code === '123456';
+    // Katı Whitelist: Yalnızca development modunda ve ENABLE_DEV_OTP_BYPASS=true iken 123456 geçerlidir
+    const isMasterDevCode =
+      process.env.NODE_ENV === 'development' &&
+      process.env.ENABLE_DEV_OTP_BYPASS === 'true' &&
+      dto.code === '123456';
     if (!cachedCode && !isMasterDevCode) {
       throw new UnauthorizedException('Doğrulama kodunun süresi dolmuş veya hiç istenmemiş.');
     }
@@ -252,7 +257,7 @@ export class AuthService {
   async refreshToken(dto: RefreshTokenDto) {
     try {
       this.jwtService.verify(dto.refreshToken, {
-        secret: process.env.JWT_SECRET || 'worksauto_super_secret_jwt_key_2026_production_grade',
+        secret: process.env.JWT_SECRET,
       });
 
       const tokenRecord = await this.prisma.refreshToken.findUnique({

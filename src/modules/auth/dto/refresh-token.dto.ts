@@ -1,8 +1,9 @@
-import { IsNotEmpty } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class RefreshTokenDto {
-  @ApiProperty({ description: '30 günlük geçerli refresh token' })
-  @IsNotEmpty({ message: 'Refresh token boş bırakılamaz.' })
-  refreshToken: string;
+  @ApiPropertyOptional({ description: '30 günlük geçerli refresh token (Cookie yoksa body üzerinden iletilebilir)' })
+  @IsOptional()
+  @IsString()
+  refreshToken?: string;
 }
