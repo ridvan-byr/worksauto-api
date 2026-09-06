@@ -8,7 +8,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { SkipThrottle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import * as crypto from 'crypto';
 import { Public } from '../../shared/decorators/public.decorator';
@@ -17,18 +17,19 @@ import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service
 import { RedisService } from '../../shared/infrastructure/redis/redis.service';
 
 /**
- * Constant-time comparison preventing timing attacks on static tokens.
+ * SHA-256 Hash bazlı sabit zamanlı karşılaştırma.
+ * Her iki girdi de 32-byte sabit uzunluklu özete (digest) dönüştürülür:
+ * 1. timingSafeEqual asla buffer uzunluk hatası (RangeError) fırlatmaz.
+ * 2. Uzunluk farkından doğan zamanlama sızıntısı (length side-channel) %100 engellenir.
  */
 function timingSafeCompare(provided: string, expected: string): boolean {
   if (!provided || !expected) return false;
-  const bufProvided = Buffer.from(provided);
-  const bufExpected = Buffer.from(expected);
-  if (bufProvided.length !== bufExpected.length) return false;
-  return crypto.timingSafeEqual(bufProvided, bufExpected);
+  const hashProvided = crypto.createHash('sha256').update(provided).digest();
+  const hashExpected = crypto.createHash('sha256').update(expected).digest();
+  return crypto.timingSafeEqual(hashProvided, hashExpected);
 }
 
 @ApiTags('Health & Monitoring')
-@SkipThrottle() // Uptime robotları ve Caddy probe'larının rate limit'e (429) takılmasını önler
 @Controller('health')
 export class HealthController {
   constructor(
@@ -39,8 +40,10 @@ export class HealthController {
   /**
    * Public Liveness Probe
    * Uptime robotları, load balancer ve Caddy için sade ve sızıntısız sağlık kontrolü.
+   * @SkipThrottle: 10-30s aralıklarla yapılan periyodik probe'ların 429 sahte alarmı üretmesi önlenir.
    */
   @Public()
+  @SkipThrottle()
   @Get('live')
   @ApiOperation({ summary: 'Public liveness probe (Load balancer / Caddy)' })
   @ApiResponse({ status: 200, description: 'Servis ayakta ve yanıt veriyor.' })
@@ -52,8 +55,10 @@ export class HealthController {
    * Korumalı ve Detaylı Sağlık Denetimi
    * Yalnızca SUPER_ADMIN rolü veya güvenli X-Health-Token ile erişilebilir.
    * Fail-Closed: HEALTH_TOKEN tanımlı değilse token tabanlı erişim tamamen kapalıdır.
+   * Defense-in-Depth Throttle: Brute-force saldırılarını önlemek için sıkı rate limit (dakikada 20 istek).
    */
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Get('detail')
   @ApiOperation({ summary: 'Korumalı detaylı sistem sağlık ve gecikme metrikleri' })
   @ApiResponse({ status: 200, description: 'Tüm alt sistemler operasyonel.' })
