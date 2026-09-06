@@ -5,6 +5,7 @@ import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service
 export interface CreateAuditLogParams {
   tenantId?: string;
   userId?: string;
+  correlationId?: string;
   action: string;
   entityName: string;
   entityId: string;
@@ -25,11 +26,13 @@ export class AuditService {
     try {
       const tenantId = params.tenantId || this.cls.get('tenantId') || undefined;
       const userId = params.userId || this.cls.get('userId') || undefined;
+      const correlationId = params.correlationId || this.cls.getId() || undefined;
 
       return await this.prisma.auditLog.create({
         data: {
           tenantId: tenantId as string,
           userId,
+          correlationId,
           action: params.action,
           entityName: params.entityName,
           entityId: params.entityId,
