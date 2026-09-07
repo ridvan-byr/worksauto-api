@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { CustomersService, CreateCustomerDto, QuickLeadDto } from './customers.service';
+import { CustomersService, CreateCustomerDto, QuickLeadDto, BatchImportRowDto } from './customers.service';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -34,6 +34,13 @@ export class CustomersController {
   @ApiOperation({ summary: 'Müşteri detayını ve geçmiş iş emirlerini döner' })
   findOne(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.customersService.findOne(tenantId, id);
+  }
+
+  @Post('batch-import')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Excel veya tablodan toplu müşteri ve araç kaydı aktarır' })
+  batchImport(@CurrentTenant() tenantId: string, @Body() body: { items: BatchImportRowDto[] }) {
+    return this.customersService.batchImport(tenantId, body?.items || []);
   }
 
   @Post('quick-lead')

@@ -26,6 +26,26 @@ export interface QuickLeadDto {
   year?: number;
 }
 
+export interface BatchImportRowDto {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  email?: string;
+  companyTitle?: string;
+  type?: CustomerType;
+  taxNumber?: string;
+  taxOffice?: string;
+  notes?: string;
+  plate?: string;
+  brand?: string;
+  model?: string;
+  year?: number;
+  currentKm?: number;
+  vin?: string;
+  fuelType?: string;
+  transmission?: string;
+}
+
 @Injectable()
 export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -305,6 +325,116 @@ export class CustomersService {
       reliabilityBadge,
       creditLimit: customer.creditLimit,
       balance: customer.currentAccount?.balance ?? 0,
+    };
+  }
+
+  async batchImport(tenantId: string, rows: BatchImportRowDto[]) {
+    let importedCustomersCount = 0;
+    let existingCustomersCount = 0;
+    let importedVehiclesCount = 0;
+    let existingVehiclesCount = 0;
+    const errors: { row: number; reason: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 1;
+
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          let customer: any = null;
+          const cleanPhone = (row.phone || '').trim();
+
+          if (cleanPhone) {
+            customer = await tx.customer.findFirst({
+              where: { tenantId, phone: cleanPhone, deletedAt: null },
+            });
+          }
+
+          const cName = (row.firstName || '').trim() || (row.companyTitle || '').trim() || 'İsimsiz Müşteri';
+          const cSurname = (row.lastName || '').trim();
+
+          if (!customer) {
+            customer = await tx.customer.create({
+              data: {
+                tenantId,
+                type: row.type || (row.companyTitle ? CustomerType.CORPORATE : CustomerType.INDIVIDUAL),
+                firstName: cName,
+                lastName: cSurname,
+                companyTitle: row.companyTitle || undefined,
+                phone: cleanPhone || '05000000000',
+                email: row.email || undefined,
+                taxNumber: row.taxNumber || undefined,
+                taxOffice: row.taxOffice || undefined,
+                notes: row.notes || undefined,
+              },
+            });
+
+            await tx.currentAccount.create({
+              data: {
+                tenantId,
+                customerId: customer.id,
+                creditLimit: 0,
+              },
+            });
+
+            importedCustomersCount++;
+          } else {
+            existingCustomersCount++;
+          }
+
+          // Handle Vehicle if plate is provided
+          const cleanPlate = row.plate ? row.plate.trim().toUpperCase().replace(/\s+/g, '') : '';
+          if (cleanPlate && customer) {
+            const vehicle = await tx.vehicle.findFirst({
+              where: { tenantId, plate: cleanPlate, deletedAt: null },
+            });
+
+            if (!vehicle) {
+              let fuelType: any = 'DIESEL';
+              const ft = (row.fuelType || '').toUpperCase();
+              if (ft.includes('BENZ')) fuelType = 'GASOLINE';
+              else if (ft.includes('LPG')) fuelType = 'LPG';
+              else if (ft.includes('HİB') || ft.includes('HIB')) fuelType = 'HYBRID';
+              else if (ft.includes('ELEK')) fuelType = 'ELECTRIC';
+
+              let transmission: any = 'MANUAL';
+              const tr = (row.transmission || '').toUpperCase();
+              if (tr.includes('OTO')) transmission = 'AUTOMATIC';
+              else if (tr.includes('YARI')) transmission = 'SEMI_AUTOMATIC';
+
+              await tx.vehicle.create({
+                data: {
+                  tenantId,
+                  customerId: customer.id,
+                  plate: cleanPlate,
+                  brand: (row.brand || '').trim() || 'Belirtilmedi',
+                  model: (row.model || '').trim() || 'Model Belirtilmedi',
+                  year: Number(row.year) || new Date().getFullYear(),
+                  currentKm: Number(row.currentKm) || 0,
+                  vin: (row.vin || '').trim() || undefined,
+                  fuelType,
+                  transmission,
+                },
+              });
+
+              importedVehiclesCount++;
+            } else {
+              existingVehiclesCount++;
+            }
+          }
+        });
+      } catch (err: any) {
+        errors.push({ row: rowNum, reason: err.message || 'Kayıt işlenemedi' });
+      }
+    }
+
+    return {
+      totalRows: rows.length,
+      importedCustomersCount,
+      existingCustomersCount,
+      importedVehiclesCount,
+      existingVehiclesCount,
+      errors,
     };
   }
 }
