@@ -1,1 +1,0 @@
-export { WorkOrdersController } from './presentation/work-orders.controller';

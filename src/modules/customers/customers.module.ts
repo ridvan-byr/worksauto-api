@@ -1,11 +1,38 @@
 import { Module } from '@nestjs/common';
-import { CustomersService } from './customers.service';
-import { CustomersController } from './customers.controller';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
+import { CUSTOMER_REPOSITORY } from './domain/customer.repository.interface';
+import { PrismaCustomerRepository } from './infrastructure/prisma-customer.repository';
+import { CustomersController } from './presentation/customers.controller';
+import { GetCustomersUseCase } from './application/use-cases/get-customers.use-case';
+import { CreateCustomerUseCase } from './application/use-cases/create-customer.use-case';
+import { UpdateCustomerUseCase } from './application/use-cases/update-customer.use-case';
+import { QuickLeadUseCase } from './application/use-cases/quick-lead.use-case';
+import { BatchImportCustomersUseCase } from './application/use-cases/batch-import-customers.use-case';
+import { AnonymizeCustomerUseCase } from './application/use-cases/anonymize-customer.use-case';
 
 @Module({
   controllers: [CustomersController],
-  providers: [CustomersService, PrismaService],
-  exports: [CustomersService],
+  providers: [
+    PrismaService,
+    {
+      provide: CUSTOMER_REPOSITORY,
+      useClass: PrismaCustomerRepository,
+    },
+    GetCustomersUseCase,
+    CreateCustomerUseCase,
+    UpdateCustomerUseCase,
+    QuickLeadUseCase,
+    BatchImportCustomersUseCase,
+    AnonymizeCustomerUseCase,
+  ],
+  exports: [
+    CUSTOMER_REPOSITORY,
+    GetCustomersUseCase,
+    CreateCustomerUseCase,
+    UpdateCustomerUseCase,
+    QuickLeadUseCase,
+    BatchImportCustomersUseCase,
+    AnonymizeCustomerUseCase,
+  ],
 })
 export class CustomersModule {}

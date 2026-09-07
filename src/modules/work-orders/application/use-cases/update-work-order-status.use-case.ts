@@ -1,7 +1,7 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { WorkOrderStatusVO, WorkOrderStatusEnum } from '../../domain/value-objects/work-order-status.vo';
-import { InvoicesService } from '../../../invoices/invoices.service';
+import { CreateInvoiceUseCase } from '../../../invoices/application/use-cases/create-invoice.use-case';
 import { AuditService } from '../../../audit/audit.service';
 import { EventsGateway } from '../../../events/events.gateway';
 import { NotificationsService } from '../../../notifications/notifications.service';
@@ -12,7 +12,7 @@ export class UpdateWorkOrderStatusUseCase {
   constructor(
     @Inject('IWorkOrderRepository')
     private readonly workOrderRepository: IWorkOrderRepository,
-    private readonly invoicesService: InvoicesService,
+    private readonly createInvoiceUseCase: CreateInvoiceUseCase,
     private readonly auditService: AuditService,
     private readonly eventsGateway: EventsGateway,
     private readonly notificationsService: NotificationsService,
@@ -67,14 +67,14 @@ export class UpdateWorkOrderStatusUseCase {
           const dueDate = new Date();
           dueDate.setDate(dueDate.getDate() + 7);
 
-          const invoice = await this.invoicesService.create(tenantId, {
+          const invoice = await this.createInvoiceUseCase.execute(tenantId, {
             workOrderId: id,
             customerId: wo.customerId,
             dueDate: dueDate.toISOString().split('T')[0],
             subtotal: Number(wo.subtotal),
             kdvAmount: Number(wo.kdvAmount),
             grandTotal: Number(wo.grandTotal),
-          });
+          }, userId);
 
           await this.auditService.log({
             tenantId,

@@ -8,15 +8,11 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
+import { getAllowedOrigins } from '../../shared/constants/cors.constants';
 
 @WebSocketGateway({
   cors: {
-    origin: [
-      'http://localhost',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'https://worksauto.local',
-    ],
+    origin: getAllowedOrigins(),
     credentials: true,
   },
   namespace: '/events',

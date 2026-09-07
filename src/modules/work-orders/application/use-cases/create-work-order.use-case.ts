@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { WorkOrderStatusEnum } from '../../domain/value-objects/work-order-status.vo';
-import { InventoryService } from '../../../inventory/inventory.service';
+import { DecrementStockUseCase } from '../../../inventory/application/use-cases/decrement-stock.use-case';
 import { EventsGateway } from '../../../events/events.gateway';
 import { NotificationsService } from '../../../notifications/notifications.service';
 import { NotificationType } from '@prisma/client';
@@ -29,7 +29,7 @@ export class CreateWorkOrderUseCase {
   constructor(
     @Inject('IWorkOrderRepository')
     private readonly workOrderRepository: IWorkOrderRepository,
-    private readonly inventoryService: InventoryService,
+    private readonly decrementStockUseCase: DecrementStockUseCase,
     private readonly eventsGateway: EventsGateway,
     private readonly notificationsService: NotificationsService,
   ) {}
@@ -60,7 +60,7 @@ export class CreateWorkOrderUseCase {
 
         // Conditionally deduct stock atomically if PART
         if (item.itemType === 'PART' && item.itemId) {
-          await this.inventoryService.decrementStockAtomic(
+          await this.decrementStockUseCase.execute(
             tenantId,
             item.itemId,
             item.quantity,

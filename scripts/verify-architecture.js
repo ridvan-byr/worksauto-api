@@ -8,6 +8,7 @@
  * - Section 4: Backend Architecture & Dependency Inversion (Presentation -> Application -> Domain)
  * - Section 5: Backend Coding Rules (Domain purity, Controller boundaries, DTO separation)
  * - Section 57: Definition of Done (Clean Architecture enforcement before merging)
+ * - ADR-002: Module Migration Strategy (DDD vs Lightweight module boundaries)
  */
 
 const fs = require('fs');
@@ -17,6 +18,9 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const API_SRC_DIR = fs.existsSync(path.join(ROOT_DIR, 'src'))
   ? path.join(ROOT_DIR, 'src')
   : path.join(ROOT_DIR, 'worksauto-api', 'src');
+
+// DDD Modules that strictly enforce Presentation -> Application -> Domain separation
+const DDD_MODULES = ['work-orders', 'inventory', 'invoices', 'appointments', 'customers'];
 
 // Prohibited imports in domain layer (Spec Md. 4: Domain katmanı altyapıyı ve çerçeveyi bilmemelidir)
 const PROHIBITED_DOMAIN_IMPORTS = [
@@ -53,7 +57,7 @@ function walkSync(dir, fileList = []) {
       if (file !== 'node_modules' && file !== 'dist' && file !== '.git') {
         walkSync(filePath, fileList);
       }
-    } else if (file.endsWith('.ts') && !file.endsWith('.d.ts') && !file.endsWith('.spec.ts')) {
+    } else if (file.endsWith('.ts') && !file.endsWith('.d.ts')) {
       fileList.push(filePath);
     }
   }
@@ -66,11 +70,31 @@ function walkSync(dir, fileList = []) {
 function checkFile(filePath) {
   totalFilesChecked++;
   const relativePath = path.relative(ROOT_DIR, filePath).replace(/\\/g, '/');
+
+  // Rule 3: Use case spec matching check
+  if (filePath.endsWith('.use-case.ts')) {
+    const specPath = filePath.replace(/\.use-case\.ts$/, '.use-case.spec.ts');
+    if (!fs.existsSync(specPath)) {
+      violations.push({
+        file: relativePath,
+        line: 1,
+        code: path.basename(filePath),
+        rule: `[Definition of Done] Missing Spec Violation: Every use case (${path.basename(filePath)}) must have a corresponding *.use-case.spec.ts file for CI validation.`,
+      });
+    }
+  }
+
+  // Skip analyzing content of test files
+  if (filePath.endsWith('.spec.ts')) {
+    return;
+  }
+
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
 
   const isDomainLayer = relativePath.includes('/domain/');
-  const isPresentationLayer = relativePath.includes('/presentation/') || relativePath.endsWith('.controller.ts');
+  const isDddModule = DDD_MODULES.some((mod) => relativePath.includes(`/modules/${mod}/`));
+  const isPresentationLayer = (relativePath.includes('/presentation/') || relativePath.endsWith('.controller.ts')) && isDddModule;
   const isApplicationLayer = relativePath.includes('/application/');
 
   lines.forEach((line, index) => {
@@ -79,7 +103,7 @@ function checkFile(filePath) {
       return; // Skip comments
     }
 
-    // 1. Check Domain Layer Purity (Md. 4)
+    // 1. Check Domain Layer Purity across all DDD modules (Md. 4)
     if (isDomainLayer) {
       for (const rule of PROHIBITED_DOMAIN_IMPORTS) {
         if (rule.pattern.test(line)) {
@@ -93,7 +117,7 @@ function checkFile(filePath) {
       }
     }
 
-    // 2. Check Presentation Layer Separation (Md. 5.1)
+    // 2. Check Presentation Layer Separation for DDD modules (Md. 5.1 & ADR-002)
     if (isPresentationLayer) {
       for (const rule of PROHIBITED_PRESENTATION_IMPORTS) {
         if (rule.pattern.test(line)) {
@@ -101,7 +125,7 @@ function checkFile(filePath) {
             file: relativePath,
             line: index + 1,
             code: trimmed,
-            rule: `[Spec Md. 5.1] Controller Responsibility Violation: ${rule.label}. Business logic and DB queries must reside in Use Cases.`,
+            rule: `[Spec Md. 5.1] Controller Responsibility Violation: ${rule.label}. In DDD modules, controllers must only call Use Cases.`,
           });
         }
       }
@@ -140,7 +164,7 @@ function run() {
       console.error(`     Issue: ${v.rule}`);
       console.error(`     Code : ${v.code}\n`);
     });
-    console.error('💡 Please review worksauto-mvp-technical-spec.md Section 4 & 5 to align with Clean Architecture.\n');
+    console.error('💡 Please review docs/ADR-002-module-migration-strategy.md to align with Clean Architecture.\n');
     process.exit(1);
   }
 }

@@ -114,7 +114,17 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Deploy Gate Acknowledged
-        run: |
-          echo "Production deployment gate approved by designated reviewer."
-          echo "Zero-downtime container deploy proceeding..."
+      - name: Deploy to Production Server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USERNAME }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT || 22 }}
+          script: |
+            cd /opt/worksauto/worksauto-api
+            git pull origin main
+            npm ci --omit=dev
+            npx prisma migrate deploy
+            npm run build
+            pm2 reload worksauto-api || pm2 start dist/main.js --name worksauto-api

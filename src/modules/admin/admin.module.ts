@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
+import { AdminAuthService } from './services/admin-auth.service';
+import { AdminTenantService } from './services/admin-tenant.service';
+import { AdminMetricsService } from './services/admin-metrics.service';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { RedisService } from '../../shared/infrastructure/redis/redis.service';
 
@@ -9,11 +11,17 @@ import { RedisService } from '../../shared/infrastructure/redis/redis.service';
   imports: [
     JwtModule.register({
       secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '7d' },
+      signOptions: { expiresIn: '1h' },
     }),
   ],
   controllers: [AdminController],
-  providers: [AdminService, PrismaService, RedisService],
-  exports: [AdminService],
+  providers: [
+    AdminAuthService,
+    AdminTenantService,
+    AdminMetricsService,
+    PrismaService,
+    RedisService,
+  ],
+  exports: [AdminAuthService, AdminTenantService, AdminMetricsService],
 })
 export class AdminModule {}

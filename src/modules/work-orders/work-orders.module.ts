@@ -8,7 +8,6 @@ import { AuditModule } from '../audit/audit.module';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 
 import { WorkOrdersController } from './presentation/work-orders.controller';
-import { WorkOrdersService } from './work-orders.service';
 import { PrismaWorkOrderRepository } from './infrastructure/persistence/prisma-work-order.repository';
 
 import { GetWorkOrdersUseCase } from './application/use-cases/get-work-orders.use-case';
@@ -42,8 +41,7 @@ import { AddWorkOrderPhotoUseCase } from './application/use-cases/add-work-order
     AddWorkOrderItemUseCase,
     RemoveWorkOrderItemUseCase,
     AddWorkOrderPhotoUseCase,
-    WorkOrdersService,
   ],
-  exports: [WorkOrdersService, 'IWorkOrderRepository'],
+  exports: ['IWorkOrderRepository'],
 })
 export class WorkOrdersModule {}

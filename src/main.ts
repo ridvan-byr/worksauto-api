@@ -4,6 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './shared/filters/global-exception.filter';
+import { getAllowedOrigins } from './shared/constants/cors.constants';
 
 async function bootstrap() {
   const logger = new Logger('WorksAutoBootstrap');
@@ -26,12 +27,7 @@ async function bootstrap() {
 
   // 1. CORS Configuration for Next.js Web App
   app.enableCors({
-    origin: [
-      'http://localhost',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'https://worksauto.local',
-    ],
+    origin: getAllowedOrigins(),
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Idempotency-Key, X-Tenant-Id, X-Health-Token',

@@ -10,7 +10,7 @@ import { IdempotencyInterceptor } from '../../../shared/interceptors/idempotency
 import { Permission } from '../../../shared/constants/permissions.enum';
 import { UserRole, WorkOrderStatus, WorkOrderPhotoType } from '@prisma/client';
 import { AddWorkOrderItemDto } from '../dto/add-item.dto';
-import { CreateWorkOrderDto } from '../work-orders.service';
+import { CreateWorkOrderDto } from '../dto/create-work-order.dto';
 import { GetWorkOrdersUseCase } from '../application/use-cases/get-work-orders.use-case';
 import { CreateWorkOrderUseCase } from '../application/use-cases/create-work-order.use-case';
 import { UpdateWorkOrderStatusUseCase } from '../application/use-cases/update-work-order-status.use-case';

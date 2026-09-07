@@ -6,6 +6,7 @@ import {
   Headers,
   UnauthorizedException,
   ServiceUnavailableException,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
@@ -13,6 +14,7 @@ import { Response } from 'express';
 import * as crypto from 'crypto';
 import { Public } from '../../shared/decorators/public.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { OptionalJwtAuthGuard } from '../../shared/guards/optional-jwt-auth.guard';
 import { HealthService } from './health.service';
 
 /**
@@ -50,10 +52,11 @@ export class HealthController {
   /**
    * Korumalı ve Detaylı Sağlık Denetimi
    * Yalnızca SUPER_ADMIN rolü veya güvenli X-Health-Token ile erişilebilir.
+   * OptionalJwtAuthGuard ile Bearer veya cookie JWT varsa request.user doldurulur.
    * Fail-Closed: HEALTH_TOKEN tanımlı değilse token tabanlı erişim tamamen kapalıdır.
    * Defense-in-Depth Throttle: Brute-force saldırılarını önlemek için sıkı rate limit (dakikada 20 istek).
    */
-  @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Get('detail')
   @ApiOperation({ summary: 'Korumalı detaylı sistem sağlık ve gecikme metrikleri' })
