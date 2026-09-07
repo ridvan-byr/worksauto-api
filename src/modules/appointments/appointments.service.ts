@@ -80,25 +80,7 @@ export class AppointmentsService {
     const start = new Date(dto.slotStartTime);
     const end = new Date(dto.slotEndTime);
 
-    let serviceId = dto.serviceId;
-    if (!serviceId) {
-      const srv = await this.prisma.service.findFirst({ where: { tenantId } });
-      if (srv) {
-        serviceId = srv.id;
-      } else {
-        const created = await this.prisma.service.create({
-          data: {
-            tenant: { connect: { id: tenantId } },
-            name: 'Genel Servis & Bakım',
-            code: 'SRV-' + Date.now(),
-            category: 'GENERAL',
-            basePrice: 750,
-            defaultDurationMin: 60,
-          },
-        });
-        serviceId = created.id;
-      }
-    }
+    const serviceId = dto.serviceId || null;
 
     // Concurrency Check 1: Mechanic Double Booking Prevention
     if (dto.assignedMechanicId) {

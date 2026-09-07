@@ -13,6 +13,17 @@ export interface CreateCustomerDto {
   taxOffice?: string;
   creditLimit?: number;
   notes?: string;
+  isLead?: boolean;
+}
+
+export interface QuickLeadDto {
+  firstName: string;
+  lastName?: string;
+  phone: string;
+  plate: string;
+  brand?: string;
+  model?: string;
+  year?: number;
 }
 
 @Injectable()
@@ -106,6 +117,7 @@ export class CustomersService {
           taxOffice: dto.taxOffice,
           creditLimit: dto.creditLimit || 0,
           notes: dto.notes,
+          isLead: dto.isLead ?? false,
         },
       });
 
@@ -119,6 +131,61 @@ export class CustomersService {
       });
 
       return customer;
+    });
+  }
+
+  async quickLead(tenantId: string, dto: QuickLeadDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const cleanPlate = dto.plate.toUpperCase().replace(/\s+/g, '');
+
+      // 1. Create or find customer by phone
+      let customer = await tx.customer.findFirst({
+        where: { tenantId, phone: dto.phone, deletedAt: null },
+      });
+
+      if (!customer) {
+        customer = await tx.customer.create({
+          data: {
+            tenantId,
+            type: CustomerType.INDIVIDUAL,
+            firstName: dto.firstName,
+            lastName: dto.lastName || '',
+            phone: dto.phone,
+            isLead: true,
+          },
+        });
+
+        await tx.currentAccount.create({
+          data: {
+            tenantId,
+            customerId: customer.id,
+            creditLimit: 0,
+          },
+        });
+      }
+
+      // 2. Check or create vehicle for this customer
+      let vehicle = await tx.vehicle.findFirst({
+        where: { tenantId, plate: cleanPlate, deletedAt: null },
+      });
+
+      if (!vehicle) {
+        vehicle = await tx.vehicle.create({
+          data: {
+            tenantId,
+            customerId: customer.id,
+            plate: cleanPlate,
+            brand: dto.brand || 'Belirtilmedi',
+            model: dto.model || 'Model Belirtilmedi',
+            year: dto.year || new Date().getFullYear(),
+          },
+        });
+      }
+
+      return {
+        customer,
+        vehicle,
+      };
     });
   }
 

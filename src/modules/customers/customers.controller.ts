@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
-import { CustomersService, CreateCustomerDto } from './customers.service';
+import { CustomersService, CreateCustomerDto, QuickLeadDto } from './customers.service';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -34,6 +34,13 @@ export class CustomersController {
   @ApiOperation({ summary: 'Müşteri detayını ve geçmiş iş emirlerini döner' })
   findOne(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.customersService.findOne(tenantId, id);
+  }
+
+  @Post('quick-lead')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN, UserRole.CASHIER)
+  @ApiOperation({ summary: 'Randevu esnasında tek adımda hızlı potansiyel müşteri ve araç oluşturur' })
+  quickLead(@CurrentTenant() tenantId: string, @Body() dto: QuickLeadDto) {
+    return this.customersService.quickLead(tenantId, dto);
   }
 
   @Post()
