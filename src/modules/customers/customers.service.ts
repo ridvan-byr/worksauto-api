@@ -342,11 +342,30 @@ export class CustomersService {
       try {
         await this.prisma.$transaction(async (tx) => {
           let customer: any = null;
-          const cleanPhone = (row.phone || '').trim();
+          const rawPhone = (row.phone || '').trim();
+          const digitsOnly = rawPhone.replace(/\D/g, '');
+          let standardPhone = digitsOnly;
+          if (standardPhone.startsWith('90') && standardPhone.length === 12) {
+            standardPhone = standardPhone.slice(2);
+          }
+          if (standardPhone.length === 10 && standardPhone.startsWith('5')) {
+            standardPhone = '0' + standardPhone;
+          }
 
-          if (cleanPhone) {
+          if (standardPhone) {
+            const phoneCandidates = [
+              standardPhone,
+              rawPhone,
+              standardPhone.startsWith('0') ? standardPhone.slice(1) : '0' + standardPhone,
+              standardPhone.startsWith('0') ? '+9' + standardPhone : '+90' + standardPhone,
+            ].filter(Boolean);
+
             customer = await tx.customer.findFirst({
-              where: { tenantId, phone: cleanPhone, deletedAt: null },
+              where: {
+                tenantId,
+                phone: { in: phoneCandidates },
+                deletedAt: null,
+              },
             });
           }
 
@@ -361,7 +380,7 @@ export class CustomersService {
                 firstName: cName,
                 lastName: cSurname,
                 companyTitle: row.companyTitle || undefined,
-                phone: cleanPhone || '05000000000',
+                phone: standardPhone || rawPhone || '05000000000',
                 email: row.email || undefined,
                 taxNumber: row.taxNumber || undefined,
                 taxOffice: row.taxOffice || undefined,
