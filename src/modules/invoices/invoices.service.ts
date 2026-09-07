@@ -29,8 +29,13 @@ export class InvoicesService {
       },
       include: {
         customer: true,
-        workOrder: true,
-        payments: true,
+        workOrder: {
+          include: {
+            vehicle: true,
+            items: true,
+          },
+        },
+        payments: { orderBy: { paymentDate: 'desc' } },
       },
       orderBy: { issueDate: 'desc' },
     });
