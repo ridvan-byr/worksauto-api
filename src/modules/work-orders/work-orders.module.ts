@@ -1,12 +1,23 @@
-import { InvoicesModule } from '../invoices/invoices.module';
 import { Module } from '@nestjs/common';
-import { WorkOrdersService } from './work-orders.service';
-import { WorkOrdersController } from './work-orders.controller';
-import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
+import { InvoicesModule } from '../invoices/invoices.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { EventsModule } from '../events/events.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { QueueModule } from '../queues/queue.module';
+import { AuditModule } from '../audit/audit.module';
+import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
+
+import { WorkOrdersController } from './presentation/work-orders.controller';
+import { WorkOrdersService } from './work-orders.service';
+import { PrismaWorkOrderRepository } from './infrastructure/persistence/prisma-work-order.repository';
+
+import { GetWorkOrdersUseCase } from './application/use-cases/get-work-orders.use-case';
+import { CreateWorkOrderUseCase } from './application/use-cases/create-work-order.use-case';
+import { UpdateWorkOrderStatusUseCase } from './application/use-cases/update-work-order-status.use-case';
+import { RollbackWorkOrderUseCase } from './application/use-cases/rollback-work-order.use-case';
+import { AddWorkOrderItemUseCase } from './application/use-cases/add-work-order-item.use-case';
+import { RemoveWorkOrderItemUseCase } from './application/use-cases/remove-work-order-item.use-case';
+import { AddWorkOrderPhotoUseCase } from './application/use-cases/add-work-order-photo.use-case';
 
 @Module({
   imports: [
@@ -15,9 +26,24 @@ import { QueueModule } from '../queues/queue.module';
     EventsModule,
     NotificationsModule,
     QueueModule,
+    AuditModule,
   ],
   controllers: [WorkOrdersController],
-  providers: [WorkOrdersService, PrismaService],
-  exports: [WorkOrdersService],
+  providers: [
+    PrismaService,
+    {
+      provide: 'IWorkOrderRepository',
+      useClass: PrismaWorkOrderRepository,
+    },
+    GetWorkOrdersUseCase,
+    CreateWorkOrderUseCase,
+    UpdateWorkOrderStatusUseCase,
+    RollbackWorkOrderUseCase,
+    AddWorkOrderItemUseCase,
+    RemoveWorkOrderItemUseCase,
+    AddWorkOrderPhotoUseCase,
+    WorkOrdersService,
+  ],
+  exports: [WorkOrdersService, 'IWorkOrderRepository'],
 })
 export class WorkOrdersModule {}
