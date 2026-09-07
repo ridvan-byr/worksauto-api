@@ -214,8 +214,8 @@ export class AuthService {
 
     const normalizedPhone = this.normalizePhone(dto.phone);
 
-    return this.prisma.$transaction(async (tx) => {
-      const tenant = await tx.tenant.create({
+    const { tenant, user } = await this.prisma.$transaction(async (tx) => {
+      const createdTenant = await tx.tenant.create({
         data: {
           slug: dto.slug,
           title: dto.tenantTitle,
@@ -224,9 +224,9 @@ export class AuthService {
         },
       });
 
-      const user = await tx.user.create({
+      const createdUser = await tx.user.create({
         data: {
-          tenantId: tenant.id,
+          tenantId: createdTenant.id,
           name: dto.firstName,
           surname: dto.lastName,
           phone: normalizedPhone,
@@ -235,20 +235,22 @@ export class AuthService {
         },
       });
 
-      const tokens = await this.generateTokens(user, tenant.id);
-      return {
-        tenant,
-        user: {
-          id: user.id,
-          name: user.name,
-          surname: user.surname,
-          phone: user.phone,
-          email: user.email,
-          role: user.role,
-        },
-        ...tokens,
-      };
+      return { tenant: createdTenant, user: createdUser };
     });
+
+    const tokens = await this.generateTokens(user, tenant.id);
+    return {
+      tenant,
+      user: {
+        id: user.id,
+        name: user.name,
+        surname: user.surname,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
+      },
+      ...tokens,
+    };
   }
 
   /**

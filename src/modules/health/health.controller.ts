@@ -13,8 +13,7 @@ import { Response } from 'express';
 import * as crypto from 'crypto';
 import { Public } from '../../shared/decorators/public.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
-import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
-import { RedisService } from '../../shared/infrastructure/redis/redis.service';
+import { HealthService } from './health.service';
 
 /**
  * SHA-256 Hash bazlı sabit zamanlı karşılaştırma.
@@ -32,10 +31,7 @@ function timingSafeCompare(provided: string, expected: string): boolean {
 @ApiTags('Health & Monitoring')
 @Controller('health')
 export class HealthController {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
-  ) {}
+  constructor(private readonly healthService: HealthService) {}
 
   /**
    * Public Liveness Probe
@@ -85,57 +81,7 @@ export class HealthController {
       throw new UnauthorizedException('Detaylı sistem sağlığı kontrolü için yetkiniz bulunmamaktadır.');
     }
 
-    const checks: Record<string, any> = {};
-    let isHealthy = true;
-
-    // 1. PostgreSQL Latency Check
-    const dbStart = Date.now();
-    try {
-      await this.prisma.$queryRaw`SELECT 1`;
-      checks.database = {
-        status: 'up',
-        latencyMs: Date.now() - dbStart,
-      };
-    } catch (err: any) {
-      isHealthy = false;
-      checks.database = {
-        status: 'down',
-        error: err.message,
-        latencyMs: Date.now() - dbStart,
-      };
-    }
-
-    // 2. Redis Latency Check
-    const redisStart = Date.now();
-    try {
-      const pingRes = await this.redis.ping();
-      checks.redis = {
-        status: pingRes === 'PONG' ? 'up' : 'degraded',
-        latencyMs: Date.now() - redisStart,
-      };
-    } catch (err: any) {
-      isHealthy = false;
-      checks.redis = {
-        status: 'down',
-        error: err.message,
-        latencyMs: Date.now() - redisStart,
-      };
-    }
-
-    // 3. Node.js Memory & Uptime
-    const memory = process.memoryUsage();
-    checks.process = {
-      uptimeSeconds: Math.floor(process.uptime()),
-      heapUsedMb: Math.round((memory.heapUsed / 1024 / 1024) * 100) / 100,
-      heapTotalMb: Math.round((memory.heapTotal / 1024 / 1024) * 100) / 100,
-      rssMb: Math.round((memory.rss / 1024 / 1024) * 100) / 100,
-    };
-
-    const result = {
-      status: isHealthy ? 'healthy' : 'unhealthy',
-      timestamp: new Date().toISOString(),
-      checks,
-    };
+    const { isHealthy, result } = await this.healthService.checkDetail();
 
     if (!isHealthy) {
       res.status(HttpStatus.SERVICE_UNAVAILABLE);

@@ -85,7 +85,7 @@ export class PaymentsService {
 
       // Update Current Account (Alacak Ekle)
       const currentAccount = await tx.currentAccount.findUnique({
-        where: { customerId: dto.customerId },
+        where: { customerId },
       });
 
       if (currentAccount) {
@@ -105,7 +105,7 @@ export class PaymentsService {
             tenantId,
             currentAccountId: currentAccount.id,
             date: new Date(),
-            description: `Tahsilat Alındı (${dto.paymentMethod})`,
+            description: `Tahsilat Alındı (${paymentMethod})`,
             referenceType: CariReferenceType.PAYMENT,
             referenceNo: payment.id.substring(0, 8),
             debit: 0,
