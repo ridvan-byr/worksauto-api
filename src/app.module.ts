@@ -8,7 +8,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
 import { PrismaService } from './shared/infrastructure/prisma/prisma.service';
-import { RedisService } from './shared/infrastructure/redis/redis.service';
+import { RedisModule } from './shared/infrastructure/redis/redis.module';
 import { RolesGuard } from './shared/guards/roles.guard';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
 
@@ -69,10 +69,10 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     AdminModule,
     ServicesModule,
     HealthModule,
+    RedisModule,
   ],
   providers: [
     PrismaService,
-    RedisService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
@@ -86,6 +86,6 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
       useClass: RolesGuard,
     },
   ],
-  exports: [PrismaService, RedisService],
+  exports: [PrismaService, RedisModule],
 })
 export class AppModule {}

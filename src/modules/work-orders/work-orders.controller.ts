@@ -1,22 +1,28 @@
 import { AddWorkOrderItemDto } from './dto/add-item.dto';
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { WorkOrdersService, CreateWorkOrderDto } from './work-orders.service';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
+import { RequirePermission } from '../../shared/decorators/require-permission.decorator';
+import { RolesGuard } from '../../shared/guards/roles.guard';
+import { IdempotencyInterceptor } from '../../shared/interceptors/idempotency.interceptor';
+import { Permission } from '../../shared/constants/permissions.enum';
 import { UserRole, WorkOrderStatus, WorkOrderPhotoType } from '@prisma/client';
 
 @ApiTags('Work Orders (Atölye İş Emirleri)')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseInterceptors(IdempotencyInterceptor)
 @Controller('work-orders')
 export class WorkOrdersController {
   constructor(private readonly workOrdersService: WorkOrdersService) {}
 
   @Get()
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN, UserRole.CASHIER)
+  @RequirePermission(Permission.WORK_ORDER_VIEW)
   @ApiOperation({ summary: 'İş emirlerini durumuna göre listeler' })
   findAll(@CurrentTenant() tenantId: string, @Query('status') status?: WorkOrderStatus) {
     return this.workOrdersService.findAll(tenantId, status);
@@ -24,6 +30,7 @@ export class WorkOrdersController {
 
   @Get(':id')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN, UserRole.CASHIER)
+  @RequirePermission(Permission.WORK_ORDER_VIEW)
   @ApiOperation({ summary: 'İş emri detayını, kalemlerini ve fotoğraflarını döner' })
   findOne(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.workOrdersService.findOne(tenantId, id);
@@ -31,7 +38,9 @@ export class WorkOrdersController {
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @RequirePermission(Permission.WORK_ORDER_CREATE)
   @ApiOperation({ summary: 'Yeni iş emri açar ve parçaları atomik olarak stoktan düşer' })
+  @ApiHeader({ name: 'X-Idempotency-Key', required: false, description: 'Tekrarlanan istek koruması için benzersiz anahtar' })
   create(
     @CurrentTenant() tenantId: string,
     @Body() dto: CreateWorkOrderDto,
@@ -42,7 +51,9 @@ export class WorkOrdersController {
 
   @Patch(':id/status')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
+  @RequirePermission(Permission.WORK_ORDER_UPDATE)
   @ApiOperation({ summary: 'İş emri aşamasını ilerletir (QUEUE -> IN_PROGRESS -> COMPLETED)' })
+  @ApiHeader({ name: 'X-Idempotency-Key', required: false, description: 'Tekrarlanan istek koruması için benzersiz anahtar' })
   updateStatus(
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
@@ -54,7 +65,9 @@ export class WorkOrdersController {
 
   @Post(':id/rollback')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @RequirePermission(Permission.WORK_ORDER_ROLLBACK)
   @ApiOperation({ summary: 'İş emrini güvenle bir önceki aşamaya geri alır' })
+  @ApiHeader({ name: 'X-Idempotency-Key', required: false, description: 'Tekrarlanan istek koruması için benzersiz anahtar' })
   rollback(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.workOrdersService.rollbackStatus(tenantId, id);
   }
