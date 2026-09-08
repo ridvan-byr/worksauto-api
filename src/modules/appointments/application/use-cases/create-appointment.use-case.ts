@@ -1,4 +1,4 @@
-import { Injectable, Inject, ConflictException } from '@nestjs/common';
+import { Injectable, Inject, ConflictException, BadRequestException } from '@nestjs/common';
 import { IAppointmentRepository, APPOINTMENT_REPOSITORY } from '../../domain/appointment.repository.interface';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AuditService } from '../../../audit/audit.service';
@@ -33,6 +33,19 @@ export class CreateAppointmentUseCase {
   async execute(tenantId: string, dto: CreateAppointmentInput, userId?: string): Promise<AppointmentEntity> {
     const start = new Date(dto.slotStartTime);
     const end = new Date(dto.slotEndTime);
+
+    const preliminaryEntity = new AppointmentEntity({
+      tenantId,
+      customerId: dto.customerId,
+      vehicleId: dto.vehicleId,
+      slotDate: new Date(dto.slotDate),
+      slotStartTime: start,
+      slotEndTime: end,
+    });
+
+    if (!preliminaryEntity.isValidSlot()) {
+      throw new BadRequestException('Randevu bitiş saati başlangıç saatinden sonra olmalıdır.');
+    }
 
     // Concurrency Check 1: Mechanic Double Booking Prevention
     if (dto.assignedMechanicId) {

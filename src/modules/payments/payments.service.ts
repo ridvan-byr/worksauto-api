@@ -83,37 +83,44 @@ export class PaymentsService {
         }
       }
 
-      // Update Current Account (Alacak Ekle)
-      const currentAccount = await tx.currentAccount.findUnique({
+      // Update Current Account (Alacak Ekle - Atomik Güncelleme)
+      let currentAccount = await tx.currentAccount.findUnique({
         where: { customerId },
       });
 
-      if (currentAccount) {
-        const newTotalCredits = Number(currentAccount.totalCredits) + dto.amount;
-        const newBalance = Number(currentAccount.totalDebits) - newTotalCredits;
-
-        await tx.currentAccount.update({
-          where: { id: currentAccount.id },
-          data: {
-            totalCredits: newTotalCredits,
-            balance: newBalance,
-          },
-        });
-
-        await tx.cariMovement.create({
+      if (!currentAccount) {
+        currentAccount = await tx.currentAccount.create({
           data: {
             tenantId,
-            currentAccountId: currentAccount.id,
-            date: new Date(),
-            description: `Tahsilat Alındı (${paymentMethod})`,
-            referenceType: CariReferenceType.PAYMENT,
-            referenceNo: payment.id.substring(0, 8),
-            debit: 0,
-            credit: dto.amount,
-            balanceAfter: newBalance,
+            customerId,
           },
         });
       }
+
+      // Atomically increment totalCredits and decrement balance to prevent TOCTOU
+      const updatedCA = await tx.currentAccount.update({
+        where: { id: currentAccount.id },
+        data: {
+          totalCredits: { increment: dto.amount },
+          balance: { decrement: dto.amount },
+        },
+      });
+
+      const newBalance = Number(updatedCA.balance);
+
+      await tx.cariMovement.create({
+        data: {
+          tenantId,
+          currentAccountId: currentAccount.id,
+          date: new Date(),
+          description: `Tahsilat Alındı (${paymentMethod})`,
+          referenceType: CariReferenceType.PAYMENT,
+          referenceNo: payment.id.substring(0, 8),
+          debit: 0,
+          credit: dto.amount,
+          balanceAfter: newBalance,
+        },
+      });
 
       try {
         await this.auditService.log({

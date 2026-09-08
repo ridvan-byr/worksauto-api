@@ -70,9 +70,45 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
         data: { currentKm: data.initialKm },
       });
 
-      // Insert line items
+      // Insert line items & deduct stock atomically within the same transaction
       if (data.items && data.items.length > 0) {
         for (const item of data.items) {
+          if (item.itemType === 'PART' && item.itemId) {
+            const updatedCount = await tx.$executeRaw`
+              UPDATE products
+              SET stock_quantity = stock_quantity - ${item.quantity}
+              WHERE id = ${item.itemId}::uuid 
+                AND tenant_id = ${data.tenantId}::uuid 
+                AND stock_quantity >= ${item.quantity}
+            `;
+
+            if (updatedCount === 0) {
+              const product = await tx.product.findFirst({
+                where: { id: item.itemId, tenantId: data.tenantId },
+              });
+
+              if (!product) {
+                throw new NotFoundException('Belirtilen yedek parça depoda bulunamadı.');
+              }
+
+              throw new BadRequestException(
+                `Yetersiz stok! "${product.name}" için mevcut stok (${product.stockQuantity}) talep edilen miktarı (${item.quantity}) karşılamıyor.`,
+              );
+            }
+
+            await tx.stockMovement.create({
+              data: {
+                tenantId: data.tenantId,
+                productId: item.itemId,
+                movementType: StockMovementType.OUT_WORK_ORDER,
+                quantity: item.quantity,
+                note: `İş Emri Sarfiyatı: ${data.workOrderNumber}`,
+                referenceId: workOrder.id,
+                createdBy: data.author || 'SYSTEM',
+              },
+            });
+          }
+
           await tx.workOrderItem.create({
             data: {
               workOrderId: workOrder.id,
@@ -135,24 +171,28 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
 
       // 1. If PART, atomically check and deduct stock
       if (item.itemType === 'PART' && item.itemId) {
-        const product = await tx.product.findFirst({
-          where: { id: item.itemId, tenantId },
-        });
+        // Atomic SQL update guarantees no negative stock even under high concurrency
+        const updatedCount = await tx.$executeRaw`
+          UPDATE products
+          SET stock_quantity = stock_quantity - ${item.quantity}
+          WHERE id = ${item.itemId}::uuid 
+            AND tenant_id = ${tenantId}::uuid 
+            AND stock_quantity >= ${item.quantity}
+        `;
 
-        if (!product) {
-          throw new NotFoundException('Belirtilen yedek parça depoda bulunamadı.');
-        }
+        if (updatedCount === 0) {
+          const product = await tx.product.findFirst({
+            where: { id: item.itemId, tenantId },
+          });
 
-        if (product.stockQuantity < item.quantity) {
+          if (!product) {
+            throw new NotFoundException('Belirtilen yedek parça depoda bulunamadı.');
+          }
+
           throw new BadRequestException(
-            `Yetersiz stok! "${product.name}" için mevcut stok: ${product.stockQuantity}, talep edilen: ${item.quantity}`,
+            `Yetersiz stok! "${product.name}" için mevcut stok (${product.stockQuantity}) talep edilen miktarı (${item.quantity}) karşılamıyor.`,
           );
         }
-
-        await tx.product.update({
-          where: { id: item.itemId },
-          data: { stockQuantity: { decrement: item.quantity } },
-        });
 
         await tx.stockMovement.create({
           data: {

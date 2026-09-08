@@ -12,12 +12,13 @@ Bir modül şu ikisinden EN AZ BİRİNİ karşılıyorsa TAM DDD (domain/applica
 
 | Modül | (a) Finansal risk | (b) Karmaşık kural | Karar | Öncelik Sırası |
 |---|---|---|---|---|
-| work-orders | ✅ | ✅ | Tam DDD (TAMAMLANDI — pilot) | 0 |
-| inventory | ✅ (stok tutarlılığı) | ✅ (atomik rezervasyon/rollback) | Tam DDD | 1 |
-| invoices & billing | ✅ | ✅ (KDV/cari hesaplama) | Tam DDD | 2 |
-| appointments | ❌ | ✅ (çakışma/kapasite kontrolü) | Tam DDD | 3 |
-| customers | ❌ | ✅ (VKN/TCKN doğrulama algoritması, çok formatlı telefon eşleştirme — batch import'ta gerçek bir eşleştirme algoritması çalışıyor, salt CRUD değil) | Tam DDD | 4 |
+| work-orders | ✅ | ✅ | Tam DDD (TAMAMLANDI — pilot, atomik stok düşümü ve transaction sınırları güvenceye alındı) | 0 |
+| inventory | ✅ (stok tutarlılığı) | ✅ (atomik rezervasyon/rollback) | Tam DDD (TAMAMLANDI) | 1 |
+| invoices & billing | ✅ | ✅ (KDV/cari atomik hesaplama) | Tam DDD (TAMAMLANDI — cari bakiye TOCTOU korumalı) | 2 |
+| appointments | ❌ | ✅ (Teknisyen ve lift double-booking çakışma kontrolü & AppointmentEntity slot geçerlilik kuralları) | Tam DDD (TAMAMLANDI) | 3 |
+| customers | ❌ | ✅ (VKN/TCKN doğrulama algoritması, çok formatlı telefon eşleştirme — batch import'ta gerçek bir eşleştirme algoritması çalışıyor, salt CRUD değil) | Tam DDD (TAMAMLANDI) | 4 |
 | admin | ❌ | ❌ (auth + CRUD + raporlama, karmaşık iş kuralı yok) | Hafif bölme (odaklı use-case grupları, ayrı domain/infrastructure katmanı YOK) | 5 |
+| vehicles & current-accounts | ✅ (Cari finans / araç kimlik) | ✅ (Plaka normalizasyonu / bakiye kontrolü) | Tam DDD (Faz 4 hedefi) | 6 |
 | diğer tüm modüller (staff, services, media, notifications, vb.) | ❌ | ❌ | Dokunulmuyor — Boy Scout Rule: bir sonraki değişiklik sırasında hafif bölme uygulanır | — |
 
 ## inventory'nin invoices'tan ÖNCE Sıraya Alınma Gerekçesi

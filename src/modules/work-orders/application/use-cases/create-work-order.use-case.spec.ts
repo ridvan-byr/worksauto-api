@@ -1,14 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CreateWorkOrderUseCase } from './create-work-order.use-case';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
-import { DecrementStockUseCase } from '../../../inventory/application/use-cases/decrement-stock.use-case';
 import { WorkOrderEntity } from '../../domain/entities/work-order.entity';
 import { WorkOrderStatusEnum } from '../../domain/value-objects/work-order-status.vo';
 
 describe('CreateWorkOrderUseCase', () => {
   let useCase: CreateWorkOrderUseCase;
   let mockRepo: IWorkOrderRepository;
-  let mockDecrementStock: DecrementStockUseCase;
   let mockEvents: any;
   let mockNotifications: any;
 
@@ -21,10 +19,6 @@ describe('CreateWorkOrderUseCase', () => {
       findAll: vi.fn(),
     } as any;
 
-    mockDecrementStock = {
-      execute: vi.fn().mockResolvedValue({}),
-    } as any;
-
     mockEvents = {
       emitToTenant: vi.fn(),
     };
@@ -35,13 +29,12 @@ describe('CreateWorkOrderUseCase', () => {
 
     useCase = new CreateWorkOrderUseCase(
       mockRepo,
-      mockDecrementStock,
       mockEvents,
       mockNotifications,
     );
   });
 
-  it('should create a work order with stock decrement for PART items', async () => {
+  it('should create a work order atomically with items and author passed to repository', async () => {
     const created = new WorkOrderEntity({
       id: 'wo-1',
       tenantId: 't-1',
@@ -78,12 +71,20 @@ describe('CreateWorkOrderUseCase', () => {
     );
 
     expect(result.id).toBe('wo-1');
-    expect(mockDecrementStock.execute).toHaveBeenCalledWith(
-      't-1',
-      'prod-1',
-      2,
-      'WO-2026-00001',
-      'Ustabaşı Ali',
+    expect(mockRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 't-1',
+        workOrderNumber: 'WO-2026-00001',
+        author: 'Ustabaşı Ali',
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            itemId: 'prod-1',
+            itemType: 'PART',
+            quantity: 2,
+            unitPrice: 250,
+          }),
+        ]),
+      }),
     );
     expect(mockEvents.emitToTenant).toHaveBeenCalledWith(
       't-1',

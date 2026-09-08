@@ -14,6 +14,7 @@ export interface CreateWorkOrderData {
   kdvAmount: number;
   grandTotal: number;
   status: WorkOrderStatusEnum;
+  author?: string;
   items?: Array<{
     itemType: 'PART' | 'SERVICE';
     itemId?: string;

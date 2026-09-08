@@ -102,7 +102,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         },
       });
 
-      // Update Current Account (Cari Hesap Borç Ekle)
+      // Update Current Account (Cari Hesap Borç Ekle) - Atomik Güncelleme
       let currentAccount = await tx.currentAccount.findUnique({
         where: { customerId: invoice.customerId },
       });
@@ -116,16 +116,16 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         });
       }
 
-      const newTotalDebits = Number(currentAccount.totalDebits) + invoice.grandTotal;
-      const newBalance = newTotalDebits - Number(currentAccount.totalCredits);
-
-      await tx.currentAccount.update({
+      // Atomically increment totalDebits and balance to avoid TOCTOU race condition
+      const updatedCA = await tx.currentAccount.update({
         where: { id: currentAccount.id },
         data: {
-          totalDebits: newTotalDebits,
-          balance: newBalance,
+          totalDebits: { increment: invoice.grandTotal },
+          balance: { increment: invoice.grandTotal },
         },
       });
+
+      const newBalance = Number(updatedCA.balance);
 
       await tx.cariMovement.create({
         data: {

@@ -120,4 +120,21 @@ export class AppointmentEntity {
     }
     this.status = 'NO_SHOW';
   }
+
+  /**
+   * Domain Rule: Verilen başlangıç ve bitiş saatleri mevcut randevuyla zaman çakışması yaratıyor mu?
+   */
+  public hasTimeConflictWith(targetStart: Date, targetEnd: Date): boolean {
+    if (this.status === 'CANCELLED' || this.status === 'NO_SHOW') {
+      return false;
+    }
+    return this.slotStartTime < targetEnd && this.slotEndTime > targetStart;
+  }
+
+  /**
+   * Domain Rule: Randevu başlangıç ve bitiş zamanı kronolojik olarak geçerli mi?
+   */
+  public isValidSlot(): boolean {
+    return this.slotStartTime < this.slotEndTime;
+  }
 }
