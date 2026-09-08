@@ -27,6 +27,15 @@ export interface CustomerStatsResult {
   limitExceeded: boolean;
 }
 
+export interface BatchImportResult {
+  totalRows: number;
+  importedCustomersCount: number;
+  existingCustomersCount: number;
+  importedVehiclesCount: number;
+  existingVehiclesCount: number;
+  errors: Array<{ row: number; reason: string }>;
+}
+
 export interface ICustomerRepository {
   findById(tenantId: string, id: string): Promise<CustomerEntity | null>;
   findAll(tenantId: string, search?: string): Promise<CustomerEntity[]>;
@@ -36,6 +45,6 @@ export interface ICustomerRepository {
   findByPhone(tenantId: string, phone: string): Promise<CustomerEntity | null>;
   getCustomerStats(tenantId: string, id: string): Promise<CustomerStatsResult>;
   quickLead(tenantId: string, data: QuickLeadInput): Promise<{ customer: any; vehicle: any }>;
-  batchImport(tenantId: string, items: any[]): Promise<{ importedCount: number; errors: any[] }>;
+  batchImport(tenantId: string, items: any[]): Promise<BatchImportResult>;
   anonymizeCustomer(tenantId: string, id: string, userId: string, legalRef: string): Promise<CustomerEntity>;
 }

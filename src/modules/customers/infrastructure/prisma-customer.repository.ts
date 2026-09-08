@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
-import { ICustomerRepository, QuickLeadInput, CustomerStatsResult } from '../domain/customer.repository.interface';
+import { ICustomerRepository, QuickLeadInput, CustomerStatsResult, BatchImportResult } from '../domain/customer.repository.interface';
 import { CustomerEntity, CustomerTypeVo } from '../domain/customer.entity';
 import { CustomerType } from '@prisma/client';
 
@@ -279,8 +279,11 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     });
   }
 
-  async batchImport(tenantId: string, rows: any[]): Promise<{ importedCount: number; errors: any[] }> {
+  async batchImport(tenantId: string, rows: any[]): Promise<BatchImportResult> {
     let importedCustomersCount = 0;
+    let existingCustomersCount = 0;
+    let importedVehiclesCount = 0;
+    let existingVehiclesCount = 0;
     const errors: any[] = [];
 
     for (let i = 0; i < rows.length; i++) {
@@ -345,6 +348,8 @@ export class PrismaCustomerRepository implements ICustomerRepository {
             });
 
             importedCustomersCount++;
+          } else {
+            existingCustomersCount++;
           }
 
           const cleanPlate = row.plate ? row.plate.trim().toUpperCase().replace(/\s+/g, '') : '';
@@ -380,6 +385,10 @@ export class PrismaCustomerRepository implements ICustomerRepository {
                   transmission,
                 },
               });
+
+              importedVehiclesCount++;
+            } else {
+              existingVehiclesCount++;
             }
           }
         });
@@ -389,7 +398,11 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     }
 
     return {
-      importedCount: importedCustomersCount,
+      totalRows: rows.length,
+      importedCustomersCount,
+      existingCustomersCount,
+      importedVehiclesCount,
+      existingVehiclesCount,
       errors,
     };
   }

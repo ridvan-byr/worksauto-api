@@ -28,13 +28,17 @@ describe('BatchImportCustomersUseCase', () => {
       { firstName: 'Ahmet', phone: '05321112233', plate: '34ABC01' },
     ];
     vi.mocked(mockRepo.batchImport).mockResolvedValue({
-      importedCount: 1,
+      totalRows: 1,
+      importedCustomersCount: 1,
+      existingCustomersCount: 0,
+      importedVehiclesCount: 1,
+      existingVehiclesCount: 0,
       errors: [],
     });
 
     const result = await useCase.execute('tenant-1', items);
 
-    expect(result.importedCount).toBe(1);
+    expect(result.importedCustomersCount).toBe(1);
     expect(mockRepo.batchImport).toHaveBeenCalledWith('tenant-1', items);
   });
 });
