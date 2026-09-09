@@ -20,7 +20,7 @@ const API_SRC_DIR = fs.existsSync(path.join(ROOT_DIR, 'src'))
   : path.join(ROOT_DIR, 'worksauto-api', 'src');
 
 // DDD Modules that strictly enforce Presentation -> Application -> Domain separation
-const DDD_MODULES = ['work-orders', 'inventory', 'invoices', 'appointments', 'customers'];
+const DDD_MODULES = ['work-orders', 'inventory', 'invoices', 'appointments', 'customers', 'vehicles', 'current-accounts'];
 
 // Prohibited imports in domain layer (Spec Md. 4: Domain katmanı altyapıyı ve çerçeveyi bilmemelidir)
 const PROHIBITED_DOMAIN_IMPORTS = [
