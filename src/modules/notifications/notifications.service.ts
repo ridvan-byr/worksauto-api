@@ -40,7 +40,7 @@ export class NotificationsService {
   async createNotification(dto: CreateNotificationDto) {
     try {
       const metadata = {
-        ...(dto.metadata || {}),
+        ...dto.metadata,
         actorUserId: dto.actorUserId,
         targetRoles: dto.targetRoles,
       };

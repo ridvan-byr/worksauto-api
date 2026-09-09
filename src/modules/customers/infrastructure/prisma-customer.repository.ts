@@ -102,7 +102,7 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       where: {
         tenantId,
         deletedAt: null,
-        ...(searchCondition || {}),
+        ...searchCondition,
       },
       include: {
         vehicles: { where: { deletedAt: null } },

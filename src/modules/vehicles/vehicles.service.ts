@@ -71,7 +71,7 @@ export class VehiclesService {
       where: {
         tenantId,
         deletedAt: null,
-        ...(searchCondition || {}),
+        ...searchCondition,
       },
       include: { customer: true },
       orderBy: { createdAt: 'desc' },

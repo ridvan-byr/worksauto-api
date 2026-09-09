@@ -61,7 +61,7 @@ export class CreateInvoiceUseCase {
             creditLimit: result.creditLimit,
           },
         });
-      } catch (e) {
+      } catch {
         // Notification resilience
       }
     }
