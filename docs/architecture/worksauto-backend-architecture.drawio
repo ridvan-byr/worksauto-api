@@ -37,7 +37,7 @@
         <mxCell id="12" parent="3" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="add_quick_lead" vertex="1">
           <mxGeometry height="54" width="172" x="194" y="74" as="geometry" />
         </mxCell>
-        <mxCell id="13" parent="3" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="batch_import_excel" vertex="1">
+        <mxCell id="13" parent="3" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="batch_import_with_duplicate_strategy" vertex="1">
           <mxGeometry height="54" width="172" x="194" y="140" as="geometry" />
         </mxCell>
         <mxCell id="14" parent="3" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="find_by_phone" vertex="1">
@@ -169,10 +169,10 @@
         <mxCell id="56" parent="47" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="add_work_order_item" vertex="1">
           <mxGeometry height="54" width="172" x="194" y="74" as="geometry" />
         </mxCell>
-        <mxCell id="57" parent="47" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="remove_work_order_item" vertex="1">
+        <mxCell id="57" parent="47" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="update_order_item_quantity" vertex="1">
           <mxGeometry height="54" width="172" x="194" y="140" as="geometry" />
         </mxCell>
-        <mxCell id="58" parent="47" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="reserve_stock_parts" vertex="1">
+        <mxCell id="58" parent="47" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="auto_stock_return_on_decrease" vertex="1">
           <mxGeometry height="54" width="172" x="194" y="206" as="geometry" />
         </mxCell>
         <mxCell id="59" parent="47" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="deduct_stock_on_complete" vertex="1">
@@ -382,25 +382,25 @@
         <mxCell id="127" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="get_payment_receipt" vertex="1">
           <mxGeometry height="54" width="172" x="194" y="404" as="geometry" />
         </mxCell>
-        <mxCell id="128" parent="113" style="text;html=1;align=center;verticalAlign=middle;fontColor=#8b5cf6;fontSize=11;fontStyle=1;" value="Finans &amp; Alacaklar" vertex="1">
+        <mxCell id="128" parent="113" style="text;html=1;align=center;verticalAlign=middle;fontColor=#8b5cf6;fontSize=11;fontStyle=1;" value="Finans, Kârlılık &amp; Raporlar" vertex="1">
           <mxGeometry height="24" width="172" x="372" y="44" as="geometry" />
         </mxCell>
-        <mxCell id="129" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="get_tenant_receivables" vertex="1">
+        <mxCell id="129" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="get_financial_report" vertex="1">
           <mxGeometry height="54" width="172" x="372" y="74" as="geometry" />
         </mxCell>
-        <mxCell id="130" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="get_daily_cash_report" vertex="1">
+        <mxCell id="130" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="calc_parts_vs_labour_margin" vertex="1">
           <mxGeometry height="54" width="172" x="372" y="140" as="geometry" />
         </mxCell>
-        <mxCell id="131" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="sync_current_accounts" vertex="1">
+        <mxCell id="131" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="get_daily_profit_trend" vertex="1">
           <mxGeometry height="54" width="172" x="372" y="206" as="geometry" />
         </mxCell>
-        <mxCell id="132" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="calc_kdv_tax_totals" vertex="1">
+        <mxCell id="132" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="export_financial_excel" vertex="1">
           <mxGeometry height="54" width="172" x="372" y="272" as="geometry" />
         </mxCell>
-        <mxCell id="133" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="export_invoices_excel" vertex="1">
+        <mxCell id="133" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="print_financial_pdf_report" vertex="1">
           <mxGeometry height="54" width="172" x="372" y="338" as="geometry" />
         </mxCell>
-        <mxCell id="134" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="get_debtor_customers" vertex="1">
+        <mxCell id="134" parent="113" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="get_unpaid_receivables" vertex="1">
           <mxGeometry height="54" width="172" x="372" y="404" as="geometry" />
         </mxCell>
         <mxCell id="135" parent="1" style="swimlane;startSize=34;rounded=1;arcSize=8;fillColor=#500724;strokeColor=#ec4899;fontColor=#ffffff;fontStyle=1;fontSize=13;align=center;html=1;collapsible=0;swimlaneFillColor=#090d16;" value="&lt;b&gt;7. Auth &amp; Multi-Tenancy (Güvenlik)&lt;/b&gt;" vertex="1">
@@ -484,7 +484,7 @@
         <mxCell id="161" parent="157" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="record_audit_event" vertex="1">
           <mxGeometry height="54" width="172" x="16" y="206" as="geometry" />
         </mxCell>
-        <mxCell id="162" parent="157" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="format_audit_payload" vertex="1">
+        <mxCell id="162" parent="157" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="track_staff_lift_change" vertex="1">
           <mxGeometry height="54" width="172" x="16" y="272" as="geometry" />
         </mxCell>
         <mxCell id="163" parent="157" style="rounded=1;arcSize=12;fillColor=#111827;strokeColor=#334155;fontColor=#e2e8f0;fontFamily=monospace;fontSize=11;align=center;verticalAlign=middle;html=1;shadow=0;" value="mask_client_ip" vertex="1">

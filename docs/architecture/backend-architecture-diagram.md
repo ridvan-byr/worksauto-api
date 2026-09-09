@@ -39,7 +39,7 @@ graph TB
     subgraph M1["1. Customers (Müşteri & Cari Yönetimi)"]
         direction TB
         c_1_1["<b>Müşteri CRUD</b><br/>get_customer_list<br/>get_customer_info<br/>add_customer<br/>update_customer<br/>del_customer<br/>anonymize_customer"]
-        c_1_2["<b>Toplu & Hızlı Kayıt</b><br/>add_quick_lead<br/>batch_import_excel<br/>find_by_phone<br/>validate_tax_number<br/>export_customers<br/>export_customer_statement"]
+        c_1_2["<b>Toplu & Hızlı Kayıt</b><br/>add_quick_lead<br/>batch_import_with_duplicate_strategy<br/>find_by_phone<br/>validate_tax_number<br/>export_customers<br/>export_customer_statement"]
         c_1_3["<b>Cari & İstatistik</b><br/>get_customer_stats<br/>get_current_account<br/>add_cari_movement<br/>get_cari_movements<br/>calc_customer_debt<br/>check_credit_limit"]
     end
 
@@ -53,7 +53,7 @@ graph TB
     subgraph M3["3. Work Orders (Atölye İş Emirleri & Lift)"]
         direction TB
         c_3_1["<b>İş Emri Yaşam Döngüsü</b><br/>get_work_order_list<br/>get_work_order_detail<br/>create_work_order<br/>update_order_status<br/>complete_work_order<br/>rollback_work_order"]
-        c_3_2["<b>Parça & Stok Senkronu</b><br/>add_work_order_item<br/>remove_work_order_item<br/>reserve_stock_parts<br/>deduct_stock_on_complete<br/>return_stock_on_cancel<br/>calculate_order_totals"]
+        c_3_2["<b>Parça & Stok Senkronu</b><br/>add_work_order_item<br/>update_order_item_quantity<br/>auto_stock_return_on_decrease<br/>deduct_stock_on_complete<br/>return_stock_on_cancel<br/>calculate_order_totals"]
         c_3_3["<b>Ekspertiz & Usta</b><br/>add_checkin_photo<br/>add_damage_photo<br/>add_completed_photo<br/>add_mechanic_note<br/>assign_lift_and_tech<br/>generate_wo_invoice"]
     end
 
@@ -71,11 +71,11 @@ graph TB
         c_5_3["<b>Depo & Kritik Seviye</b><br/>check_critical_stocks<br/>update_shelf_location<br/>get_category_summary<br/>calc_stock_valuation<br/>export_inventory_excel<br/>batch_import_products"]
     end
 
-    subgraph M6["6. Billing & Invoices (Fatura & Kasa)"]
+    subgraph M6["6. Billing & Invoices (Fatura, Kasa & Kârlılık)"]
         direction TB
         c_6_1["<b>Fatura İşlemleri</b><br/>get_invoice_list<br/>get_invoice_detail<br/>create_invoice_from_wo<br/>create_manual_invoice<br/>cancel_invoice<br/>generate_pdf_invoice"]
         c_6_2["<b>Tahsilat & POS</b><br/>record_payment<br/>process_partial_payment<br/>reconcile_daily_closing<br/>reconcile_bank_statement<br/>refund_payment<br/>get_payment_receipt"]
-        c_6_3["<b>Finans & Alacaklar</b><br/>get_tenant_receivables<br/>get_daily_cash_report<br/>sync_current_accounts<br/>calc_kdv_tax_totals<br/>export_invoices_excel<br/>get_debtor_customers"]
+        c_6_3["<b>Finans, Kârlılık & Raporlar</b><br/>get_financial_report<br/>calc_parts_vs_labour_margin<br/>get_daily_profit_trend<br/>export_financial_excel<br/>print_financial_pdf_report<br/>get_unpaid_receivables"]
     end
 
     subgraph M7["7. Auth & Multi-Tenancy (Güvenlik)"]
@@ -87,7 +87,7 @@ graph TB
 
     subgraph M8["8. Audit & Platform Admin (Yönetim)"]
         direction TB
-        c_8_1["<b>Denetim Günlüğü</b><br/>get_tenant_audit_logs<br/>get_audit_log_detail<br/>record_audit_event<br/>format_audit_payload<br/>mask_client_ip<br/>export_audit_logs"]
+        c_8_1["<b>Denetim Günlüğü</b><br/>get_tenant_audit_logs<br/>get_audit_log_detail<br/>record_audit_event<br/>track_staff_lift_change<br/>mask_client_ip<br/>export_audit_logs"]
         c_8_2["<b>Süper Yönetici</b><br/>admin_login<br/>get_all_tenants_list<br/>create_new_tenant<br/>toggle_tenant_license<br/>delete_tenant_data<br/>get_system_health"]
         c_8_3["<b>Platform Metrikleri</b><br/>get_platform_kpis<br/>get_db_latency_metric<br/>get_total_volume_stats<br/>monitor_redis_queues<br/>clear_expired_sessions<br/>inspect_failed_logins"]
     end
