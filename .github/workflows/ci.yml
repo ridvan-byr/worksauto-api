@@ -114,12 +114,25 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Deploy Notice (Secrets Missing)
-        if: "${{ secrets.PROD_HOST == '' }}"
-        run: echo "Production secret PROD_HOST is not configured yet. Skipping remote deployment. CI/CD checks passed successfully."
+      - name: Check Secrets
+        id: check_secrets
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+        run: |
+          if [ -n "$PROD_HOST" ]; then
+            echo "has_secrets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secrets=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy Gate Notice
+        if: steps.check_secrets.outputs.has_secrets != 'true'
+        run: |
+          echo "ℹ️ PROD_HOST secret is not configured in GitHub Secrets."
+          echo "✅ Continuous Integration & Build verification completed with 100% PASS."
 
       - name: Deploy to Production Server via SSH
-        if: "${{ secrets.PROD_HOST != '' }}"
+        if: steps.check_secrets.outputs.has_secrets == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.PROD_HOST }}
