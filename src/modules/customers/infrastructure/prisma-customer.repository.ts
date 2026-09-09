@@ -293,12 +293,15 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     });
   }
 
-  async batchImport(tenantId: string, rows: any[]): Promise<BatchImportResult> {
+  async batchImport(tenantId: string, rows: any[], options?: { updateExisting?: boolean }): Promise<BatchImportResult> {
     let importedCustomersCount = 0;
     let existingCustomersCount = 0;
+    let updatedCustomersCount = 0;
     let importedVehiclesCount = 0;
     let existingVehiclesCount = 0;
+    let updatedVehiclesCount = 0;
     const errors: any[] = [];
+    const updateExisting = Boolean(options?.updateExisting);
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -364,6 +367,29 @@ export class PrismaCustomerRepository implements ICustomerRepository {
             importedCustomersCount++;
           } else {
             existingCustomersCount++;
+            if (updateExisting) {
+              const customerUpdate: any = {};
+              if (row.companyTitle && row.companyTitle.trim()) customerUpdate.companyTitle = row.companyTitle.trim();
+              if (row.email && row.email.trim()) customerUpdate.email = row.email.trim();
+              if (row.taxNumber && row.taxNumber.trim()) customerUpdate.taxNumber = row.taxNumber.trim();
+              if (row.taxOffice && row.taxOffice.trim()) customerUpdate.taxOffice = row.taxOffice.trim();
+              if (row.notes && row.notes.trim()) customerUpdate.notes = row.notes.trim();
+              if (row.type) customerUpdate.type = row.type;
+              if (cName && cName !== 'İsimsiz Müşteri' && (!customer.firstName || customer.firstName === 'İsimsiz Müşteri')) {
+                customerUpdate.firstName = cName;
+              }
+              if (cSurname && !customer.lastName) {
+                customerUpdate.lastName = cSurname;
+              }
+
+              if (Object.keys(customerUpdate).length > 0) {
+                await tx.customer.update({
+                  where: { id: customer.id },
+                  data: customerUpdate,
+                });
+                updatedCustomersCount++;
+              }
+            }
           }
 
           const cleanPlate = row.plate ? row.plate.trim().toUpperCase().replace(/\s+/g, '') : '';
@@ -372,19 +398,19 @@ export class PrismaCustomerRepository implements ICustomerRepository {
               where: { tenantId, plate: cleanPlate, deletedAt: null },
             });
 
+            let fuelType: any = 'DIESEL';
+            const ft = (row.fuelType || '').toUpperCase();
+            if (ft.includes('BENZ')) fuelType = 'GASOLINE';
+            else if (ft.includes('LPG')) fuelType = 'LPG';
+            else if (ft.includes('HİB') || ft.includes('HIB')) fuelType = 'HYBRID';
+            else if (ft.includes('ELEK')) fuelType = 'ELECTRIC';
+
+            let transmission: any = 'MANUAL';
+            const tr = (row.transmission || '').toUpperCase();
+            if (tr.includes('OTO')) transmission = 'AUTOMATIC';
+            else if (tr.includes('YARI')) transmission = 'SEMI_AUTOMATIC';
+
             if (!vehicle) {
-              let fuelType: any = 'DIESEL';
-              const ft = (row.fuelType || '').toUpperCase();
-              if (ft.includes('BENZ')) fuelType = 'GASOLINE';
-              else if (ft.includes('LPG')) fuelType = 'LPG';
-              else if (ft.includes('HİB') || ft.includes('HIB')) fuelType = 'HYBRID';
-              else if (ft.includes('ELEK')) fuelType = 'ELECTRIC';
-
-              let transmission: any = 'MANUAL';
-              const tr = (row.transmission || '').toUpperCase();
-              if (tr.includes('OTO')) transmission = 'AUTOMATIC';
-              else if (tr.includes('YARI')) transmission = 'SEMI_AUTOMATIC';
-
               await tx.vehicle.create({
                 data: {
                   tenantId,
@@ -403,6 +429,43 @@ export class PrismaCustomerRepository implements ICustomerRepository {
               importedVehiclesCount++;
             } else {
               existingVehiclesCount++;
+              if (updateExisting) {
+                const vehicleUpdate: any = {};
+                const parsedKm = Number(row.currentKm);
+                if (!isNaN(parsedKm) && parsedKm > 0) {
+                  vehicleUpdate.currentKm = parsedKm;
+                }
+                if (row.brand && row.brand.trim() && row.brand.trim() !== 'Belirtilmedi') {
+                  vehicleUpdate.brand = row.brand.trim();
+                }
+                if (row.model && row.model.trim() && row.model.trim() !== 'Model Belirtilmedi') {
+                  vehicleUpdate.model = row.model.trim();
+                }
+                const parsedYear = Number(row.year);
+                if (!isNaN(parsedYear) && parsedYear >= 1900 && parsedYear <= new Date().getFullYear() + 1) {
+                  vehicleUpdate.year = parsedYear;
+                }
+                if (row.vin && row.vin.trim()) {
+                  vehicleUpdate.vin = row.vin.trim();
+                }
+                if (row.fuelType && row.fuelType.trim()) {
+                  vehicleUpdate.fuelType = fuelType;
+                }
+                if (row.transmission && row.transmission.trim()) {
+                  vehicleUpdate.transmission = transmission;
+                }
+                if (customer && vehicle.customerId !== customer.id) {
+                  vehicleUpdate.customerId = customer.id;
+                }
+
+                if (Object.keys(vehicleUpdate).length > 0) {
+                  await tx.vehicle.update({
+                    where: { id: vehicle.id },
+                    data: vehicleUpdate,
+                  });
+                  updatedVehiclesCount++;
+                }
+              }
             }
           }
         });
@@ -415,8 +478,10 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       totalRows: rows.length,
       importedCustomersCount,
       existingCustomersCount,
+      updatedCustomersCount,
       importedVehiclesCount,
       existingVehiclesCount,
+      updatedVehiclesCount,
       errors,
     };
   }

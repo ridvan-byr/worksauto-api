@@ -8,7 +8,7 @@ export class BatchImportCustomersUseCase {
     private readonly customerRepository: ICustomerRepository,
   ) {}
 
-  async execute(tenantId: string, items: any[]) {
-    return this.customerRepository.batchImport(tenantId, items);
+  async execute(tenantId: string, items: any[], options?: { updateExisting?: boolean }) {
+    return this.customerRepository.batchImport(tenantId, items, options);
   }
 }

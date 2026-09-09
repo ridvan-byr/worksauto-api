@@ -31,8 +31,10 @@ export interface BatchImportResult {
   totalRows: number;
   importedCustomersCount: number;
   existingCustomersCount: number;
+  updatedCustomersCount?: number;
   importedVehiclesCount: number;
   existingVehiclesCount: number;
+  updatedVehiclesCount?: number;
   errors: Array<{ row: number; reason: string }>;
 }
 
@@ -45,6 +47,6 @@ export interface ICustomerRepository {
   findByPhone(tenantId: string, phone: string): Promise<CustomerEntity | null>;
   getCustomerStats(tenantId: string, id: string): Promise<CustomerStatsResult>;
   quickLead(tenantId: string, data: QuickLeadInput): Promise<{ customer: any; vehicle: any }>;
-  batchImport(tenantId: string, items: any[]): Promise<BatchImportResult>;
+  batchImport(tenantId: string, items: any[], options?: { updateExisting?: boolean }): Promise<BatchImportResult>;
   anonymizeCustomer(tenantId: string, id: string, userId: string, legalRef: string): Promise<CustomerEntity>;
 }

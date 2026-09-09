@@ -5,7 +5,7 @@ import { CurrentTenant } from '../../../shared/decorators/current-tenant.decorat
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { Roles } from '../../../shared/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
-import { CreateCustomerDto, QuickLeadDto, BatchImportRowDto } from '../dto/customer.dto';
+import { CreateCustomerDto, QuickLeadDto, BatchImportRowDto, BatchImportRequestDto } from '../dto/customer.dto';
 import { GetCustomersUseCase } from '../application/use-cases/get-customers.use-case';
 import { CreateCustomerUseCase } from '../application/use-cases/create-customer.use-case';
 import { UpdateCustomerUseCase } from '../application/use-cases/update-customer.use-case';
@@ -51,8 +51,10 @@ export class CustomersController {
   @Post('batch-import')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
   @ApiOperation({ summary: 'Excel veya tablodan toplu müşteri ve araç kaydı aktarır' })
-  batchImport(@CurrentTenant() tenantId: string, @Body() body: { items: BatchImportRowDto[] }) {
-    return this.batchImportCustomersUseCase.execute(tenantId, body?.items || []);
+  batchImport(@CurrentTenant() tenantId: string, @Body() body: BatchImportRequestDto) {
+    return this.batchImportCustomersUseCase.execute(tenantId, body?.items || [], {
+      updateExisting: Boolean(body?.updateExisting),
+    });
   }
 
   @Post('quick-lead')

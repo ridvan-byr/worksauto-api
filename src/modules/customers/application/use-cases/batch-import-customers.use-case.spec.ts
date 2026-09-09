@@ -39,6 +39,28 @@ describe('BatchImportCustomersUseCase', () => {
     const result = await useCase.execute('tenant-1', items);
 
     expect(result.importedCustomersCount).toBe(1);
-    expect(mockRepo.batchImport).toHaveBeenCalledWith('tenant-1', items);
+    expect(mockRepo.batchImport).toHaveBeenCalledWith('tenant-1', items, undefined);
+  });
+
+  it('should pass updateExisting option to customer repository', async () => {
+    const items = [
+      { firstName: 'Ahmet', phone: '05321112233', plate: '34ABC01' },
+    ];
+    vi.mocked(mockRepo.batchImport).mockResolvedValue({
+      totalRows: 1,
+      importedCustomersCount: 0,
+      existingCustomersCount: 1,
+      updatedCustomersCount: 1,
+      importedVehiclesCount: 0,
+      existingVehiclesCount: 1,
+      updatedVehiclesCount: 1,
+      errors: [],
+    });
+
+    const result = await useCase.execute('tenant-1', items, { updateExisting: true });
+
+    expect(result.updatedCustomersCount).toBe(1);
+    expect(result.updatedVehiclesCount).toBe(1);
+    expect(mockRepo.batchImport).toHaveBeenCalledWith('tenant-1', items, { updateExisting: true });
   });
 });
