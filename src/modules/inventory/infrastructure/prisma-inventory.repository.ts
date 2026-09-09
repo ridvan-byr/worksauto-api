@@ -106,6 +106,13 @@ export class PrismaInventoryRepository implements IInventoryRepository {
   }
 
   async save(item: StockItemEntity): Promise<StockItemEntity> {
+    const existing = await this.prisma.product.findFirst({
+      where: { id: item.id, tenantId: item.tenantId, deletedAt: null },
+    });
+    if (!existing) {
+      throw new BadRequestException('Ürün bulunamadı veya bu işletmeye ait değil.');
+    }
+
     const updated = await this.prisma.product.update({
       where: { id: item.id },
       data: {
@@ -213,6 +220,13 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     note: string,
     author: string,
   ): Promise<void> {
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, tenantId },
+    });
+    if (!product) {
+      throw new BadRequestException('Ürün bulunamadı veya bu işletmeye ait değil.');
+    }
+
     await this.prisma.stockMovement.create({
       data: {
         tenantId,

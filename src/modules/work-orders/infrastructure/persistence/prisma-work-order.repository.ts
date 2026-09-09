@@ -332,6 +332,135 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     });
   }
 
+  async updateItemQuantity(
+    tenantId: string,
+    workOrderId: string,
+    itemId: string,
+    quantity: number,
+    author: string,
+  ): Promise<any> {
+    if (!quantity || quantity <= 0) {
+      throw new BadRequestException('Kalem adedi en az 1 olmalıdır.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const wo = await tx.workOrder.findFirst({
+        where: { id: workOrderId, tenantId },
+      });
+      if (!wo) throw new NotFoundException('İş emri bulunamadı.');
+
+      const item = await tx.workOrderItem.findFirst({
+        where: { id: itemId, workOrderId },
+      });
+      if (!item) throw new NotFoundException('İş emri kalemi bulunamadı.');
+
+      const oldQuantity = item.quantity;
+      const diff = quantity - oldQuantity;
+
+      if (diff !== 0 && item.itemType === WorkOrderItemType.PART && item.itemId) {
+        if (diff > 0) {
+          // Need more stock: atomic decrement
+          const updatedCount = await tx.$executeRaw`
+            UPDATE products 
+            SET stock_quantity = stock_quantity - ${diff} 
+            WHERE id = ${item.itemId}::uuid 
+              AND tenant_id = ${tenantId}::uuid 
+              AND stock_quantity >= ${diff}
+          `;
+
+          if (updatedCount === 0) {
+            const product = await tx.product.findFirst({
+              where: { id: item.itemId, tenantId },
+            });
+            throw new BadRequestException(
+              `Yetersiz stok! "${product?.name || 'Ürün'}" için mevcut stok (${product?.stockQuantity || 0}) eklenen ${diff} adedi karşılamıyor.`,
+            );
+          }
+
+          await tx.stockMovement.create({
+            data: {
+              tenantId,
+              productId: item.itemId,
+              movementType: StockMovementType.OUT_WORK_ORDER,
+              quantity: diff,
+              note: `İş Emri Sarfiyat Artışı (+${diff}): ${wo.workOrderNumber}`,
+              referenceId: wo.id,
+              createdBy: author,
+            },
+          });
+        } else {
+          // Decreasing quantity: return diff back to stock
+          const returnQty = Math.abs(diff);
+          await tx.product.update({
+            where: { id: item.itemId },
+            data: { stockQuantity: { increment: returnQty } },
+          });
+
+          await tx.stockMovement.create({
+            data: {
+              tenantId,
+              productId: item.itemId,
+              movementType: StockMovementType.RETURN,
+              quantity: returnQty,
+              note: `İş Emri Sarfiyat Azaltımı (-${returnQty}): ${wo.workOrderNumber}`,
+              referenceId: wo.id,
+              createdBy: author,
+            },
+          });
+        }
+      }
+
+      const itemKdvRate = Number(item.kdvRate) || 0;
+      const baseItemPrice = Number(item.unitPrice) * quantity;
+      const itemKdvAmount = (baseItemPrice * itemKdvRate) / 100;
+      const newTotalPrice = baseItemPrice + itemKdvAmount;
+
+      await tx.workOrderItem.update({
+        where: { id: itemId },
+        data: {
+          quantity,
+          totalPrice: newTotalPrice,
+        },
+      });
+
+      const allItems = await tx.workOrderItem.findMany({
+        where: { workOrderId: wo.id },
+      });
+
+      let newSubtotal = 0;
+      let newKdvTotal = 0;
+
+      for (const it of allItems) {
+        const itemBase = Number(it.unitPrice) * it.quantity;
+        const itemKdv = (itemBase * Number(it.kdvRate)) / 100;
+        newSubtotal += itemBase;
+        newKdvTotal += itemKdv;
+      }
+
+      const newGrandTotal = newSubtotal + newKdvTotal;
+
+      await tx.workOrder.update({
+        where: { id: wo.id },
+        data: {
+          subtotal: newSubtotal,
+          kdvAmount: newKdvTotal,
+          grandTotal: newGrandTotal,
+        },
+      });
+
+      return tx.workOrder.findUnique({
+        where: { id: wo.id },
+        include: {
+          customer: true,
+          vehicle: true,
+          assignedMechanic: { include: { user: true } },
+          items: true,
+          photos: true,
+        },
+      });
+    });
+  }
+
   async removeItem(tenantId: string, workOrderId: string, itemId: string, author: string): Promise<any> {
     return this.prisma.$transaction(async (tx) => {
       const wo = await tx.workOrder.findFirst({

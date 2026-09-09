@@ -33,11 +33,17 @@ export class EventsGateway
 
   async handleConnection(client: Socket) {
     try {
-      const rawToken =
+      let rawToken =
         client.handshake.auth?.token ||
         client.handshake.headers?.authorization?.replace('Bearer ', '');
 
-      if (!rawToken) {
+      if (
+        !rawToken ||
+        typeof rawToken !== 'string' ||
+        rawToken === 'null' ||
+        rawToken === 'undefined' ||
+        !rawToken.trim()
+      ) {
         this.logger.debug(`Socket connection without token (${client.id}), joining anonymous public room.`);
         client.join('public');
         return;
@@ -74,7 +80,7 @@ export class EventsGateway
         serverTime: new Date().toISOString(),
       });
     } catch (err: any) {
-      this.logger.warn(`WebSocket handshake token verification failed for client ${client.id}: ${err.message}`);
+      this.logger.debug(`WebSocket handshake token verification failed for client ${client.id}: ${err.message}`);
       client.join('public');
     }
   }

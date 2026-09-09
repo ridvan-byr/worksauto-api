@@ -10,12 +10,14 @@ import { IdempotencyInterceptor } from '../../../shared/interceptors/idempotency
 import { Permission } from '../../../shared/constants/permissions.enum';
 import { UserRole, WorkOrderStatus, WorkOrderPhotoType } from '@prisma/client';
 import { AddWorkOrderItemDto } from '../dto/add-item.dto';
+import { UpdateWorkOrderItemQuantityDto } from '../dto/update-item-quantity.dto';
 import { CreateWorkOrderDto } from '../dto/create-work-order.dto';
 import { GetWorkOrdersUseCase } from '../application/use-cases/get-work-orders.use-case';
 import { CreateWorkOrderUseCase } from '../application/use-cases/create-work-order.use-case';
 import { UpdateWorkOrderStatusUseCase } from '../application/use-cases/update-work-order-status.use-case';
 import { RollbackWorkOrderUseCase } from '../application/use-cases/rollback-work-order.use-case';
 import { AddWorkOrderItemUseCase } from '../application/use-cases/add-work-order-item.use-case';
+import { UpdateWorkOrderItemQuantityUseCase } from '../application/use-cases/update-work-order-item-quantity.use-case';
 import { RemoveWorkOrderItemUseCase } from '../application/use-cases/remove-work-order-item.use-case';
 import { AddWorkOrderPhotoUseCase } from '../application/use-cases/add-work-order-photo.use-case';
 
@@ -31,6 +33,7 @@ export class WorkOrdersController {
     private readonly updateWorkOrderStatusUseCase: UpdateWorkOrderStatusUseCase,
     private readonly rollbackWorkOrderUseCase: RollbackWorkOrderUseCase,
     private readonly addWorkOrderItemUseCase: AddWorkOrderItemUseCase,
+    private readonly updateWorkOrderItemQuantityUseCase: UpdateWorkOrderItemQuantityUseCase,
     private readonly removeWorkOrderItemUseCase: RemoveWorkOrderItemUseCase,
     private readonly addWorkOrderPhotoUseCase: AddWorkOrderPhotoUseCase,
   ) {}
@@ -118,6 +121,19 @@ export class WorkOrdersController {
     @CurrentUser('name') userName: string,
   ) {
     return this.addWorkOrderItemUseCase.execute(tenantId, id, dto, userName || 'Teknisyen');
+  }
+
+  @Patch(':id/items/:itemId')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'İş emrindeki kalem miktarını günceller (Stok farkını atomik olarak işler)' })
+  updateItemQuantity(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: UpdateWorkOrderItemQuantityDto,
+    @CurrentUser('name') userName: string,
+  ) {
+    return this.updateWorkOrderItemQuantityUseCase.execute(tenantId, id, itemId, dto, userName || 'Teknisyen');
   }
 
   @Delete(':id/items/:itemId')

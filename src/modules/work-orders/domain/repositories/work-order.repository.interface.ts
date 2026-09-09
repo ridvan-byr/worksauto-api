@@ -47,6 +47,7 @@ export interface IWorkOrderRepository {
     },
     author: string,
   ): Promise<any>;
+  updateItemQuantity(tenantId: string, workOrderId: string, itemId: string, quantity: number, author: string): Promise<any>;
   removeItem(tenantId: string, workOrderId: string, itemId: string, author: string): Promise<any>;
   addPhoto(tenantId: string, id: string, url: string, caption: string, photoType: string, uploadedBy: string): Promise<any>;
   restoreCancelledStock(tenantId: string, workOrderId: string, userId?: string): Promise<void>;

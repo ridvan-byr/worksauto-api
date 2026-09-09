@@ -146,6 +146,13 @@ export class PrismaCustomerRepository implements ICustomerRepository {
   }
 
   async save(customer: CustomerEntity): Promise<CustomerEntity> {
+    const existing = await this.prisma.customer.findFirst({
+      where: { id: customer.id, tenantId: customer.tenantId, deletedAt: null },
+    });
+    if (!existing) {
+      throw new NotFoundException('Müşteri bulunamadı veya bu işletmeye ait değil.');
+    }
+
     const updated = await this.prisma.customer.update({
       where: { id: customer.id },
       data: {
@@ -168,6 +175,13 @@ export class PrismaCustomerRepository implements ICustomerRepository {
   }
 
   async softDelete(tenantId: string, id: string): Promise<CustomerEntity> {
+    const existing = await this.prisma.customer.findFirst({
+      where: { id, tenantId, deletedAt: null },
+    });
+    if (!existing) {
+      throw new NotFoundException('Müşteri bulunamadı veya bu işletmeye ait değil.');
+    }
+
     const updated = await this.prisma.customer.update({
       where: { id },
       data: { deletedAt: new Date() },

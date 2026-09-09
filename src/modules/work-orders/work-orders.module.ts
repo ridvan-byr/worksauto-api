@@ -15,6 +15,7 @@ import { CreateWorkOrderUseCase } from './application/use-cases/create-work-orde
 import { UpdateWorkOrderStatusUseCase } from './application/use-cases/update-work-order-status.use-case';
 import { RollbackWorkOrderUseCase } from './application/use-cases/rollback-work-order.use-case';
 import { AddWorkOrderItemUseCase } from './application/use-cases/add-work-order-item.use-case';
+import { UpdateWorkOrderItemQuantityUseCase } from './application/use-cases/update-work-order-item-quantity.use-case';
 import { RemoveWorkOrderItemUseCase } from './application/use-cases/remove-work-order-item.use-case';
 import { AddWorkOrderPhotoUseCase } from './application/use-cases/add-work-order-photo.use-case';
 
@@ -39,6 +40,7 @@ import { AddWorkOrderPhotoUseCase } from './application/use-cases/add-work-order
     UpdateWorkOrderStatusUseCase,
     RollbackWorkOrderUseCase,
     AddWorkOrderItemUseCase,
+    UpdateWorkOrderItemQuantityUseCase,
     RemoveWorkOrderItemUseCase,
     AddWorkOrderPhotoUseCase,
   ],

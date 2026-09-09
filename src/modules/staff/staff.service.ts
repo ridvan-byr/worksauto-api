@@ -108,7 +108,8 @@ export class StaffService {
   }
 
   async update(tenantId: string, id: string, dto: UpdateStaffDto) {
-    await this.findOne(tenantId, id);
+    const previousUser = await this.findOne(tenantId, id);
+    const prevMechanic = previousUser.mechanic;
 
     let normalizedPhone: string | undefined;
     if (dto.phone) {
@@ -144,13 +145,15 @@ export class StaffService {
 
       // Update or create mechanic profile if technician
       const isTechnician = (dto.role || user.role) === UserRole.TECHNICIAN;
+      let updatedMechanic: any = prevMechanic;
+
       if (isTechnician || dto.specialty !== undefined || dto.assignedLift !== undefined) {
         const existingMechanic = await tx.mechanic.findUnique({
           where: { userId: id },
         });
 
         if (existingMechanic) {
-          await tx.mechanic.update({
+          updatedMechanic = await tx.mechanic.update({
             where: { userId: id },
             data: {
               ...(dto.specialty !== undefined ? { specialty: dto.specialty } : {}),
@@ -159,7 +162,7 @@ export class StaffService {
             },
           });
         } else if (isTechnician) {
-          await tx.mechanic.create({
+          updatedMechanic = await tx.mechanic.create({
             data: {
               tenantId,
               userId: id,
@@ -171,15 +174,37 @@ export class StaffService {
         }
       }
 
+      const oldLift = prevMechanic?.assignedLift || 'Atanmamış';
+      const newLift = updatedMechanic?.assignedLift || 'Atanmamış';
+      const isLiftChanged = dto.assignedLift !== undefined && oldLift !== newLift;
+      const isRoleChanged = dto.role !== undefined && dto.role !== previousUser.role;
+      const isStatusChanged = dto.isActive !== undefined && dto.isActive !== previousUser.isActive;
+
+      const action = isLiftChanged && !isRoleChanged && !isStatusChanged
+        ? 'staff.lift_changed'
+        : 'staff.updated';
+
       try {
         await this.auditService.log({
           tenantId,
-          action: 'staff.updated',
+          action,
           entityName: 'User',
           entityId: id,
+          changesBefore: {
+            staffName: `${previousUser.name} ${previousUser.surname || ''}`.trim(),
+            name: `${previousUser.name} ${previousUser.surname || ''}`.trim(),
+            role: previousUser.role,
+            assignedLift: oldLift,
+            specialty: prevMechanic?.specialty || null,
+            isActive: previousUser.isActive,
+          },
           changesAfter: {
+            staffName: `${user.name} ${user.surname || ''}`.trim(),
             name: `${user.name} ${user.surname || ''}`.trim(),
             role: user.role,
+            assignedLift: newLift,
+            liftChange: isLiftChanged ? `${oldLift} ➔ ${newLift}` : undefined,
+            specialty: updatedMechanic?.specialty || null,
             isActive: user.isActive,
           },
         });

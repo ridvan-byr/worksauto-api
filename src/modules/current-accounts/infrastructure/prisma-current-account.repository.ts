@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import { ICurrentAccountRepository } from '../domain/current-account.repository.interface';
 import { CurrentAccountEntity } from '../domain/current-account.entity';
@@ -68,6 +68,13 @@ export class PrismaCurrentAccountRepository implements ICurrentAccountRepository
   }
 
   async create(currentAccount: CurrentAccountEntity): Promise<CurrentAccountEntity> {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: currentAccount.customerId, tenantId: currentAccount.tenantId, deletedAt: null },
+    });
+    if (!customer) {
+      throw new BadRequestException('Müşteri bulunamadı veya bu işletmeye ait değil.');
+    }
+
     const created = await this.prisma.currentAccount.create({
       data: {
         tenantId: currentAccount.tenantId,
@@ -90,6 +97,13 @@ export class PrismaCurrentAccountRepository implements ICurrentAccountRepository
   async save(currentAccount: CurrentAccountEntity): Promise<CurrentAccountEntity> {
     if (!currentAccount.id) {
       return this.create(currentAccount);
+    }
+
+    const existing = await this.prisma.currentAccount.findFirst({
+      where: { id: currentAccount.id, tenantId: currentAccount.tenantId },
+    });
+    if (!existing) {
+      throw new BadRequestException('Cari hesap bulunamadı veya bu işletmeye ait değil.');
     }
 
     const updated = await this.prisma.currentAccount.update({
