@@ -325,8 +325,11 @@ export class AuthService {
 
     // 1 saatlik hızlı erişim anahtarı
     const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' });
-    // 30 GÜNLÜK kalıcı yenileme anahtarı
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' });
+    // 30 GÜNLÜK kalıcı yenileme anahtarı (benzersiz jti ile üretilir, eşzamanlı istek çakışması engellenir)
+    const refreshToken = this.jwtService.sign(
+      { ...payload, jti: uuidv4() },
+      { expiresIn: '30d' },
+    );
 
     const familyId = existingFamilyId || uuidv4();
     const expiresAt = new Date();
