@@ -35,19 +35,49 @@ export class PaymentsService {
   }
 
   async create(tenantId: string, dto: CreatePaymentDto, cashierName: string, actorUserId?: string) {
+    if (!dto.amount || dto.amount <= 0) {
+      throw new BadRequestException('Tahsilat tutarı 0 dan büyük bir değer olmalıdır.');
+    }
+
     let customerId = dto.customerId;
     const paymentMethod = dto.paymentMethod || dto.method || PaymentMethod.CASH;
 
-    if (!customerId && dto.invoiceId) {
-      const inv = await this.prisma.invoice.findUnique({
-        where: { id: dto.invoiceId },
-        select: { customerId: true },
+    if (dto.invoiceId) {
+      const inv = await this.prisma.invoice.findFirst({
+        where: { id: dto.invoiceId, tenantId },
+        select: { customerId: true, status: true, remainingAmount: true, paidAmount: true },
       });
-      if (inv) customerId = inv.customerId;
+      if (!inv) {
+        throw new BadRequestException('Belirtilen fatura bulunamadı veya bu işletmeye ait değil.');
+      }
+      if (inv.status === InvoiceStatus.CANCELLED) {
+        throw new BadRequestException('İptal edilmiş bir faturaya tahsilat eklenemez.');
+      }
+      if (inv.status === InvoiceStatus.PAID || Number(inv.remainingAmount) <= 0) {
+        throw new BadRequestException('Bu faturanın ödemesi zaten tamamlanmıştır.');
+      }
+      if (dto.amount > Number(inv.remainingAmount)) {
+        throw new BadRequestException(
+          `Tahsilat tutarı (${dto.amount.toLocaleString('tr-TR')} ₺), faturanın kalan açık bakiyesinden (${Number(inv.remainingAmount).toLocaleString('tr-TR')} ₺) fazla olamaz.`,
+        );
+      }
+      if (!customerId) {
+        customerId = inv.customerId;
+      } else if (customerId !== inv.customerId) {
+        throw new BadRequestException('Faturanın ait olduğu müşteri ile ödeme yapılan müşteri uyuşmuyor.');
+      }
     }
 
     if (!customerId) {
       throw new BadRequestException('Müşteri ID (customerId) belirtilmelidir.');
+    }
+
+    // Verify customer strictly belongs to this tenant
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, tenantId, deletedAt: null },
+    });
+    if (!customer) {
+      throw new BadRequestException('Belirtilen müşteri bulunamadı veya bu işletmeye ait değil.');
     }
 
     const createdPayment = await this.prisma.$transaction(async (tx) => {
@@ -64,9 +94,9 @@ export class PaymentsService {
         },
       });
 
-      // Update Invoice Remaining Amount if attached
+      // Update Invoice Remaining Amount if attached (tenantId scoped)
       if (dto.invoiceId) {
-        const invoice = await tx.invoice.findUnique({ where: { id: dto.invoiceId } });
+        const invoice = await tx.invoice.findFirst({ where: { id: dto.invoiceId, tenantId } });
         if (invoice) {
           const newPaid = Number(invoice.paidAmount) + dto.amount;
           const newRemaining = Number(invoice.grandTotal) - newPaid;
@@ -83,9 +113,9 @@ export class PaymentsService {
         }
       }
 
-      // Update Current Account (Alacak Ekle - Atomik Güncelleme)
-      let currentAccount = await tx.currentAccount.findUnique({
-        where: { customerId },
+      // Update Current Account (Alacak Ekle - Atomik Güncelleme, tenantId scoped)
+      let currentAccount = await tx.currentAccount.findFirst({
+        where: { customerId, tenantId },
       });
 
       if (!currentAccount) {
@@ -146,10 +176,6 @@ export class PaymentsService {
     });
 
     // Real-time WebSocket emission & in-app notification
-    const customer = await this.prisma.customer.findUnique({
-      where: { id: customerId },
-      select: { firstName: true, lastName: true, phone: true },
-    });
     const customerName = customer ? `${customer.firstName} ${customer.lastName}`.trim() : 'Müşteri';
 
     this.eventsGateway.emitToTenant(tenantId, 'payment:received', {

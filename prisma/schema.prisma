@@ -641,6 +641,22 @@ model IdempotencyRecord {
 }
 
 // -------------------------------------------------------------
+// DOCUMENT SEQUENCE (ATOMIC NUMBER GENERATION)
+// -------------------------------------------------------------
+
+model DocumentSequence {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  docType    String   @map("doc_type")
+  year       Int
+  lastNumber Int      @default(0) @map("last_number")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, docType, year])
+  @@map("document_sequences")
+}
+
+// -------------------------------------------------------------
 // NOTIFICATIONS (IN-APP & REAL-TIME ALERTS)
 // -------------------------------------------------------------
 

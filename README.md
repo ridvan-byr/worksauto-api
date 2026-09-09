@@ -70,10 +70,11 @@ worksauto-api/
 
 ## 🛡️ Key Enterprise Safeguards
 
-### 1. Multi-Tenant Row Level Security (RLS)
-* Built upon PostgreSQL native Row-Level Security (`ENABLE ROW LEVEL SECURITY`).
-* Every tenant transaction executes via `withTenantContext()` using `SET LOCAL app.current_tenant_id = :tenantId`.
-* PgBouncer is configured in **transaction-mode**, guaranteeing that connection pooling multiplexing remains hyper-performant while `SET LOCAL` is automatically cleared at the end of each transaction boundary.
+### 1. Multi-Tenant Defense-in-Depth Isolation (Prisma AST Middleware + Composite Keys)
+* **Deterministic ORM AST Middleware:** In connection-pooled and serverless cloud architectures (e.g. PgBouncer, Prisma Accelerate), connection-bound session variables (`SET LOCAL app.current_tenant_id`) carry inherent risks of connection leak across pool workers. WorksAuto instead enforces multi-tenancy at the query AST layer via a global Prisma Query Middleware.
+* **Automatic Query Scoping:** For all tenant-scoped entities (`WorkOrder`, `Invoice`, `Payment`, `CurrentAccount`, `Vehicle`, `Customer`, `Product`, `Appointment`, `StockMovement`, `CariMovement`), the authenticated `tenantId` (from AsyncLocalStorage via `ClsService`) is automatically and deterministically injected into every query.
+* **Fail-Closed Security Guard:** Any non-Super-Admin query attempting cross-tenant access or lacking valid tenant context is immediately blocked with `ForbiddenException` before touching PostgreSQL.
+* **Database Compound Constraints:** All relational tables enforce `@@unique([tenantId, ...])` compound unique keys, ensuring physical data isolation at the database index level.
 
 ### 2. Zero Collision Appointment Engine
 * Dual exclusion constraint logic preventing overlap:

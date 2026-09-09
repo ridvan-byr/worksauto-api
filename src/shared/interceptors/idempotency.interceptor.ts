@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   CallHandler,
   ConflictException,
+  ServiceUnavailableException,
   Logger,
 } from '@nestjs/common';
 import { Observable, of, throwError } from 'rxjs';
@@ -20,6 +21,7 @@ import { RedisService } from '../infrastructure/redis/redis.service';
  * 3. Returns 409 Conflict if key is reused with a different request body.
  * 4. Unlocks immediately (DEL) on server/validation errors so users can retry without waiting 60s.
  * 5. Returns cached response with X-Cache-Lookup: HIT if key is repeated with identical payload.
+ * 6. Financial routes (/payments, /invoices, /current-accounts) FAIL-CLOSED on Redis failure.
  */
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
@@ -53,11 +55,24 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     const redisKey = `idempotency:${tenantId}:${keyStr}`;
 
+    // Financial routes require strict fail-closed consistency to eliminate double-charges
+    const reqUrl = request.url || '';
+    const isFinancialRoute =
+      reqUrl.includes('/payments') ||
+      reqUrl.includes('/invoices') ||
+      reqUrl.includes('/current-accounts');
+
     // 3. Atomic Lock Attempt via Redis SET NX EX 60
     const client = this.redis.getClient();
 
     if (!client || !this.redis.isHealthy()) {
-      this.logger.warn('Redis is unavailable for idempotency locking. Operating in fail-open mode.');
+      if (isFinancialRoute) {
+        this.logger.error(`Redis unavailable for financial idempotency on ${reqUrl}. FAILING CLOSED.`);
+        throw new ServiceUnavailableException(
+          'Finansal işlem güvenliği için kilit servisi (Redis) şu anda yanıt vermiyor. Çift işlem riskini önlemek için talep durduruldu, lütfen az sonra tekrar deneyiniz.',
+        );
+      }
+      this.logger.warn(`Redis is unavailable for idempotency locking on non-financial route ${reqUrl}. Operating in fail-open mode.`);
       return next.handle();
     }
 
@@ -65,6 +80,12 @@ export class IdempotencyInterceptor implements NestInterceptor {
     try {
       lockResult = await client.set(redisKey, `PROCESSING:${payloadHash}`, 'EX', 60, 'NX');
     } catch (err: any) {
+      if (isFinancialRoute) {
+        this.logger.error(`Redis lock acquisition error on financial route ${reqUrl}: ${err.message}. FAILING CLOSED.`);
+        throw new ServiceUnavailableException(
+          'Finansal işlem kilit servisinde hata oluştu. Çift işlem riskini önlemek için talep durduruldu.',
+        );
+      }
       this.logger.warn(`Redis lock acquisition error: ${err.message}. Proceeding fail-open.`);
       return next.handle();
     }

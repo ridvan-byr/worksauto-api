@@ -5,6 +5,7 @@ import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { Public } from '../../../shared/decorators/public.decorator';
 import { Roles } from '../../../shared/decorators/roles.decorator';
 import { UserRole, AppointmentStatus } from '@prisma/client';
+import { Throttle } from '@nestjs/throttler';
 
 import { CreateAppointmentDto } from '../dto/create-appointment.dto';
 import { CreatePublicAppointmentDto } from '../dto/create-public-appointment.dto';
@@ -139,6 +140,7 @@ export class AppointmentsController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('public/:slug')
   @ApiOperation({ summary: 'Dış müşteri randevu formu (Oturumsuz, herkese açık online randevu)' })
   createPublic(

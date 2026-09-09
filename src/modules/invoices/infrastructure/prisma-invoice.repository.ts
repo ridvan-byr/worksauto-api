@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import { IInvoiceRepository, CreateInvoiceTransactionResult } from '../domain/invoice.repository.interface';
 import { InvoiceEntity } from '../domain/invoice.entity';
@@ -75,15 +75,86 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
   }
 
   async getNextInvoiceNumber(tenantId: string): Promise<{ invoiceNumber: string; gibInvoiceNumber: string }> {
-    const count = await this.prisma.invoice.count({ where: { tenantId } });
     const year = new Date().getFullYear();
-    const invoiceNumber = `INV-${year}-${String(count + 1).padStart(5, '0')}`;
-    const gibInvoiceNumber = `GIB${year}${String(count + 1).padStart(9, '0')}`;
+    const sequence = await this.prisma.documentSequence.upsert({
+      where: {
+        tenantId_docType_year: {
+          tenantId,
+          docType: 'INVOICE',
+          year,
+        },
+      },
+      create: {
+        tenantId,
+        docType: 'INVOICE',
+        year,
+        lastNumber: 1,
+      },
+      update: {
+        lastNumber: { increment: 1 },
+      },
+    });
+
+    const invoiceNumber = `INV-${year}-${String(sequence.lastNumber).padStart(5, '0')}`;
+    const gibInvoiceNumber = `GIB${year}${String(sequence.lastNumber).padStart(9, '0')}`;
     return { invoiceNumber, gibInvoiceNumber };
   }
 
   async createWithCariMovement(invoice: InvoiceEntity): Promise<CreateInvoiceTransactionResult> {
     return this.prisma.$transaction(async (tx) => {
+      // 1. Verify customer strictly belongs to this tenant (IDOR Protection)
+      const customer = await tx.customer.findFirst({
+        where: { id: invoice.customerId, tenantId: invoice.tenantId, deletedAt: null },
+        select: { firstName: true, lastName: true, companyTitle: true, creditLimit: true },
+      });
+
+      if (!customer) {
+        throw new BadRequestException('Faturanın ait olduğu müşteri bulunamadı veya bu işletmeye ait değil.');
+      }
+
+      // 2. If workOrderId is provided, verify workOrder strictly belongs to this tenant and has no active invoice
+      if (invoice.workOrderId) {
+        const workOrder = await tx.workOrder.findFirst({
+          where: { id: invoice.workOrderId, tenantId: invoice.tenantId },
+        });
+
+        if (!workOrder) {
+          throw new BadRequestException('Faturanın ait olduğu iş emri bulunamadı veya bu işletmeye ait değil.');
+        }
+
+        const existingInvoiceForWO = await tx.invoice.findFirst({
+          where: {
+            workOrderId: invoice.workOrderId,
+            tenantId: invoice.tenantId,
+            status: { not: InvoiceStatus.CANCELLED },
+          },
+        });
+
+        if (existingInvoiceForWO) {
+          throw new BadRequestException(
+            `Bu iş emrine ait aktif bir fatura (${existingInvoiceForWO.invoiceNumber}) zaten mevcuttur.`,
+          );
+        }
+      }
+
+      // 3. Update Current Account (Cari Hesap Borç Ekle) - Atomik Güncelleme
+      let currentAccount = await tx.currentAccount.findFirst({
+        where: { customerId: invoice.customerId, tenantId: invoice.tenantId },
+      });
+
+      if (!currentAccount) {
+        currentAccount = await tx.currentAccount.create({
+          data: {
+            tenantId: invoice.tenantId,
+            customerId: invoice.customerId,
+          },
+        });
+      }
+
+      if (currentAccount.isBlocked) {
+        throw new BadRequestException('Bu müşterinin cari hesabı bloke durumdadır. Yeni fatura kesilemez.');
+      }
+
       const created = await tx.invoice.create({
         data: {
           tenantId: invoice.tenantId,
@@ -101,20 +172,6 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
           eInvoiceStatus: invoice.eInvoiceStatus || 'COMPLETED',
         },
       });
-
-      // Update Current Account (Cari Hesap Borç Ekle) - Atomik Güncelleme
-      let currentAccount = await tx.currentAccount.findUnique({
-        where: { customerId: invoice.customerId },
-      });
-
-      if (!currentAccount) {
-        currentAccount = await tx.currentAccount.create({
-          data: {
-            tenantId: invoice.tenantId,
-            customerId: invoice.customerId,
-          },
-        });
-      }
 
       // Atomically increment totalDebits and balance to avoid TOCTOU race condition
       const updatedCA = await tx.currentAccount.update({
@@ -141,11 +198,6 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         },
       });
 
-      const customer = await tx.customer.findUnique({
-        where: { id: invoice.customerId },
-        select: { firstName: true, lastName: true, companyTitle: true, creditLimit: true },
-      });
-
       const customerName =
         customer?.companyTitle || `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() || 'Müşteri';
       const creditLimit = customer?.creditLimit ? Number(customer.creditLimit) : 0;
@@ -161,17 +213,40 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
 
   async cancelWithCariReversal(tenantId: string, id: string, reason: string): Promise<InvoiceEntity> {
     return this.prisma.$transaction(async (tx) => {
-      const cancelled = await tx.invoice.update({
-        where: { id },
-        data: { status: InvoiceStatus.CANCELLED },
+      // 1. Verify invoice belongs strictly to this tenant (IDOR Protection)
+      const existing = await tx.invoice.findFirst({
+        where: { id, tenantId },
       });
 
-      const currentAccount = await tx.currentAccount.findUnique({
-        where: { customerId: cancelled.customerId },
+      if (!existing) {
+        throw new NotFoundException('Fatura bulunamadı veya bu işletmeye ait değil.');
+      }
+
+      if (existing.status === InvoiceStatus.CANCELLED) {
+        throw new BadRequestException('Bu fatura zaten iptal edilmiştir.');
+      }
+
+      if (existing.status === InvoiceStatus.PAID || Number(existing.paidAmount) > 0) {
+        throw new BadRequestException(
+          'Ödemesi yapılmış veya tahsilat alınmış fatura doğrudan iptal edilemez. Önce tahsilatın iptali/iadesi yapılmalıdır.',
+        );
+      }
+
+      const cancelled = await tx.invoice.update({
+        where: { id: existing.id },
+        data: {
+          status: InvoiceStatus.CANCELLED,
+          remainingAmount: 0,
+        },
+      });
+
+      // 2. Query current account strictly scoped to tenantId and customerId
+      const currentAccount = await tx.currentAccount.findFirst({
+        where: { customerId: cancelled.customerId, tenantId },
       });
 
       if (currentAccount) {
-        const newTotalDebits = Number(currentAccount.totalDebits) - Number(cancelled.grandTotal);
+        const newTotalDebits = Math.max(0, Number(currentAccount.totalDebits) - Number(cancelled.grandTotal));
         const newBalance = newTotalDebits - Number(currentAccount.totalCredits);
 
         await tx.currentAccount.update({
@@ -201,3 +276,4 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     });
   }
 }
+

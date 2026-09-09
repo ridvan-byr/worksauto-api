@@ -40,12 +40,70 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
   }
 
   async getNextWorkOrderNumber(tenantId: string): Promise<string> {
-    const count = await this.prisma.workOrder.count({ where: { tenantId } });
-    return `WO-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
+    const year = new Date().getFullYear();
+    const sequence = await this.prisma.documentSequence.upsert({
+      where: {
+        tenantId_docType_year: {
+          tenantId,
+          docType: 'WORK_ORDER',
+          year,
+        },
+      },
+      create: {
+        tenantId,
+        docType: 'WORK_ORDER',
+        year,
+        lastNumber: 1,
+      },
+      update: {
+        lastNumber: { increment: 1 },
+      },
+    });
+
+    return `WO-${year}-${String(sequence.lastNumber).padStart(5, '0')}`;
   }
 
   async create(data: CreateWorkOrderData): Promise<any> {
     return this.prisma.$transaction(async (tx) => {
+      // 1. Verify customer strictly belongs to this tenant
+      const customer = await tx.customer.findFirst({
+        where: { id: data.customerId, tenantId: data.tenantId, deletedAt: null },
+      });
+      if (!customer) {
+        throw new BadRequestException('Seçilen müşteri bulunamadı veya bu işletmeye ait değil.');
+      }
+
+      // 2. Verify vehicle strictly belongs to this tenant and customer
+      const vehicle = await tx.vehicle.findFirst({
+        where: { id: data.vehicleId, tenantId: data.tenantId, deletedAt: null },
+      });
+      if (!vehicle) {
+        throw new BadRequestException('Seçilen araç bulunamadı veya bu işletmeye ait değil.');
+      }
+      if (vehicle.customerId !== data.customerId) {
+        throw new BadRequestException('Seçilen araç ile müşteri eşleşmiyor.');
+      }
+
+      // 3. If mechanic assigned, verify mechanic belongs to this tenant
+      if (data.assignedMechanicId) {
+        const mechanic = await tx.mechanic.findFirst({
+          where: { id: data.assignedMechanicId, tenantId: data.tenantId },
+        });
+        if (!mechanic) {
+          throw new BadRequestException('Seçilen teknisyen bulunamadı veya bu işletmeye ait değil.');
+        }
+      }
+
+      // 4. If appointment referenced, verify appointment belongs to this tenant
+      if (data.appointmentId) {
+        const appt = await tx.appointment.findFirst({
+          where: { id: data.appointmentId, tenantId: data.tenantId },
+        });
+        if (!appt) {
+          throw new BadRequestException('Seçilen randevu bulunamadı veya bu işletmeye ait değil.');
+        }
+      }
+
       const workOrder = await tx.workOrder.create({
         data: {
           tenantId: data.tenantId,
@@ -129,6 +187,13 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
   }
 
   async updateStatus(tenantId: string, id: string, status: string, completedAt?: Date | null): Promise<any> {
+    const existing = await this.prisma.workOrder.findFirst({
+      where: { id, tenantId },
+    });
+    if (!existing) {
+      throw new NotFoundException('İş emri bulunamadı veya bu işletmeye ait değil.');
+    }
+
     return this.prisma.workOrder.update({
       where: { id },
       data: {
@@ -140,6 +205,13 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
   }
 
   async rollbackStatus(tenantId: string, id: string, prevStatus: string): Promise<any> {
+    const existing = await this.prisma.workOrder.findFirst({
+      where: { id, tenantId },
+    });
+    if (!existing) {
+      throw new NotFoundException('İş emri bulunamadı veya bu işletmeye ait değil.');
+    }
+
     return this.prisma.workOrder.update({
       where: { id },
       data: {

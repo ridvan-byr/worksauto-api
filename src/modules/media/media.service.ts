@@ -87,6 +87,14 @@ export class MediaService implements OnModuleInit {
       throw new BadRequestException('Dosya yüklenmedi.');
     }
 
+    // Strict Cross-tenant validation: Verify work order belongs to tenant
+    const workOrder = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, tenantId },
+    });
+    if (!workOrder) {
+      throw new BadRequestException('İş emri bulunamadı veya bu işletmeye ait değil.');
+    }
+
     const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
     if (!allowedMimeTypes.includes(file.mimetype)) {
       throw new BadRequestException('Geçersiz dosya formatı. Sadece JPG, PNG, WEBP desteklenir.');
@@ -130,6 +138,11 @@ export class MediaService implements OnModuleInit {
    * Generate temporary presigned download URL (Tenant-scoped security check)
    */
   async getPresignedUrl(tenantId: string, objectKey: string, expiresInSeconds = 3600): Promise<string> {
+    // Path traversal defense
+    if (!objectKey || objectKey.includes('..') || objectKey.includes('\\')) {
+      throw new BadRequestException('Geçersiz medya anahtarı.');
+    }
+
     // Cross-tenant protection: ObjectKey must belong to the requesting tenant or be public
     if (tenantId && !objectKey.startsWith(`${tenantId}/`) && !objectKey.startsWith('public/')) {
       throw new ForbiddenException('Bu medyaya erişim yetkiniz bulunmamaktadır.');
@@ -165,7 +178,7 @@ export class MediaService implements OnModuleInit {
     }
 
     // Strict Cross-tenant validation
-    if (photo.workOrder && photo.workOrder.tenantId !== tenantId) {
+    if (!photo.workOrder || photo.workOrder.tenantId !== tenantId) {
       throw new ForbiddenException('Bu fotoğrafı silme yetkiniz bulunmamaktadır.');
     }
 

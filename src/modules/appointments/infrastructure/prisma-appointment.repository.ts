@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import { IAppointmentRepository } from '../domain/appointment.repository.interface';
 import { AppointmentEntity } from '../domain/appointment.entity';
@@ -58,6 +58,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         vehicle: true,
         service: true,
         assignedMechanic: { include: { user: true } },
+        workOrder: true,
       },
       orderBy: { slotStartTime: 'asc' },
     });
@@ -65,6 +66,34 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   }
 
   async create(appointment: AppointmentEntity): Promise<AppointmentEntity> {
+    const [customer, vehicle] = await Promise.all([
+      this.prisma.customer.findFirst({
+        where: { id: appointment.customerId, tenantId: appointment.tenantId, deletedAt: null },
+      }),
+      this.prisma.vehicle.findFirst({
+        where: { id: appointment.vehicleId, tenantId: appointment.tenantId, deletedAt: null },
+      }),
+    ]);
+
+    if (!customer) {
+      throw new BadRequestException('Müşteri bulunamadı veya bu işletmeye ait değil.');
+    }
+    if (!vehicle) {
+      throw new BadRequestException('Araç bulunamadı veya bu işletmeye ait değil.');
+    }
+    if (vehicle.customerId !== appointment.customerId) {
+      throw new BadRequestException('Seçilen araç belirtilen müşteriye ait değil.');
+    }
+
+    if (appointment.assignedMechanicId) {
+      const mechanic = await this.prisma.mechanic.findFirst({
+        where: { id: appointment.assignedMechanicId, tenantId: appointment.tenantId },
+      });
+      if (!mechanic) {
+        throw new BadRequestException('Atanan teknisyen bu işletmeye ait değil.');
+      }
+    }
+
     const data = await this.prisma.appointment.create({
       data: {
         tenantId: appointment.tenantId,
@@ -90,6 +119,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   }
 
   async save(appointment: AppointmentEntity): Promise<AppointmentEntity> {
+    const existing = await this.prisma.appointment.findFirst({
+      where: { id: appointment.id, tenantId: appointment.tenantId },
+    });
+    if (!existing) {
+      throw new BadRequestException('Randevu bulunamadı veya bu işletmeye ait değil.');
+    }
+
     const data = await this.prisma.appointment.update({
       where: { id: appointment.id },
       data: {
@@ -107,6 +143,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         vehicle: true,
         service: true,
         assignedMechanic: { include: { user: true } },
+        workOrder: true,
       },
     });
     return this.mapToEntity(data);
@@ -158,6 +195,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     reason: string,
   ): Promise<AppointmentEntity> {
     return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.appointment.findFirst({
+        where: { id, tenantId },
+      });
+      if (!existing) {
+        throw new BadRequestException('Randevu bulunamadı veya bu işletmeye ait değil.');
+      }
+
       const updatedApp = await tx.appointment.update({
         where: { id },
         data: {
@@ -176,7 +220,15 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
           where: { id: updatedApp.workOrder.id },
           data: {
             status: WorkOrderStatus.CANCELLED,
-            cancellationReason: `Bağlı randevu iptal edildi. Neden: ${reason}`,
+          },
+        });
+
+        await tx.workOrderNote.create({
+          data: {
+            workOrderId: updatedApp.workOrder.id,
+            authorName: 'SİSTEM',
+            text: `Bağlı randevu iptal edildi. Neden: ${reason}`,
+            isInternal: true,
           },
         });
       }
@@ -241,6 +293,11 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
           model: brandModel ? brandModel.split(' ').slice(1).join(' ') : 'Belirtilmedi',
           year: new Date().getFullYear(),
         },
+      });
+    } else if (vehicle.customerId !== customerId) {
+      vehicle = await this.prisma.vehicle.update({
+        where: { id: vehicle.id },
+        data: { customerId },
       });
     }
 

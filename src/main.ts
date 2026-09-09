@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './shared/filters/global-exception.filter';
 import { getAllowedOrigins } from './shared/constants/cors.constants';
@@ -25,7 +26,15 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  // 1. CORS Configuration for Next.js Web App
+  // 1. HTTP Security Headers via Helmet
+  app.use(
+    helmet({
+      crossOriginEmbedderPolicy: false,
+      contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+    }),
+  );
+
+  // 2. CORS Configuration for Next.js Web App
   app.enableCors({
     origin: getAllowedOrigins(),
     credentials: true,
@@ -33,7 +42,7 @@ async function bootstrap() {
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Idempotency-Key, X-Tenant-Id, X-Health-Token',
   });
 
-  // 2. Cookie Parser Middleware (For Secure httpOnly Refresh Tokens)
+  // 3. Cookie Parser Middleware (For Secure httpOnly Refresh Tokens)
   app.use(cookieParser());
 
   // 3. Global Request Validation

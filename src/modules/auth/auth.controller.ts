@@ -100,7 +100,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Kullanıcı oturumunu ve httpOnly cookie belirtecini sonlandırır' })
   @ApiResponse({ status: 200, description: 'Oturum kapatıldı.' })
-  logout(@Res({ passthrough: true }) res: Response) {
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const token = req.cookies?.refreshToken;
+    if (token) {
+      await this.authService.revokeRefreshToken(token);
+    }
     res.clearCookie('refreshToken', {
       ...getRefreshTokenCookieOptions(),
       maxAge: 0,

@@ -136,33 +136,35 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     refId: string,
     author: string,
   ): Promise<StockItemEntity> {
-    const updated = await this.prisma.$executeRaw`
-      UPDATE products 
-      SET stock_quantity = stock_quantity - ${quantity} 
-      WHERE id = ${productId}::uuid AND tenant_id = ${tenantId}::uuid AND stock_quantity >= ${quantity}
-    `;
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.$executeRaw`
+        UPDATE products 
+        SET stock_quantity = stock_quantity - ${quantity} 
+        WHERE id = ${productId}::uuid AND tenant_id = ${tenantId}::uuid AND stock_quantity >= ${quantity}
+      `;
 
-    if (updated === 0) {
-      throw new BadRequestException('Yetersiz stok! Talep edilen miktar mevcut stoktan fazladır.');
-    }
+      if (updated === 0) {
+        throw new BadRequestException('Yetersiz stok! Talep edilen miktar mevcut stoktan fazladır.');
+      }
 
-    await this.prisma.stockMovement.create({
-      data: {
-        tenantId,
-        productId,
-        movementType: StockMovementType.OUT_WORK_ORDER,
-        quantity,
-        referenceId: refId,
-        note: `İş Emri (#${refId}) kapsamında stoktan düşüldü.`,
-        createdBy: author,
-      },
+      await tx.stockMovement.create({
+        data: {
+          tenantId,
+          productId,
+          movementType: StockMovementType.OUT_WORK_ORDER,
+          quantity,
+          referenceId: refId,
+          note: `İş Emri (#${refId}) kapsamında stoktan düşüldü.`,
+          createdBy: author,
+        },
+      });
+
+      const product = await tx.product.findUniqueOrThrow({
+        where: { id: productId },
+      });
+
+      return this.mapToEntity(product);
     });
-
-    const product = await this.prisma.product.findUniqueOrThrow({
-      where: { id: productId },
-    });
-
-    return this.mapToEntity(product);
   }
 
   async incrementAtomic(
@@ -173,6 +175,14 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     author: string,
   ): Promise<StockItemEntity> {
     return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.product.findFirst({
+        where: { id: productId, tenantId },
+      });
+
+      if (!existing) {
+        throw new BadRequestException('Ürün bulunamadı veya bu işletmeye ait değil.');
+      }
+
       const updated = await tx.product.update({
         where: { id: productId },
         data: { stockQuantity: { increment: quantity } },

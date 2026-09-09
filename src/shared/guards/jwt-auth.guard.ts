@@ -24,7 +24,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest(err: any, user: any, _info: any) {
     if (err || !user) {
-      console.error('JWT AUTH FAILED DETAILS -> err:', err, 'info:', _info?.message || _info);
       throw err || new UnauthorizedException('Geçersiz veya süresi dolmuş oturum belirteci.');
     }
     return user;

@@ -9,8 +9,12 @@ done
 
 echo "✅ Database migrations applied cleanly."
 
-echo "🌱 Checking/Applying initial seed data..."
-node prisma/seed.cjs || echo "Seed completed."
+if [ "$NODE_ENV" != "production" ] || [ "$RUN_SEED" = "true" ]; then
+  echo "🌱 Checking/Applying initial seed data..."
+  node prisma/seed.cjs || echo "Seed completed."
+else
+  echo "🔒 Production mode detected: Automated database seeding skipped for security hardening."
+fi
 
 echo "🚀 Starting WorksAuto API server..."
 exec "$@"

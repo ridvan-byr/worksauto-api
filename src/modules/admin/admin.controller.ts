@@ -25,6 +25,7 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { UserRole } from '@prisma/client';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Admin (Super Admin Platform Control Plane)')
 @Controller('admin')
@@ -36,6 +37,7 @@ export class AdminController {
   ) {}
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('auth/login')
   @ApiOperation({ summary: 'Super Admin E-Posta & Şifre ile platform girişi (IP & UserAgent loglu)' })
   async login(
