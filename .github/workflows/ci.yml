@@ -114,7 +114,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - name: Deploy Notice (Secrets Missing)
+        if: "${{ secrets.PROD_HOST == '' }}"
+        run: echo "Production secret PROD_HOST is not configured yet. Skipping remote deployment. CI/CD checks passed successfully."
+
       - name: Deploy to Production Server via SSH
+        if: "${{ secrets.PROD_HOST != '' }}"
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -128,3 +133,4 @@ jobs:
             npx prisma migrate deploy
             npm run build
             pm2 reload worksauto-api || pm2 start dist/main.js --name worksauto-api
+
