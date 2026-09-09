@@ -41,9 +41,11 @@ describe('CreateWorkOrderUseCase', () => {
       workOrderNumber: 'WO-2026-00001',
       customerId: 'c-1',
       vehicleId: 'v-1',
-      status: WorkOrderStatusEnum.OPEN,
+      status: WorkOrderStatusEnum.QUEUE,
       subtotal: 500,
-      kdvTotal: 100,
+      kdvAmount: 100,
+      createdAt: new Date(),
+      updatedAt: new Date(),
       grandTotal: 600,
       initialKm: 50000,
     });
