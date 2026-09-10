@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateIf } from 'class-validator';
 
 export class CreateShelfDto {
   @ApiProperty({ example: 'A Koridoru - Ön Takım Rafı' })
@@ -43,6 +43,7 @@ export class AssignProductCellDto {
 
   @ApiPropertyOptional({ example: 'c1b07384-d113-4a44-9c8a-789bb4671402', nullable: true })
   @IsOptional()
+  @ValidateIf((_, val) => val !== null && val !== undefined)
   @IsString()
   shelfCellId?: string | null;
 }
@@ -55,12 +56,13 @@ export class BulkAssignProductCellDto {
 
   @ApiPropertyOptional({ example: 'c1b07384-d113-4a44-9c8a-789bb4671402', nullable: true, description: 'Hedef raf hücresi ID' })
   @IsOptional()
+  @ValidateIf((_, val) => val !== null && val !== undefined)
   @IsString()
   shelfCellId?: string | null;
 
   @ApiPropertyOptional({ example: 's1b07384-d113-4a44-9c8a-789bb4671403', nullable: true, description: 'Hedef raf ID (hücre verilmediyse ilk göze veya rafa atar)' })
   @IsOptional()
+  @ValidateIf((_, val) => val !== null && val !== undefined)
   @IsString()
   targetShelfId?: string | null;
 }
-
