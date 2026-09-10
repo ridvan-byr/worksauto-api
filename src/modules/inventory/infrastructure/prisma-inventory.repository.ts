@@ -27,6 +27,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       rack: data.rack ?? undefined,
       tier: data.tier ?? undefined,
       bin: data.bin ?? undefined,
+      shelfId: data.shelfId ?? undefined,
       shelfCellId: data.shelfCellId ?? undefined,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
@@ -68,6 +69,28 @@ export class PrismaInventoryRepository implements IInventoryRepository {
 
   async create(item: StockItemEntity, author: string): Promise<StockItemEntity> {
     return this.prisma.$transaction(async (tx) => {
+      let resolvedShelfId = item.shelfId;
+      let resolvedShelfLocation = item.shelfLocation;
+      let resolvedAisle = item.aisle;
+      let resolvedRack = item.rack;
+      let resolvedTier = item.tier;
+      let resolvedBin = item.bin;
+
+      if (item.shelfCellId) {
+        const cell = await tx.shelfCell.findUnique({
+          where: { id: item.shelfCellId },
+          include: { shelf: true },
+        });
+        if (cell) {
+          resolvedShelfId = cell.shelfId;
+          resolvedShelfLocation = cell.cellCode;
+          resolvedAisle = cell.shelf?.zone || cell.shelf?.name || resolvedAisle;
+          resolvedRack = cell.shelf?.code || resolvedRack;
+          resolvedTier = `Kat ${cell.rowNumber}`;
+          resolvedBin = `Göz ${cell.colNumber}`;
+        }
+      }
+
       const created = await tx.product.create({
         data: {
           tenantId: item.tenantId,
@@ -78,15 +101,16 @@ export class PrismaInventoryRepository implements IInventoryRepository {
           brand: item.brand,
           stockQuantity: item.stockQuantity,
           minStockLevel: item.minStockLevel,
-          shelfLocation: item.shelfLocation,
+          shelfLocation: resolvedShelfLocation,
           purchasePrice: item.purchasePrice,
           salePrice: item.salePrice,
           kdvRate: item.kdvRate,
-          aisle: item.aisle,
-          rack: item.rack,
-          tier: item.tier,
-          bin: item.bin,
+          shelfId: resolvedShelfId,
           shelfCellId: item.shelfCellId,
+          aisle: resolvedAisle,
+          rack: resolvedRack,
+          tier: resolvedTier,
+          bin: resolvedBin,
         },
       });
 

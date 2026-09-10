@@ -16,6 +16,7 @@ export interface StockItemProps {
   rack?: string;
   tier?: string;
   bin?: string;
+  shelfId?: string;
   shelfCellId?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -39,6 +40,7 @@ export class StockItemEntity {
   public rack?: string;
   public tier?: string;
   public bin?: string;
+  public shelfId?: string;
   public shelfCellId?: string;
   public readonly createdAt?: Date;
   public readonly updatedAt?: Date;
@@ -61,6 +63,7 @@ export class StockItemEntity {
     this.rack = props.rack;
     this.tier = props.tier;
     this.bin = props.bin;
+    this.shelfId = props.shelfId;
     this.shelfCellId = props.shelfCellId;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;

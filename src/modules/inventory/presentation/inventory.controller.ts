@@ -8,7 +8,7 @@ import { UserRole, ProductCategory } from '@prisma/client';
 
 import { CreateProductDto } from '../dto/create-product.dto';
 import { CreateStockMovementDto } from '../dto/create-stock-movement.dto';
-import { CreateShelfDto, AssignProductCellDto } from '../dto/create-shelf.dto';
+import { CreateShelfDto, AssignProductCellDto, BulkAssignProductCellDto } from '../dto/create-shelf.dto';
 import { GetStockItemsUseCase } from '../application/use-cases/get-stock-items.use-case';
 import { CreateStockItemUseCase } from '../application/use-cases/create-stock-item.use-case';
 import { AddStockMovementUseCase } from '../application/use-cases/add-stock-movement.use-case';
@@ -70,6 +70,21 @@ export class InventoryController {
     @Body() dto: AssignProductCellDto,
   ) {
     return this.manageShelvesUseCase.assignProductToCell(tenantId, dto.productId, dto.shelfCellId);
+  }
+
+  @Post('shelves/bulk-assign-cell')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.WAREHOUSE_KEEPER)
+  @ApiOperation({ summary: 'Birden fazla parçayı topluca bir rafa veya hücreye taşır' })
+  bulkAssignProductsToCell(
+    @CurrentTenant() tenantId: string,
+    @Body() dto: BulkAssignProductCellDto,
+  ) {
+    return this.manageShelvesUseCase.bulkAssignProductCell(
+      tenantId,
+      dto.productIds,
+      dto.shelfCellId,
+      dto.targetShelfId,
+    );
   }
 
   @Delete('shelves/:shelfId')

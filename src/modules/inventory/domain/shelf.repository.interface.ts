@@ -17,6 +17,9 @@ export interface IShelfRepository {
   findProduct(tenantId: string, productId: string): Promise<any | null>;
   findCell(shelfCellId: string): Promise<any | null>;
   updateProductLocation(productId: string, data: any): Promise<any>;
+  updateManyProductLocations(productIds: string[], data: any): Promise<number>;
+  findFirstCellOfShelf(shelfId: string): Promise<any | null>;
   findShelfById(tenantId: string, shelfId: string): Promise<any | null>;
   deleteShelf(shelfId: string): Promise<void>;
 }
+

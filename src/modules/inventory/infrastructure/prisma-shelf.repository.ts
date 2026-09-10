@@ -142,6 +142,22 @@ export class PrismaShelfRepository implements IShelfRepository {
     });
   }
 
+  async updateManyProductLocations(productIds: string[], data: any): Promise<number> {
+    const res = await this.prisma.product.updateMany({
+      where: { id: { in: productIds } },
+      data,
+    });
+    return res.count;
+  }
+
+  async findFirstCellOfShelf(shelfId: string): Promise<any | null> {
+    return this.prisma.shelfCell.findFirst({
+      where: { shelfId },
+      orderBy: [{ rowNumber: 'asc' }, { colNumber: 'asc' }],
+      include: { shelf: true },
+    });
+  }
+
   async findShelfById(tenantId: string, shelfId: string): Promise<any | null> {
     return this.prisma.warehouseShelf.findFirst({
       where: { id: shelfId, tenantId },

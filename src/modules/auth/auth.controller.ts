@@ -120,6 +120,7 @@ export class AuthController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Giriş yapan personelin oturum ve tenant bilgilerini döner' })
   getProfile(@CurrentUser() user: any) {
-    return user;
+    return this.authService.getProfile(user.id || user.sub);
   }
 }
+

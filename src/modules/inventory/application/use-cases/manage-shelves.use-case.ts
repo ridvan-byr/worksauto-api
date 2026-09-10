@@ -80,6 +80,81 @@ export class ManageShelvesUseCase {
     return { success: true, product: updated, cellCode: cell.cellCode };
   }
 
+  async bulkAssignProductCell(
+    tenantId: string,
+    productIds: string[],
+    shelfCellId?: string | null,
+    targetShelfId?: string | null,
+  ) {
+    if (!productIds || productIds.length === 0) {
+      return { success: true, count: 0, message: 'İşlem yapılacak parça bulunamadı.' };
+    }
+
+    if (!shelfCellId && !targetShelfId) {
+      const count = await this.shelfRepository.updateManyProductLocations(productIds, {
+        shelfCellId: null,
+        shelfId: null,
+        shelfLocation: 'Depo',
+        aisle: null,
+        rack: null,
+        tier: null,
+        bin: null,
+      });
+      return { success: true, count, message: `${count} parça raflardan serbest alana çıkarıldı.` };
+    }
+
+    if (shelfCellId) {
+      const cell = await this.shelfRepository.findCell(shelfCellId);
+      if (!cell) {
+        throw new NotFoundException('Hedef raf hücresi bulunamadı.');
+      }
+      const count = await this.shelfRepository.updateManyProductLocations(productIds, {
+        shelfCellId: cell.id,
+        shelfId: cell.shelf.id,
+        shelfLocation: cell.cellCode,
+        aisle: cell.shelf.zone || cell.shelf.name,
+        rack: cell.shelf.code,
+        tier: `Kat ${cell.rowNumber}`,
+        bin: `Göz ${cell.colNumber}`,
+      });
+      return {
+        success: true,
+        count,
+        cellCode: cell.cellCode,
+        shelfCode: cell.shelf.code,
+        message: `${count} adet parça toplu olarak ${cell.cellCode} hücresine taşındı.`,
+      };
+    }
+
+    if (targetShelfId) {
+      const shelf = await this.shelfRepository.findShelfById(tenantId, targetShelfId);
+      if (!shelf) {
+        throw new NotFoundException('Hedef raf bulunamadı.');
+      }
+      const firstCell = await this.shelfRepository.findFirstCellOfShelf(targetShelfId);
+      if (firstCell) {
+        const count = await this.shelfRepository.updateManyProductLocations(productIds, {
+          shelfCellId: firstCell.id,
+          shelfId: firstCell.shelf.id,
+          shelfLocation: firstCell.cellCode,
+          aisle: firstCell.shelf.zone || firstCell.shelf.name,
+          rack: firstCell.shelf.code,
+          tier: `Kat ${firstCell.rowNumber}`,
+          bin: `Göz ${firstCell.colNumber}`,
+        });
+        return {
+          success: true,
+          count,
+          cellCode: firstCell.cellCode,
+          shelfCode: firstCell.shelf.code,
+          message: `${count} adet parça toplu olarak ${firstCell.shelf.code} rafına taşındı.`,
+        };
+      }
+    }
+
+    return { success: true, count: 0 };
+  }
+
   async deleteShelf(tenantId: string, shelfId: string) {
     const shelf = await this.shelfRepository.findShelfById(tenantId, shelfId);
 

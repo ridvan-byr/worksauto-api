@@ -412,4 +412,41 @@ export class AuthService {
       expiresIn: 3600, // 1 saat
     };
   }
+
+  /**
+   * Giriş yapan personelin veritabanındaki en güncel profil ve tenant bilgilerini döner
+   */
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { tenant: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Kullanıcı bulunamadı.');
+    }
+    if (user.tenant && !user.tenant.isActive) {
+      throw new UnauthorizedException(
+        'Bağlı olduğunuz oto servisinin lisansı askıya alınmıştır. Lütfen platform yöneticisi ile görüşünüz.',
+      );
+    }
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        surname: user.surname,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
+        tenantId: user.tenantId,
+        tenantTitle: user.tenant?.title,
+      },
+      tenant: user.tenant,
+      id: user.id,
+      role: user.role,
+      tenantId: user.tenantId,
+      branchId: user.branchId,
+      name: `${user.name} ${user.surname}`.trim(),
+    };
+  }
 }
+
