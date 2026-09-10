@@ -209,10 +209,10 @@ npm run start:dev
 
 ---
 
-## 👤 Author
+## 👤 Lead Developer & Architect
 
 **Rıdvan Bayar**  
-* Founder & Lead Architect, WorksAuto  
+* Lead Full-Stack Software Engineer & End-to-End System Architect  
 * GitHub: [@ridvan-byr](https://github.com/ridvan-byr)
 
 ---

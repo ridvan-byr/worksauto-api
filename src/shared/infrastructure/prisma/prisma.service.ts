@@ -71,6 +71,37 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                   args.where.tenantId = tenantId;
                 }
 
+                if (['update', 'delete'].includes(operation)) {
+                  args = args || {};
+                  if (args.where) {
+                    if (args.where.tenantId && args.where.tenantId !== tenantId) {
+                      throw new ForbiddenException(
+                        `Çapraz kiracı işlem ihlali engellendi: ${model} modeli için yetkisiz tenantId tespiti.`,
+                      );
+                    }
+
+                    // Defense-in-depth: Verify record ownership before mutation if where has only primary key
+                    const modelDelegate = (this as any)[model.charAt(0).toLowerCase() + model.slice(1)];
+                    if (modelDelegate && typeof modelDelegate.findUnique === 'function') {
+                      const existing = await modelDelegate.findUnique({
+                        where: args.where,
+                        select: { tenantId: true },
+                      });
+                      if (existing && existing.tenantId && existing.tenantId !== tenantId) {
+                        throw new ForbiddenException(
+                          `Çapraz kiracı manipülasyon engellendi: ${model} kaydı başka bir işletmeye ait.`,
+                        );
+                      }
+                    }
+                  }
+
+                  if (operation === 'update' && args.data && args.data.tenantId && args.data.tenantId !== tenantId) {
+                    throw new ForbiddenException(
+                      `Çapraz kiracı veri taşıma ihlali: ${model} modeli için yetkisiz tenantId tespiti.`,
+                    );
+                  }
+                }
+
                 if (operation === 'create') {
                   args = args || {};
                   args.data = args.data || {};
