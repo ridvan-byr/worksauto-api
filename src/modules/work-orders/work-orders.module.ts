@@ -18,6 +18,9 @@ import { AddWorkOrderItemUseCase } from './application/use-cases/add-work-order-
 import { UpdateWorkOrderItemQuantityUseCase } from './application/use-cases/update-work-order-item-quantity.use-case';
 import { RemoveWorkOrderItemUseCase } from './application/use-cases/remove-work-order-item.use-case';
 import { AddWorkOrderPhotoUseCase } from './application/use-cases/add-work-order-photo.use-case';
+import { AddWorkOrderNoteUseCase } from './application/use-cases/add-work-order-note.use-case';
+import { UpdateWorkOrderNoteUseCase } from './application/use-cases/update-work-order-note.use-case';
+import { DeleteWorkOrderNoteUseCase } from './application/use-cases/delete-work-order-note.use-case';
 
 @Module({
   imports: [
@@ -43,6 +46,9 @@ import { AddWorkOrderPhotoUseCase } from './application/use-cases/add-work-order
     UpdateWorkOrderItemQuantityUseCase,
     RemoveWorkOrderItemUseCase,
     AddWorkOrderPhotoUseCase,
+    AddWorkOrderNoteUseCase,
+    UpdateWorkOrderNoteUseCase,
+    DeleteWorkOrderNoteUseCase,
   ],
   exports: ['IWorkOrderRepository'],
 })

@@ -201,4 +201,66 @@ export class MediaService implements OnModuleInit {
 
     return { success: true, message: 'Fotoğraf başarıyla silindi.' };
   }
+
+  /**
+   * Update work order photo caption and type
+   */
+  async updateWorkOrderPhoto(
+    tenantId: string,
+    photoId: string,
+    caption?: string,
+    photoType?: WorkOrderPhotoType,
+  ) {
+    const photo = await this.prisma.workOrderPhoto.findUnique({
+      where: { id: photoId },
+      include: {
+        workOrder: {
+          select: { tenantId: true },
+        },
+      },
+    });
+
+    if (!photo) {
+      throw new BadRequestException('Fotoğraf bulunamadı.');
+    }
+
+    if (!photo.workOrder || photo.workOrder.tenantId !== tenantId) {
+      throw new ForbiddenException('Bu fotoğrafı güncelleme yetkiniz bulunmamaktadır.');
+    }
+
+    const updated = await this.prisma.workOrderPhoto.update({
+      where: { id: photoId },
+      data: {
+        ...(caption !== undefined && { caption }),
+        ...(photoType !== undefined && { photoType }),
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Get file stream and content type from MinIO
+   */
+  async getFileStream(tenantId: string, objectKey: string) {
+    if (!objectKey || objectKey.includes('..') || objectKey.includes('\\')) {
+      throw new BadRequestException('Geçersiz medya anahtarı.');
+    }
+
+    if (tenantId && !objectKey.startsWith(`${tenantId}/`) && !objectKey.startsWith('public/')) {
+      throw new ForbiddenException('Bu medyaya erişim yetkiniz bulunmamaktadır.');
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: objectKey,
+    });
+
+    const response = await this.s3Client.send(command);
+    return {
+      stream: response.Body,
+      contentType: response.ContentType || 'image/jpeg',
+      contentLength: response.ContentLength,
+    };
+  }
 }

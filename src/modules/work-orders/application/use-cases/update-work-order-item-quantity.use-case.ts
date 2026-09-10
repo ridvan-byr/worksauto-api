@@ -3,7 +3,7 @@ import { IWorkOrderRepository } from '../../domain/repositories/work-order.repos
 import { WorkOrderStatusVO } from '../../domain/value-objects/work-order-status.vo';
 import { AuditService } from '../../../audit/audit.service';
 import { EventsGateway } from '../../../events/events.gateway';
-import { UpdateWorkOrderItemQuantityDto } from '../../dto/update-item-quantity.dto';
+import { UpdateWorkOrderItemDto } from '../../dto/update-item.dto';
 
 @Injectable()
 export class UpdateWorkOrderItemQuantityUseCase {
@@ -18,7 +18,7 @@ export class UpdateWorkOrderItemQuantityUseCase {
     tenantId: string,
     workOrderId: string,
     itemId: string,
-    dto: UpdateWorkOrderItemQuantityDto,
+    dto: UpdateWorkOrderItemDto,
     author: string,
   ) {
     const wo = await this.workOrderRepository.findById(tenantId, workOrderId);
@@ -26,7 +26,7 @@ export class UpdateWorkOrderItemQuantityUseCase {
 
     const statusVO = new WorkOrderStatusVO(wo.status);
     if (statusVO.isCompleted() || statusVO.isCancelled()) {
-      throw new BadRequestException('Tamamlanmış veya iptal edilmiş iş emrinde kalem miktarı güncellenemez.');
+      throw new BadRequestException('Tamamlanmış veya iptal edilmiş iş emrinde kalem güncellenemez.');
     }
 
     const item = (wo.items || []).find((it: any) => it.id === itemId);
@@ -34,27 +34,23 @@ export class UpdateWorkOrderItemQuantityUseCase {
       throw new NotFoundException('İş emri kalemi bulunamadı.');
     }
 
-    if (item.quantity === dto.quantity) {
-      return wo;
-    }
-
-    const updated = await this.workOrderRepository.updateItemQuantity(
+    const updated = await this.workOrderRepository.updateItem(
       tenantId,
       workOrderId,
       itemId,
-      dto.quantity,
+      dto,
       author,
     );
 
     const oldQty = item.quantity;
-    const newQty = dto.quantity;
+    const newQty = dto.quantity ?? oldQty;
     const diff = newQty - oldQty;
     const isPart = item.itemType === 'PART';
     const stockActionText = isPart
       ? diff > 0
         ? `Stoktan ${diff} adet düşüldü`
         : `Stoğa ${Math.abs(diff)} adet iade edildi`
-      : 'İşçilik adedi güncellendi';
+      : 'İşçilik güncellendi';
 
     try {
       await this.auditService.log({

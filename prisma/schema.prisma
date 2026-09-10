@@ -409,6 +409,7 @@ model WorkOrderPhoto {
   photoType   WorkOrderPhotoType @default(CHECKIN) @map("photo_type")
   uploadedBy  String             @map("uploaded_by")
   createdAt   DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime?          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 
@@ -416,12 +417,14 @@ model WorkOrderPhoto {
 }
 
 model WorkOrderNote {
-  id          String   @id @default(uuid()) @db.Uuid
-  workOrderId String   @map("work_order_id") @db.Uuid
-  authorName  String   @map("author_name")
+  id          String    @id @default(uuid()) @db.Uuid
+  workOrderId String    @map("work_order_id") @db.Uuid
+  authorId    String?   @map("author_id") @db.Uuid
+  authorName  String    @map("author_name")
   text        String
-  isInternal  Boolean  @default(true) @map("is_internal")
-  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  isInternal  Boolean   @default(true) @map("is_internal")
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime? @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
 

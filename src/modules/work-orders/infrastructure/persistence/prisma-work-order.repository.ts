@@ -332,17 +332,13 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     });
   }
 
-  async updateItemQuantity(
+  async updateItem(
     tenantId: string,
     workOrderId: string,
     itemId: string,
-    quantity: number,
+    data: { name?: string; unitPrice?: number; quantity?: number },
     author: string,
   ): Promise<any> {
-    if (!quantity || quantity <= 0) {
-      throw new BadRequestException('Kalem adedi en az 1 olmalıdır.');
-    }
-
     return this.prisma.$transaction(async (tx) => {
       const wo = await tx.workOrder.findFirst({
         where: { id: workOrderId, tenantId },
@@ -354,8 +350,15 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
       });
       if (!item) throw new NotFoundException('İş emri kalemi bulunamadı.');
 
-      const oldQuantity = item.quantity;
-      const diff = quantity - oldQuantity;
+      let newQuantity = item.quantity;
+      if (data.quantity !== undefined) {
+        if (data.quantity <= 0) {
+          throw new BadRequestException('Kalem adedi en az 1 olmalıdır.');
+        }
+        newQuantity = data.quantity;
+      }
+
+      const diff = newQuantity - item.quantity;
 
       if (diff !== 0 && item.itemType === WorkOrderItemType.PART && item.itemId) {
         if (diff > 0) {
@@ -410,15 +413,19 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
         }
       }
 
+      const newName = data.name !== undefined ? data.name.trim() : item.name;
+      const newUnitPrice = data.unitPrice !== undefined ? Number(data.unitPrice) : Number(item.unitPrice);
       const itemKdvRate = Number(item.kdvRate) || 0;
-      const baseItemPrice = Number(item.unitPrice) * quantity;
+      const baseItemPrice = newUnitPrice * newQuantity;
       const itemKdvAmount = (baseItemPrice * itemKdvRate) / 100;
       const newTotalPrice = baseItemPrice + itemKdvAmount;
 
       await tx.workOrderItem.update({
         where: { id: itemId },
         data: {
-          quantity,
+          name: newName,
+          unitPrice: newUnitPrice,
+          quantity: newQuantity,
           totalPrice: newTotalPrice,
         },
       });
@@ -456,9 +463,20 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
           assignedMechanic: { include: { user: true } },
           items: true,
           photos: true,
+          notes: { orderBy: { createdAt: 'desc' } },
         },
       });
     });
+  }
+
+  async updateItemQuantity(
+    tenantId: string,
+    workOrderId: string,
+    itemId: string,
+    quantity: number,
+    author: string,
+  ): Promise<any> {
+    return this.updateItem(tenantId, workOrderId, itemId, { quantity }, author);
   }
 
   async removeItem(tenantId: string, workOrderId: string, itemId: string, author: string): Promise<any> {
@@ -543,6 +561,65 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
         photoType: photoType as WorkOrderPhotoType,
         uploadedBy,
       },
+    });
+  }
+
+  async addNote(
+    tenantId: string,
+    workOrderId: string,
+    authorId: string | null,
+    authorName: string,
+    text: string,
+    isInternal = true,
+  ): Promise<any> {
+    const wo = await this.prisma.workOrder.findFirst({
+      where: { id: workOrderId, tenantId },
+    });
+    if (!wo) throw new NotFoundException('İş emri bulunamadı.');
+
+    return this.prisma.workOrderNote.create({
+      data: {
+        workOrderId,
+        authorId,
+        authorName,
+        text,
+        isInternal,
+      },
+    });
+  }
+
+  async findNoteById(tenantId: string, noteId: string): Promise<any | null> {
+    return this.prisma.workOrderNote.findFirst({
+      where: {
+        id: noteId,
+        workOrder: { tenantId },
+      },
+      include: {
+        workOrder: true,
+      },
+    });
+  }
+
+  async updateNote(tenantId: string, workOrderId: string, noteId: string, text: string): Promise<any> {
+    const note = await this.findNoteById(tenantId, noteId);
+    if (!note || note.workOrderId !== workOrderId) {
+      throw new NotFoundException('Not bulunamadı.');
+    }
+
+    return this.prisma.workOrderNote.update({
+      where: { id: noteId },
+      data: { text },
+    });
+  }
+
+  async deleteNote(tenantId: string, workOrderId: string, noteId: string): Promise<any> {
+    const note = await this.findNoteById(tenantId, noteId);
+    if (!note || note.workOrderId !== workOrderId) {
+      throw new NotFoundException('Not bulunamadı.');
+    }
+
+    return this.prisma.workOrderNote.delete({
+      where: { id: noteId },
     });
   }
 

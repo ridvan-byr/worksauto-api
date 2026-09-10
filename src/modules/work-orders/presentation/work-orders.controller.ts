@@ -11,6 +11,9 @@ import { Permission } from '../../../shared/constants/permissions.enum';
 import { UserRole, WorkOrderStatus, WorkOrderPhotoType } from '@prisma/client';
 import { AddWorkOrderItemDto } from '../dto/add-item.dto';
 import { UpdateWorkOrderItemQuantityDto } from '../dto/update-item-quantity.dto';
+import { UpdateWorkOrderItemDto } from '../dto/update-item.dto';
+import { CreateWorkOrderNoteDto } from '../dto/create-note.dto';
+import { UpdateWorkOrderNoteDto } from '../dto/update-note.dto';
 import { CreateWorkOrderDto } from '../dto/create-work-order.dto';
 import { GetWorkOrdersUseCase } from '../application/use-cases/get-work-orders.use-case';
 import { CreateWorkOrderUseCase } from '../application/use-cases/create-work-order.use-case';
@@ -20,6 +23,9 @@ import { AddWorkOrderItemUseCase } from '../application/use-cases/add-work-order
 import { UpdateWorkOrderItemQuantityUseCase } from '../application/use-cases/update-work-order-item-quantity.use-case';
 import { RemoveWorkOrderItemUseCase } from '../application/use-cases/remove-work-order-item.use-case';
 import { AddWorkOrderPhotoUseCase } from '../application/use-cases/add-work-order-photo.use-case';
+import { AddWorkOrderNoteUseCase } from '../application/use-cases/add-work-order-note.use-case';
+import { UpdateWorkOrderNoteUseCase } from '../application/use-cases/update-work-order-note.use-case';
+import { DeleteWorkOrderNoteUseCase } from '../application/use-cases/delete-work-order-note.use-case';
 
 @ApiTags('Work Orders (Atölye İş Emirleri)')
 @ApiBearerAuth('JWT-auth')
@@ -36,6 +42,9 @@ export class WorkOrdersController {
     private readonly updateWorkOrderItemQuantityUseCase: UpdateWorkOrderItemQuantityUseCase,
     private readonly removeWorkOrderItemUseCase: RemoveWorkOrderItemUseCase,
     private readonly addWorkOrderPhotoUseCase: AddWorkOrderPhotoUseCase,
+    private readonly addWorkOrderNoteUseCase: AddWorkOrderNoteUseCase,
+    private readonly updateWorkOrderNoteUseCase: UpdateWorkOrderNoteUseCase,
+    private readonly deleteWorkOrderNoteUseCase: DeleteWorkOrderNoteUseCase,
   ) {}
 
   @Get()
@@ -125,12 +134,12 @@ export class WorkOrdersController {
 
   @Patch(':id/items/:itemId')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
-  @ApiOperation({ summary: 'İş emrindeki kalem miktarını günceller (Stok farkını atomik olarak işler)' })
+  @ApiOperation({ summary: 'İş emrindeki kalemi günceller (İşçilik adı/fiyatı veya parça miktarı/stok farkı)' })
   updateItemQuantity(
     @CurrentTenant() tenantId: string,
     @Param('id') id: string,
     @Param('itemId') itemId: string,
-    @Body() dto: UpdateWorkOrderItemQuantityDto,
+    @Body() dto: UpdateWorkOrderItemDto,
     @CurrentUser('name') userName: string,
   ) {
     return this.updateWorkOrderItemQuantityUseCase.execute(tenantId, id, itemId, dto, userName || 'Teknisyen');
@@ -146,5 +155,55 @@ export class WorkOrdersController {
     @CurrentUser('name') userName: string,
   ) {
     return this.removeWorkOrderItemUseCase.execute(tenantId, id, itemId, userName || 'Teknisyen');
+  }
+
+  @Post(':id/notes')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'İş emrine dahili usta/atölye notu ekler' })
+  addNote(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: CreateWorkOrderNoteDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.addWorkOrderNoteUseCase.execute(tenantId, id, dto, {
+      id: user?.id || user?.userId,
+      name: user?.name || 'Usta',
+      surname: user?.surname || '',
+    });
+  }
+
+  @Patch(':id/notes/:noteId')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Dahili notu günceller (Yalnızca notu yazan kişi düzenleyebilir)' })
+  updateNote(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @Param('noteId') noteId: string,
+    @Body() dto: UpdateWorkOrderNoteDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.updateWorkOrderNoteUseCase.execute(tenantId, id, noteId, dto, {
+      id: user?.id || user?.userId,
+      name: user?.name || '',
+      surname: user?.surname || '',
+    });
+  }
+
+  @Delete(':id/notes/:noteId')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Dahili notu siler (Not sahibi veya Yönetici silebilir)' })
+  deleteNote(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @Param('noteId') noteId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.deleteWorkOrderNoteUseCase.execute(tenantId, id, noteId, {
+      id: user?.id || user?.userId,
+      name: user?.name || '',
+      surname: user?.surname || '',
+      role: user?.role,
+    });
   }
 }

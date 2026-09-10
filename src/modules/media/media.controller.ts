@@ -2,24 +2,25 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Delete,
   Param,
   UseInterceptors,
   UploadedFile,
   Body,
-  UseGuards,
+  Res,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { MediaService, UploadedMediaFile } from './media.service';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { Public } from '../../shared/decorators/public.decorator';
 import { WorkOrderPhotoType } from '@prisma/client';
 
 @ApiTags('Media & S3 Storage')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
 @Controller('media')
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
@@ -66,6 +67,17 @@ export class MediaController {
     return { url };
   }
 
+  @Patch('work-orders/photos/:photoId')
+  @ApiOperation({ summary: 'İş emri fotoğrafı açıklamasını ve türünü güncelle' })
+  async updateWorkOrderPhoto(
+    @CurrentTenant() tenantId: string,
+    @Param('photoId') photoId: string,
+    @Body('caption') caption?: string,
+    @Body('photoType') photoType?: WorkOrderPhotoType,
+  ) {
+    return this.mediaService.updateWorkOrderPhoto(tenantId, photoId, caption, photoType);
+  }
+
   @Delete('work-orders/photos/:photoId')
   @ApiOperation({ summary: 'İş emri fotoğrafını sil' })
   async deleteWorkOrderPhoto(
@@ -73,5 +85,21 @@ export class MediaController {
     @Param('photoId') photoId: string,
   ) {
     return this.mediaService.deleteWorkOrderPhoto(tenantId, photoId);
+  }
+
+  @Public()
+  @Get('files/*')
+  @ApiOperation({ summary: 'Medya dosyasını doğrudan göster / stream et' })
+  async getFile(
+    @Param('0') objectKey: string,
+    @Res() res: Response,
+  ) {
+    const file = await this.mediaService.getFileStream('', objectKey);
+    res.set({
+      'Content-Type': file.contentType,
+      ...(file.contentLength && { 'Content-Length': String(file.contentLength) }),
+      'Cache-Control': 'public, max-age=86400',
+    });
+    (file.stream as any).pipe(res);
   }
 }

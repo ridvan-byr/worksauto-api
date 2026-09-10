@@ -48,8 +48,26 @@ export interface IWorkOrderRepository {
     author: string,
   ): Promise<any>;
   updateItemQuantity(tenantId: string, workOrderId: string, itemId: string, quantity: number, author: string): Promise<any>;
+  updateItem(
+    tenantId: string,
+    workOrderId: string,
+    itemId: string,
+    data: { name?: string; unitPrice?: number; quantity?: number },
+    author: string,
+  ): Promise<any>;
   removeItem(tenantId: string, workOrderId: string, itemId: string, author: string): Promise<any>;
   addPhoto(tenantId: string, id: string, url: string, caption: string, photoType: string, uploadedBy: string): Promise<any>;
+  addNote(
+    tenantId: string,
+    workOrderId: string,
+    authorId: string | null,
+    authorName: string,
+    text: string,
+    isInternal?: boolean,
+  ): Promise<any>;
+  updateNote(tenantId: string, workOrderId: string, noteId: string, text: string): Promise<any>;
+  deleteNote(tenantId: string, workOrderId: string, noteId: string): Promise<any>;
+  findNoteById(tenantId: string, noteId: string): Promise<any | null>;
   restoreCancelledStock(tenantId: string, workOrderId: string, userId?: string): Promise<void>;
   getTenantAutoInvoiceConfig(tenantId: string): Promise<boolean>;
   findInvoiceByWorkOrder(tenantId: string, workOrderId: string): Promise<any | null>;
