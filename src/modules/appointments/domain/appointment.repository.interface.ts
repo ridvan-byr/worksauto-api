@@ -27,6 +27,7 @@ export interface IAppointmentRepository {
     reason: string,
   ): Promise<AppointmentEntity>;
   findTenantBySlug(slug: string): Promise<any | null>;
+  findActiveOnlineBays(tenantId: string): Promise<string[]>;
   findOrCreateCustomerForPublic(tenantId: string, name: string, phone: string): Promise<any>;
   findOrCreateVehicleForPublic(tenantId: string, customerId: string, plate: string, brandModel?: string): Promise<any>;
 }

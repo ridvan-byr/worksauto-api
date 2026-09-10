@@ -24,6 +24,7 @@ describe('CancelAppointmentUseCase', () => {
       checkLiftConflict: vi.fn(),
       cancelAppointmentAndWorkOrder: vi.fn(),
       findTenantBySlug: vi.fn(),
+      findActiveOnlineBays: vi.fn(),
       findOrCreateCustomerForPublic: vi.fn(),
       findOrCreateVehicleForPublic: vi.fn(),
     };

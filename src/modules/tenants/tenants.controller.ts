@@ -1,7 +1,8 @@
-import { Controller, Get, Patch, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TenantsService } from './tenants.service';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { CreateWorkshopBayDto, UpdateWorkshopBayDto } from './dto/workshop-bays.dto';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -25,6 +26,38 @@ export class TenantsController {
   @ApiOperation({ summary: 'Servis bilgilerini, adresini ve vergi kayıtlarını günceller' })
   updateCurrent(@CurrentTenant() tenantId: string, @Body() dto: UpdateTenantDto) {
     return this.tenantsService.updateCurrent(tenantId, dto);
+  }
+
+  @Get('bays')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN, UserRole.CASHIER)
+  @ApiOperation({ summary: 'Servisin atölye istasyonları ve lift listesini getirir' })
+  getBays(@CurrentTenant() tenantId: string) {
+    return this.tenantsService.getBays(tenantId);
+  }
+
+  @Post('bays')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Yeni atölye istasyonu veya lift ekler' })
+  createBay(@CurrentTenant() tenantId: string, @Body() dto: CreateWorkshopBayDto) {
+    return this.tenantsService.createBay(tenantId, dto);
+  }
+
+  @Patch('bays/:id')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Atölye istasyonu veya lift bilgilerini günceller' })
+  updateBay(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateWorkshopBayDto,
+  ) {
+    return this.tenantsService.updateBay(tenantId, id, dto);
+  }
+
+  @Delete('bays/:id')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Atölye istasyonunu veya lifti siler' })
+  deleteBay(@CurrentTenant() tenantId: string, @Param('id') id: string) {
+    return this.tenantsService.deleteBay(tenantId, id);
   }
 
   @Public()

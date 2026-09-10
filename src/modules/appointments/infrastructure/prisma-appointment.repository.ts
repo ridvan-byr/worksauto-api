@@ -246,6 +246,19 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     });
   }
 
+  async findActiveOnlineBays(tenantId: string): Promise<string[]> {
+    const bays = await this.prisma.workshopBay.findMany({
+      where: {
+        tenantId,
+        isActive: true,
+        isAvailableForOnline: true,
+      },
+      orderBy: { orderIndex: 'asc' },
+      select: { name: true },
+    });
+    return bays.map((b) => b.name);
+  }
+
   async findOrCreateCustomerForPublic(tenantId: string, name: string, phone: string): Promise<any> {
     const nameParts = name.trim().split(' ');
     const firstName = nameParts[0] || 'Müşteri';

@@ -39,8 +39,9 @@ export class CreatePublicAppointmentUseCase {
       throw new BadRequestException('Geçersiz randevu saat aralığı. Bitiş saati başlangıçtan sonra olmalıdır.');
     }
 
-    // Dynamic Lift Bay Allocation: check which bay is available
-    const bays = ['Lift 1 (Hızlı Kabul)', 'Lift 2 (Mekanik)', 'Lift 3 (Genel Bakım)', 'Kabul Alanı'];
+    // Dynamic Lift Bay Allocation: fetch tenant's active online bays or fallback to standard intake bays
+    const onlineBays = await this.appointmentRepository.findActiveOnlineBays(tenant.id);
+    const bays = onlineBays.length > 0 ? onlineBays : ['Lift 1 (Hızlı Kabul)', 'Lift 2 (Mekanik)', 'Kabul Alanı'];
     let assignedLift: string | null = null;
 
     for (const bay of bays) {

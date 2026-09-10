@@ -24,6 +24,7 @@ describe('RescheduleAppointmentUseCase', () => {
       checkLiftConflict: vi.fn().mockResolvedValue(false),
       cancelAppointmentAndWorkOrder: vi.fn(),
       findTenantBySlug: vi.fn(),
+      findActiveOnlineBays: vi.fn(),
       findOrCreateCustomerForPublic: vi.fn(),
       findOrCreateVehicleForPublic: vi.fn(),
     };

@@ -17,6 +17,7 @@ describe('CreatePublicAppointmentUseCase', () => {
       create: vi.fn(),
       save: vi.fn(),
       findTenantBySlug: vi.fn(),
+      findActiveOnlineBays: vi.fn().mockResolvedValue(['Lift 1 (Hızlı Kabul)', 'Lift 2 (Mekanik)', 'Kabul Alanı']),
       checkLiftConflict: vi.fn(),
       findOrCreateCustomerForPublic: vi.fn(),
       findOrCreateVehicleForPublic: vi.fn(),
