@@ -46,14 +46,14 @@ Servis ekranında bir butona tıklandığında arka planda sırasıyla şu 10 i�
 
 * **`get_customer_list` — Müşteri Listeleme & Arama:** Servise kayıtlı tüm müşterileri isim, telefon, plaka veya vergi no ile arar ve sayfalı listeler.
 * **`get_customer_info` — Müşteri Detay Kartı:** Müşterinin kimlik, iletişim, adına kayıtlı tüm araçlar ve açık iş emirlerini görüntüler.
-* **`add_customer` — Yeni Müşteri Kaydı:** TC Kimlik No veya kurumsal Vergi No doğrulamasıyla sisteme yeni müşteri kartı açar.
+* **`add_customer` — Yeni Müşteri Kaydı:** Bireysel (Ad, Soyad, TC Kimlik) ve Kurumsal (Ticari Unvan, VKN, Vergi Dairesi) olmak üzere 2 farklı tipte müşteri açar ve otomatik cari hesap cüzdanı tanımlar.
 * **`update_customer` — Müşteri Güncelleme:** Müşterinin adres, telefon, e-posta veya fatura unvanı bilgilerini günceller.
 * **`del_customer` — Müşteri Silme:** Hatalı açılan müşteri kartını siler; ilişkili faturası varsa silinmesini engeller.
 * **`anonymize_customer` — Müşteri Verisi Anonimleştirme (KVKK):** İlişkili faturası olan eski müşterilerin kişisel verilerini yasal KVKK mevzuatına uygun olarak gizler/anonimleştirir.
 
 ### 🔹 Toplu & Hızlı Kayıt
 
-* **`add_quick_lead` — Hızlı Müşteri Girişi:** Kapıdan acil giren araçlar için yalnızca İsim ve Telefon alarak saniyeler içinde geçici müşteri oluşturur.
+* **`add_quick_lead` — Hızlı Müşteri Girişi:** Kapıdan acil giren araçlar için yalnızca İsim, Telefon ve Plaka alarak saniyeler içinde geçici müşteri ve araç kartını birlikte oluşturur.
 * **`batch_import_with_duplicate_strategy` — Mükerrer Yönetimli Excel İçe Aktarma:** Eski servis yazılımından veya yedeklerden binlerce müşteriyi sistemde mevcut plakaları güncelleme veya atlama seçeneğiyle tek tıkla yükler.
 * **`find_by_phone` — Arayan Numaradan Bulma (Caller-ID):** Telefon çaldığında arayan numaradan müşteriyi ve kayıtlı araçlarını ekrana yansıtır.
 * **`validate_tax_number` — Vergi Kimlik Numarası Doğrulama:** Kurumsal firmaların 10 haneli VKN numarasını resmi doğrulama algoritmasıyla teyit eder.
@@ -77,7 +77,7 @@ Servis ekranında bir butona tıklandığında arka planda sırasıyla şu 10 i�
 
 * **`get_car_list` — Araç Listeleme & Filtreleme:** Servisteki tüm araçları plaka, marka, model veya şasi numarasına göre listeler.
 * **`get_car_info` — Araç Detay Kartı:** Aracın sahibini, motor kodunu, şasi numarasını, rengini ve güncel kilometresini gösterir.
-* **`add_car` — Yeni Araç Kaydı:** Plakası girilen yeni bir aracı sahibinin müşteri kartına bağlayarak kaydeder.
+* **`add_car` — Yeni Araç Kaydı:** Plaka, marka, model, yıl, yakıt tipi ile birlikte Muayene, Trafik Sigortası ve Kasko bitiş tarihlerini kaydederek müşteriye bağlar.
 * **`update_car` — Araç Kartı Güncelleme:** Plaka değişikliği, renk değişimi veya ruhsat bilgisi güncellemelerini işler.
 * **`del_car` — Araç Silme:** Hatalı veya mükerrer girilen araç kartını sistemden kaldırır.
 * **`get_customer_cars` — Müşteriye Ait Araçları Getirme:** Seçilen bir müşterinin adına kayıtlı olan tüm araçların listesini verir.
@@ -108,8 +108,8 @@ Servis ekranında bir butona tıklandığında arka planda sırasıyla şu 10 i�
 
 * **`get_work_order_list` — İş Emirleri Listesi & Pano:** Açık, onarımda, parça bekleyen ve biten işleri Kanban panosu veya liste olarak sunar.
 * **`get_work_order_detail` — İş Emri Detay Fişi:** İş emrinde yapılan işçilikleri, takılan parçaları, müşteri şikayetlerini ve maliyetleri görüntüler.
-* **`create_work_order` — Yeni İş Emri Açma:** Müşteri şikayeti ve araç ön kabul bilgileriyle yeni bir atölye iş emri başlatır.
-* **`update_order_status` — Aşama İlerlemesi (Statü):** İş emrini Kabul ➔ Teşhis ➔ Parça Bekliyor ➔ Onarımda ➔ Test ➔ Tamamlandı aşamalarında ilerletir.
+* **`create_work_order` — Yeni İş Emri Açma:** Giriş kilometresi, depo yakıt seviyesi, atanmış usta ve lift bilgileriyle müşteri şikayetli atölye iş emri başlatır.
+* **`update_order_status` — Aşama İlerlemesi (Statü):** İş emrini (Kuyruk, İşlemde, Tamamlandı, İptal) ilerletir; iptalde parçayı depoya geri yükler, tamamlandığında otomatik fatura ve SMS tetikler.
 * **`complete_work_order` — İş Emrini Tamamlama:** Tüm işlemler bittiğinde iş emrini kapatır ve kalite kontrol onayına sunar.
 * **`rollback_work_order` — İş Emrini Geri Alma / Yeniden Açma:** Hatalı kapatılan iş emrini geri açarak eksik parça veya işçilik eklenmesine izin verir.
 
@@ -230,9 +230,9 @@ Servis ekranında bir butona tıklandığında arka planda sırasıyla şu 10 i�
 
 ### 🔹 Oturum & Kimlik
 
-* **`login_with_password` — Güvenli Personel Girişi:** Servis personelinin e-posta ve şifresiyle şifreli JWT oturumu açmasını sağlar.
-* **`send_otp_sms` — SMS ile Güvenlik Doğrulama (2FA):** Kritik silme işlemlerinde veya şifre sıfırlamada personele SMS onay kodu gönderir.
-* **`verify_otp_code` — SMS Kodu Doğrulama:** Kullanıcının girdiği 6 haneli SMS onay kodunun doğruluğunu kontrol eder.
+* **`login_with_password` — Alternatif Şifreli Personel Girişi:** Servis personelinin e-posta ve şifresiyle şifreli JWT oturumu açmasını sağlar.
+* **`send_otp_sms` — SMS ile Hızlı & Güvenli Giriş (Primary OTP):** Sanayide şifre ezberleme derdini bitiren, cep telefonuna 3 dakikalık 6 haneli tek kullanımlık SMS onay kodu gönderir.
+* **`verify_otp_code` — SMS Kodu Doğrulama & 30 Günlük Oturum:** Girilen SMS kodunu Redis üzerinden doğrular ve 30 günlük kesintisiz oturum başlatır.
 * **`refresh_access_token` — Sessiz Oturum Yenileme:** Süresi dolan oturum anahtarını kullanıcının ekranını kapatmadan arkada yeniler (jti korumalı).
 * **`logout_session` — Güvenli Çıkış:** Tarayıcıdaki oturumu ve sunucudaki yenileme anahtarını kalıcı olarak sonlandırır.
 * **`change_password` — Şifre Değiştirme:** Personelin kendi erişim şifresini güvenle güncellemesini sağlar.
@@ -250,7 +250,7 @@ Servis ekranında bir butona tıklandığında arka planda sırasıyla şu 10 i�
 
 * **`get_staff_list` — Çalışan Listesi:** Servisteki ustaları, danışmanları ve muhasebecileri listeler.
 * **`create_staff_user` — Yeni Personel Tanımlama:** Servise yeni başlayan bir çalışan için kullanıcı hesabı açar.
-* **`update_staff_role` — Yetki Belirleme (RBAC):** Personelin yetki sınırlarını tayin eder (Admin, Danışman, Usta, Muhasebe).
+* **`update_staff_role` — Yetki Belirleme (RBAC):** Sistemdeki 6 ana rolü (Servis Sahibi, Servis Müdürü, Usta/Teknisyen, Kasa/Muhasebe, Depocu, Süper Yönetici) yönetir.
 * **`check_permission_guard` — İşlem İzin Kontrolü:** Yapılmak istenen işlem için kullanıcının yetkisinin yetip yetmediğini denetler.
 * **`toggle_staff_active` — Personel Dondurma:** İşten ayrılan bir personelin sisteme girişini tek tıkla engeller.
 * **`delete_staff_user` — Personel Kaydı Silme:** Hatalı açılan veya ayrılan personel kaydını sistemden kaldırır.
