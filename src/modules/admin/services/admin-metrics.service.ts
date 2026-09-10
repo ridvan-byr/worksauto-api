@@ -58,40 +58,54 @@ export class AdminMetricsService {
     limit?: number;
     action?: string;
     search?: string;
+    tenantId?: string;
   }) {
     const page = Math.max(1, options?.page ? Number(options.page) : 1);
     const limit = Math.max(1, Math.min(100, options?.limit ? Number(options.limit) : 10));
-    const skip = (page - 1) * limit;
 
     const conditions: any[] = [];
-    const hasSearch = Boolean(options?.search?.trim());
-    const actionFilter = options?.action || (hasSearch ? 'ALL' : 'PLATFORM');
+    const actionFilter = options?.action || 'ALL';
 
-    if (actionFilter && actionFilter !== 'ALL') {
-      if (actionFilter === 'PLATFORM') {
-        conditions.push({
-          OR: [
-            { action: { startsWith: 'TENANT_' } },
-            { action: { startsWith: 'SECURITY_' } },
-          ],
-        });
-      } else if (actionFilter === 'TENANT') {
-        conditions.push({ action: { startsWith: 'TENANT_' } });
-      } else if (actionFilter === 'SECURITY') {
-        conditions.push({ action: { startsWith: 'SECURITY_' } });
-      } else if (actionFilter === 'OPERATIONS') {
-        conditions.push({
-          OR: [
-            { action: { startsWith: 'work_order' } },
-            { action: { startsWith: 'appointment' } },
-            { action: { startsWith: 'service' } },
-            { action: { startsWith: 'invoice' } },
-            { action: { startsWith: 'payment' } },
-          ],
-        });
-      } else {
-        conditions.push({ action: { contains: actionFilter, mode: 'insensitive' } });
-      }
+    // 1. Destek modu (tenantId belirtilmişse o servisin loglarını getir; belirtilmemişse platform ve güvenlik loglarını getir)
+    if (options?.tenantId) {
+      conditions.push({ tenantId: options.tenantId });
+    } else {
+      // Platform & Güvenlik kapsamı (Servis içi gündelik operasyonlar KVKK ve kurumsal izolasyon gereği genel akıştan hariç tutulur)
+      conditions.push({
+        OR: [
+          { action: { startsWith: 'TENANT_' } },
+          { action: { startsWith: 'tenant.' } },
+          { action: { startsWith: 'SECURITY_' } },
+          { action: { startsWith: 'auth.' } },
+          { action: { startsWith: 'admin.' } },
+          { action: { startsWith: 'system.' } },
+          { entityName: 'Tenant' },
+          { entityName: 'AdminUser' },
+          { entityName: 'SecurityAuth' },
+        ],
+      });
+    }
+
+    // 2. Kategori Filtreleri (Giriş Denemeleri vs Servis & Lisans)
+    if (actionFilter === 'SECURITY') {
+      conditions.push({
+        OR: [
+          { action: { startsWith: 'SECURITY_' } },
+          { action: { startsWith: 'auth.' } },
+          { action: { startsWith: 'security.' } },
+          { entityName: 'SecurityAuth' },
+        ],
+      });
+    } else if (actionFilter === 'TENANT') {
+      conditions.push({
+        OR: [
+          { action: { startsWith: 'TENANT_' } },
+          { action: { startsWith: 'tenant.' } },
+          { entityName: 'Tenant' },
+        ],
+      });
+    } else if (actionFilter !== 'ALL') {
+      conditions.push({ action: { contains: actionFilter, mode: 'insensitive' } });
     }
 
     if (options?.search) {
@@ -193,18 +207,20 @@ export class AdminMetricsService {
 
     const where: any = conditions.length > 0 ? { AND: conditions } : {};
 
-    const [total, logs] = await Promise.all([
-      this.prisma.auditLog.count({ where }),
-      this.prisma.auditLog.findMany({
-        where,
-        take: limit,
-        skip,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          tenant: { select: { title: true } },
-        },
-      }),
-    ]);
+    const total = await this.prisma.auditLog.count({ where });
+    const totalPages = Math.ceil(total / limit) || 1;
+    const safePage = Math.max(1, Math.min(page, totalPages));
+    const safeSkip = (safePage - 1) * limit;
+
+    const logs = await this.prisma.auditLog.findMany({
+      where,
+      take: limit,
+      skip: safeSkip,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        tenant: { select: { title: true } },
+      },
+    });
 
     const userIds = logs.map((l) => l.userId).filter(Boolean) as string[];
     const users = userIds.length > 0
@@ -223,10 +239,10 @@ export class AdminMetricsService {
     return {
       data,
       meta: {
-        page,
+        page: safePage,
         limit,
         total,
-        totalPages: Math.ceil(total / limit) || 1,
+        totalPages,
       },
     };
   }

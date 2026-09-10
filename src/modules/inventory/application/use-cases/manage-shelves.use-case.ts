@@ -148,7 +148,7 @@ export class ManageShelvesUseCase {
         data: {
           shelfCellId: null,
           shelfId: null,
-          shelfLocation: null,
+          shelfLocation: '',
           aisle: null,
           rack: null,
           tier: null,

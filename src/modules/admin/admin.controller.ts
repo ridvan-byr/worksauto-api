@@ -154,17 +154,20 @@ export class AdminController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'action', required: false, type: String })
   @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'tenantId', required: false, type: String })
   getAuditLogs(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('action') action?: string,
     @Query('search') search?: string,
+    @Query('tenantId') tenantId?: string,
   ) {
     return this.adminMetricsService.getAuditLogs({
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 10,
       action,
       search,
+      tenantId,
     });
   }
 
