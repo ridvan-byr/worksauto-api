@@ -39,6 +39,12 @@ export class CreatePublicAppointmentUseCase {
       throw new BadRequestException('Geçersiz randevu saat aralığı. Bitiş saati başlangıçtan sonra olmalıdır.');
     }
 
+    const now = new Date();
+    // Allow up to 2 minutes grace period for network latency
+    if (start.getTime() < now.getTime() - 2 * 60 * 1000) {
+      throw new BadRequestException('Geçmiş bir tarih veya saate randevu oluşturulamaz.');
+    }
+
     // Dynamic Lift Bay Allocation: fetch tenant's active online bays or fallback to standard intake bays
     const onlineBays = await this.appointmentRepository.findActiveOnlineBays(tenant.id);
     const bays = onlineBays.length > 0 ? onlineBays : ['Lift 1 (Hızlı Kabul)', 'Lift 2 (Mekanik)', 'Kabul Alanı'];

@@ -47,6 +47,12 @@ export class CreateAppointmentUseCase {
       throw new BadRequestException('Randevu bitiş saati başlangıç saatinden sonra olmalıdır.');
     }
 
+    const now = new Date();
+    // Allow up to 2 minutes grace period for network/form submission latency
+    if (start.getTime() < now.getTime() - 2 * 60 * 1000) {
+      throw new BadRequestException('Geçmiş bir tarih veya saate randevu oluşturulamaz.');
+    }
+
     // Concurrency Check 1: Mechanic Double Booking Prevention
     if (dto.assignedMechanicId) {
       const mechanicConflict = await this.appointmentRepository.checkMechanicConflict(

@@ -41,6 +41,13 @@ export class RescheduleAppointmentUseCase {
 
     const start = new Date(dto.slotStartTime);
     const end = new Date(dto.slotEndTime);
+
+    const now = new Date();
+    // Allow up to 2 minutes grace period for network latency
+    if (start.getTime() < now.getTime() - 2 * 60 * 1000) {
+      throw new BadRequestException('Geçmiş bir tarih veya saate randevu yeniden planlanamaz.');
+    }
+
     const mechanicId = dto.assignedMechanicId !== undefined ? dto.assignedMechanicId : app.assignedMechanicId;
     const lift = dto.assignedLift !== undefined ? dto.assignedLift : app.assignedLift;
 
