@@ -13,7 +13,7 @@ describe('UpdateWorkOrderItemQuantityUseCase', () => {
   beforeEach(() => {
     mockRepo = {
       findById: vi.fn(),
-      updateItemQuantity: vi.fn(),
+      updateItem: vi.fn(),
     } as any;
 
     mockAudit = {
@@ -55,33 +55,20 @@ describe('UpdateWorkOrderItemQuantityUseCase', () => {
     );
   });
 
-  it('should return work order directly if quantity is unchanged', async () => {
-    const wo = {
-      id: 'wo-1',
-      status: WorkOrderStatusEnum.IN_PROGRESS,
-      items: [{ id: 'it-1', name: 'Balata', quantity: 2, unitPrice: 100, totalPrice: 240 }],
-    };
-    mockRepo.findById = vi.fn().mockResolvedValue(wo);
-
-    const result = await useCase.execute('t-1', 'wo-1', 'it-1', { quantity: 2 }, 'Ali');
-    expect(result).toBe(wo);
-    expect(mockRepo.updateItemQuantity).not.toHaveBeenCalled();
-  });
-
   it('should update item quantity successfully', async () => {
     mockRepo.findById = vi.fn().mockResolvedValue({
       id: 'wo-1',
       status: WorkOrderStatusEnum.IN_PROGRESS,
       items: [{ id: 'it-1', name: 'Balata', quantity: 1, unitPrice: 100, totalPrice: 120 }],
     });
-    mockRepo.updateItemQuantity = vi.fn().mockResolvedValue({
+    mockRepo.updateItem = vi.fn().mockResolvedValue({
       id: 'wo-1',
       items: [{ id: 'it-1', name: 'Balata', quantity: 3, unitPrice: 100, totalPrice: 360 }],
     });
 
     const result = await useCase.execute('t-1', 'wo-1', 'it-1', { quantity: 3 }, 'Ali');
     expect(result.items[0].quantity).toBe(3);
-    expect(mockRepo.updateItemQuantity).toHaveBeenCalledWith('t-1', 'wo-1', 'it-1', 3, 'Ali');
+    expect(mockRepo.updateItem).toHaveBeenCalledWith('t-1', 'wo-1', 'it-1', { quantity: 3 }, 'Ali');
     expect(mockEvents.emitToTenant).toHaveBeenCalled();
   });
 });

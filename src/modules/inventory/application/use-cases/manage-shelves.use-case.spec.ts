@@ -16,6 +16,8 @@ describe('ManageShelvesUseCase', () => {
       findProduct: vi.fn(),
       findCell: vi.fn(),
       updateProductLocation: vi.fn(),
+      updateManyProductLocations: vi.fn(),
+      findFirstCellOfShelf: vi.fn(),
       findShelfById: vi.fn(),
       deleteShelf: vi.fn(),
     };

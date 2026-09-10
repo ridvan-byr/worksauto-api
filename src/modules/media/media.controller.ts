@@ -9,8 +9,9 @@ import {
   UploadedFile,
   Body,
   Res,
+  Req,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { MediaService, UploadedMediaFile } from './media.service';
@@ -61,8 +62,10 @@ export class MediaController {
   @ApiOperation({ summary: 'MinIO nesnesi için güvenli geçici indirme linki üret' })
   async getPresignedUrl(
     @CurrentTenant() tenantId: string,
-    @Param('0') objectKey: string,
+    @Req() req: Request,
   ) {
+    const rawKey = req.url.split('/media/presigned-url/')[1]?.split('?')[0] || '';
+    const objectKey = decodeURIComponent(rawKey);
     const url = await this.mediaService.getPresignedUrl(tenantId, objectKey);
     return { url };
   }
@@ -91,9 +94,11 @@ export class MediaController {
   @Get('files/*')
   @ApiOperation({ summary: 'Medya dosyasını doğrudan göster / stream et' })
   async getFile(
-    @Param('0') objectKey: string,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
+    const rawKey = req.url.split('/media/files/')[1]?.split('?')[0] || '';
+    const objectKey = decodeURIComponent(rawKey);
     const file = await this.mediaService.getFileStream('', objectKey);
     res.set({
       'Content-Type': file.contentType,
