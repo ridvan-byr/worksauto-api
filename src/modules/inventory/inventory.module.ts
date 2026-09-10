@@ -5,6 +5,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 import { INVENTORY_REPOSITORY } from './domain/inventory.repository.interface';
 import { PrismaInventoryRepository } from './infrastructure/prisma-inventory.repository';
+import { SHELF_REPOSITORY } from './domain/shelf.repository.interface';
+import { PrismaShelfRepository } from './infrastructure/prisma-shelf.repository';
 
 import { InventoryController } from './presentation/inventory.controller';
 import { GetStockItemsUseCase } from './application/use-cases/get-stock-items.use-case';
@@ -23,6 +25,10 @@ import { ManageShelvesUseCase } from './application/use-cases/manage-shelves.use
       provide: INVENTORY_REPOSITORY,
       useClass: PrismaInventoryRepository,
     },
+    {
+      provide: SHELF_REPOSITORY,
+      useClass: PrismaShelfRepository,
+    },
     GetStockItemsUseCase,
     CreateStockItemUseCase,
     DecrementStockUseCase,
@@ -32,6 +38,7 @@ import { ManageShelvesUseCase } from './application/use-cases/manage-shelves.use
   ],
   exports: [
     INVENTORY_REPOSITORY,
+    SHELF_REPOSITORY,
     DecrementStockUseCase,
     IncrementStockUseCase,
     GetStockItemsUseCase,

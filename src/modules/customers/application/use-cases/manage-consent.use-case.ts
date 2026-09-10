@@ -1,13 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import * as crypto from 'crypto';
-import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
+import {
+  CUSTOMER_CONSENT_REPOSITORY,
+  ICustomerConsentRepository,
+} from '../../domain/customer-consent.repository.interface';
 import { ConfirmConsentDto, DirectConsentDto } from '../../dto/consent.dto';
 
 @Injectable()
 export class ManageConsentUseCase {
-  private readonly logger = new Logger(ManageConsentUseCase.name);
-
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject(CUSTOMER_CONSENT_REPOSITORY)
+    private readonly consentRepository: ICustomerConsentRepository,
+  ) {}
 
   private maskPhone(phone: string): string {
     if (phone.length <= 6) return phone;
@@ -15,18 +19,13 @@ export class ManageConsentUseCase {
   }
 
   async getConsents(tenantId: string, customerId: string) {
-    const customer = await this.prisma.customer.findFirst({
-      where: { id: customerId, tenantId, deletedAt: null },
-    });
+    const customer = await this.consentRepository.findCustomerWithTenant(tenantId, customerId);
 
     if (!customer) {
       throw new NotFoundException('Müşteri bulunamadı.');
     }
 
-    const records = await this.prisma.customerConsent.findMany({
-      where: { tenantId, customerId },
-      orderBy: { grantedAt: 'desc' },
-    });
+    const records = await this.consentRepository.findCustomerConsents(tenantId, customerId);
 
     const activeKvkk = records.find(
       (r) => r.consentType === 'KVKK_AYDINLATMA' && r.isGranted && !r.revokedAt,
@@ -46,10 +45,7 @@ export class ManageConsentUseCase {
   }
 
   async sendConsentSms(tenantId: string, customerId: string) {
-    const customer = await this.prisma.customer.findFirst({
-      where: { id: customerId, tenantId, deletedAt: null },
-      include: { tenant: { select: { title: true } } },
-    });
+    const customer = await this.consentRepository.findCustomerWithTenant(tenantId, customerId);
 
     if (!customer) {
       throw new NotFoundException('Müşteri bulunamadı.');
@@ -58,38 +54,30 @@ export class ManageConsentUseCase {
     const token = crypto.randomBytes(24).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 gün geçerli
 
-    await this.prisma.customerConsent.create({
-      data: {
-        tenantId,
-        customerId,
-        consentType: 'KVKK_AYDINLATMA',
-        isGranted: false, // Onay bekliyor
-        channel: 'SMS_LINK',
-        verificationToken: token,
-        expiresAt,
-        policyVersion: '1.0',
-      },
+    await this.consentRepository.createConsent({
+      tenantId,
+      customerId,
+      consentType: 'KVKK_AYDINLATMA',
+      isGranted: false, // Onay bekliyor
+      channel: 'SMS_LINK',
+      verificationToken: token,
+      expiresAt,
+      policyVersion: '1.0',
     });
 
     const verificationPath = `/c/kvkk?token=${token}`;
 
-    try {
-      await this.prisma.auditLog.create({
-        data: {
-          tenantId,
-          action: 'customer.consent_sms_sent',
-          entityName: 'Customer',
-          entityId: customer.id,
-          changesAfter: {
-            customerName: `${customer.firstName} ${customer.lastName || ''}`.trim(),
-            phone: customer.phone,
-            verificationPath,
-          },
-        },
-      });
-    } catch (e) {
-      this.logger.warn(`Audit log failed: ${e}`);
-    }
+    await this.consentRepository.logAudit({
+      tenantId,
+      action: 'customer.consent_sms_sent',
+      entityName: 'Customer',
+      entityId: customer.id,
+      changesAfter: {
+        customerName: `${customer.firstName} ${customer.lastName || ''}`.trim(),
+        phone: customer.phone,
+        verificationPath,
+      },
+    });
 
     return {
       success: true,
@@ -102,13 +90,7 @@ export class ManageConsentUseCase {
   }
 
   async verifyToken(token: string) {
-    const consent = await this.prisma.customerConsent.findUnique({
-      where: { verificationToken: token },
-      include: {
-        customer: { select: { id: true, firstName: true, lastName: true, phone: true } },
-        tenant: { select: { id: true, title: true, phone: true, email: true, address: true, city: true } },
-      },
-    });
+    const consent = await this.consentRepository.findConsentByTokenWithRelations(token);
 
     if (!consent) {
       throw new NotFoundException('Geçersiz veya süresi dolmuş onay bağlantısı.');
@@ -133,10 +115,7 @@ export class ManageConsentUseCase {
   }
 
   async confirmConsent(token: string, dto: ConfirmConsentDto, ipAddress?: string, userAgent?: string) {
-    const consent = await this.prisma.customerConsent.findUnique({
-      where: { verificationToken: token },
-      include: { customer: true, tenant: true },
-    });
+    const consent = await this.consentRepository.findConsentByTokenWithRelations(token);
 
     if (!consent) {
       throw new NotFoundException('Geçersiz onay bağlantısı.');
@@ -146,65 +125,25 @@ export class ManageConsentUseCase {
       throw new BadRequestException('Bu onay bağlantısının geçerlilik süresi dolmuştur.');
     }
 
-    const now = new Date();
+    const auditData = {
+      customerName: `${consent.customer.firstName} ${consent.customer.lastName || ''}`.trim(),
+      channel: 'SMS_LINK',
+      commercialSms: Boolean(dto.commercialSms),
+    };
 
-    return this.prisma.$transaction(async (tx) => {
-      // 1. KVKK Aydınlatma Kaydını Onayla
-      await tx.customerConsent.update({
-        where: { id: consent.id },
-        data: {
-          isGranted: true,
-          grantedAt: now,
-          ipAddress: ipAddress || null,
-          userAgent: userAgent || null,
-        },
-      });
+    const { grantedAt } = await this.consentRepository.confirmConsentWithAudit(
+      consent.id,
+      Boolean(dto.commercialSms),
+      auditData,
+      ipAddress,
+      userAgent,
+    );
 
-      // 2. Ticari SMS Onayı Seçilmişse Ek Kayıt Oluştur
-      if (dto.commercialSms) {
-        await tx.customerConsent.create({
-          data: {
-            tenantId: consent.tenantId,
-            customerId: consent.customerId,
-            consentType: 'COMMERCIAL_SMS',
-            isGranted: true,
-            grantedAt: now,
-            channel: 'SMS_LINK',
-            ipAddress: ipAddress || null,
-            userAgent: userAgent || null,
-            policyVersion: consent.policyVersion,
-          },
-        });
-      }
-
-      // 3. Güvenlik Denetim İzi Kaydı
-      try {
-        await tx.auditLog.create({
-          data: {
-            tenantId: consent.tenantId,
-            action: 'customer.kvkk_consent_granted',
-            entityName: 'CustomerConsent',
-            entityId: consent.id,
-            ipAddress: ipAddress || null,
-            userAgent: userAgent || null,
-            changesAfter: {
-              customerName: `${consent.customer.firstName} ${consent.customer.lastName || ''}`.trim(),
-              channel: 'SMS_LINK',
-              commercialSms: Boolean(dto.commercialSms),
-              timestamp: now.toISOString(),
-            },
-          },
-        });
-      } catch (e) {
-        this.logger.warn(`Audit log failed: ${e}`);
-      }
-
-      return {
-        success: true,
-        message: 'KVKK ve İYS onayınız başarıyla mühürlendi ve kaydedildi.',
-        grantedAt: now,
-      };
-    });
+    return {
+      success: true,
+      message: 'KVKK ve İYS onayınız başarıyla mühürlendi ve kaydedildi.',
+      grantedAt,
+    };
   }
 
   async recordDirectConsent(
@@ -214,48 +153,20 @@ export class ManageConsentUseCase {
     ipAddress?: string,
     userAgent?: string,
   ) {
-    const customer = await this.prisma.customer.findFirst({
-      where: { id: customerId, tenantId, deletedAt: null },
-    });
+    const customer = await this.consentRepository.findCustomerWithTenant(tenantId, customerId);
 
     if (!customer) {
       throw new NotFoundException('Müşteri bulunamadı.');
     }
 
-    const now = new Date();
-
-    return this.prisma.$transaction(async (tx) => {
-      const consent = await tx.customerConsent.create({
-        data: {
-          tenantId,
-          customerId,
-          consentType: 'KVKK_AYDINLATMA',
-          isGranted: true,
-          grantedAt: now,
-          channel: dto.channel,
-          ipAddress: ipAddress || null,
-          userAgent: userAgent || null,
-          policyVersion: dto.policyVersion || '1.0',
-        },
-      });
-
-      if (dto.commercialSms) {
-        await tx.customerConsent.create({
-          data: {
-            tenantId,
-            customerId,
-            consentType: 'COMMERCIAL_SMS',
-            isGranted: true,
-            grantedAt: now,
-            channel: dto.channel,
-            ipAddress: ipAddress || null,
-            userAgent: userAgent || null,
-            policyVersion: dto.policyVersion || '1.0',
-          },
-        });
-      }
-
-      return consent;
-    });
+    return this.consentRepository.recordDirectConsent(
+      tenantId,
+      customerId,
+      dto.channel,
+      dto.policyVersion || '1.0',
+      Boolean(dto.commercialSms),
+      ipAddress,
+      userAgent,
+    );
   }
 }
