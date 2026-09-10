@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { IAppointmentRepository, APPOINTMENT_REPOSITORY } from '../../domain/appointment.repository.interface';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { NotificationsService } from '../../../notifications/notifications.service';
@@ -35,16 +35,29 @@ export class CreatePublicAppointmentUseCase {
     const start = new Date(dto.slotStartTime);
     const end = new Date(dto.slotEndTime);
 
-    // Conflict check (Lift 1 default)
-    const liftConflict = await this.appointmentRepository.checkLiftConflict(
-      tenant.id,
-      'Lift 1 (Hızlı Kabul)',
-      start,
-      end,
-    );
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) {
+      throw new BadRequestException('Geçersiz randevu saat aralığı. Bitiş saati başlangıçtan sonra olmalıdır.');
+    }
 
-    if (liftConflict) {
-      throw new ConflictException('Seçilen saat aralığı doludur. Lütfen farklı bir saat dilimi seçiniz.');
+    // Dynamic Lift Bay Allocation: check which bay is available
+    const bays = ['Lift 1 (Hızlı Kabul)', 'Lift 2 (Mekanik)', 'Lift 3 (Genel Bakım)', 'Kabul Alanı'];
+    let assignedLift: string | null = null;
+
+    for (const bay of bays) {
+      const conflict = await this.appointmentRepository.checkLiftConflict(
+        tenant.id,
+        bay,
+        start,
+        end,
+      );
+      if (!conflict) {
+        assignedLift = bay;
+        break;
+      }
+    }
+
+    if (!assignedLift) {
+      throw new ConflictException('Seçilen saat aralığında tüm servis kabul alanları doludur. Lütfen farklı bir saat dilimi seçiniz.');
     }
 
     const customer = await this.appointmentRepository.findOrCreateCustomerForPublic(
@@ -65,7 +78,7 @@ export class CreatePublicAppointmentUseCase {
       customerId: customer.id,
       vehicleId: vehicle.id,
       serviceId: dto.serviceId || undefined,
-      assignedLift: 'Lift 1 (Hızlı Kabul)',
+      assignedLift,
       slotDate: new Date(dto.slotDate),
       slotStartTime: start,
       slotEndTime: end,

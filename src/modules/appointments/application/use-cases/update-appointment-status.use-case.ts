@@ -38,6 +38,24 @@ export class UpdateAppointmentStatusUseCase {
       metadata: { appointmentId: id },
     });
 
+    if (app.customer?.phone) {
+      const formattedDate = app.slotStartTime
+        ? new Date(app.slotStartTime).toLocaleDateString('tr-TR')
+        : '';
+      const formattedTime = app.slotStartTime
+        ? new Date(app.slotStartTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        : '';
+      await this.notificationsService.createNotification({
+        tenantId,
+        type: NotificationType.SUCCESS,
+        category: 'APPOINTMENT',
+        title: 'Randevunuz Onaylandı',
+        message: `Sayın ${app.customer.firstName || 'Müşterimiz'}, ${formattedDate} ${formattedTime} randevunuz onaylanmıştır.`,
+        recipientPhone: app.customer.phone,
+        sendSms: true,
+      });
+    }
+
     await this.auditService.log({
       tenantId,
       userId,
