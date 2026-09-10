@@ -145,6 +145,7 @@ model Tenant {
   cariMovements   CariMovement[]
   auditLogs       AuditLog[]
   notifications   Notification[]
+  warehouseShelves WarehouseShelf[]
 
   @@map("tenants")
 }
@@ -447,12 +448,14 @@ model Product {
   updatedAt     DateTime        @updatedAt @db.Timestamptz(6)
 
   // v2.0 Advanced WMS Hooks
-  shelfId String? @map("shelf_id") @db.Uuid
-  aisle   String?
-  rack    String?
-  tier    String?
-  bin     String?
+  shelfId     String?    @map("shelf_id") @db.Uuid
+  shelfCellId String?    @map("shelf_cell_id") @db.Uuid
+  aisle       String?
+  rack        String?
+  tier        String?
+  bin         String?
 
+  shelfCell      ShelfCell?      @relation(fields: [shelfCellId], references: [id], onDelete: SetNull)
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   stockMovements StockMovement[]
 
@@ -478,6 +481,47 @@ model StockMovement {
 
   @@index([tenantId, productId])
   @@map("stock_movements")
+}
+
+// -------------------------------------------------------------
+// WAREHOUSE & SHELF MANAGEMENT (WMS)
+// -------------------------------------------------------------
+
+model WarehouseShelf {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String
+  code        String
+  zone        String?
+  rows        Int      @default(4)
+  columns     Int      @default(5)
+  description String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  cells       ShelfCell[]
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("warehouse_shelves")
+}
+
+model ShelfCell {
+  id          String   @id @default(uuid()) @db.Uuid
+  shelfId     String   @map("shelf_id") @db.Uuid
+  cellCode    String   @map("cell_code")
+  rowNumber   Int      @map("row_number")
+  colNumber   Int      @map("col_number")
+  barcode     String?
+  maxCapacity Int?     @map("max_capacity")
+
+  shelf       WarehouseShelf @relation(fields: [shelfId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@unique([shelfId, cellCode])
+  @@index([shelfId])
+  @@map("shelf_cells")
 }
 
 // -------------------------------------------------------------

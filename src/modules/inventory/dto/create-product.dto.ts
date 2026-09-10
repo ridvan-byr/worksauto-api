@@ -75,4 +75,9 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   bin?: string;
+
+  @ApiPropertyOptional({ example: 'd3b07384-d113-4a44-9c8a-789bb4671401' })
+  @IsOptional()
+  @IsString()
+  shelfCellId?: string;
 }

@@ -61,6 +61,7 @@ export class AdminController {
 
     return {
       success: true,
+      accessToken: result.accessToken,
       user: result.user,
     };
   }

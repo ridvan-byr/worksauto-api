@@ -27,6 +27,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       rack: data.rack ?? undefined,
       tier: data.tier ?? undefined,
       bin: data.bin ?? undefined,
+      shelfCellId: data.shelfCellId ?? undefined,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     });
@@ -85,6 +86,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
           rack: item.rack,
           tier: item.tier,
           bin: item.bin,
+          shelfCellId: item.shelfCellId,
         },
       });
 
@@ -131,6 +133,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
         rack: item.rack,
         tier: item.tier,
         bin: item.bin,
+        shelfCellId: item.shelfCellId,
       },
     });
     return this.mapToEntity(updated);

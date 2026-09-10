@@ -18,6 +18,7 @@ export interface CreateStockItemInput {
   rack?: string;
   tier?: string;
   bin?: string;
+  shelfCellId?: string;
 }
 
 @Injectable()
@@ -49,6 +50,7 @@ export class CreateStockItemUseCase {
       rack: dto.rack,
       tier: dto.tier,
       bin: dto.bin,
+      shelfCellId: dto.shelfCellId,
     });
 
     return this.inventoryRepository.create(item, author);

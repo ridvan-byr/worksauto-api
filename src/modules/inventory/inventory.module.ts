@@ -12,6 +12,7 @@ import { CreateStockItemUseCase } from './application/use-cases/create-stock-ite
 import { DecrementStockUseCase } from './application/use-cases/decrement-stock.use-case';
 import { IncrementStockUseCase } from './application/use-cases/increment-stock.use-case';
 import { AddStockMovementUseCase } from './application/use-cases/add-stock-movement.use-case';
+import { ManageShelvesUseCase } from './application/use-cases/manage-shelves.use-case';
 
 @Module({
   imports: [EventsModule, NotificationsModule],
@@ -27,6 +28,7 @@ import { AddStockMovementUseCase } from './application/use-cases/add-stock-movem
     DecrementStockUseCase,
     IncrementStockUseCase,
     AddStockMovementUseCase,
+    ManageShelvesUseCase,
   ],
   exports: [
     INVENTORY_REPOSITORY,
@@ -35,6 +37,7 @@ import { AddStockMovementUseCase } from './application/use-cases/add-stock-movem
     GetStockItemsUseCase,
     CreateStockItemUseCase,
     AddStockMovementUseCase,
+    ManageShelvesUseCase,
   ],
 })
 export class InventoryModule {}
