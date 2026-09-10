@@ -4,6 +4,7 @@ import { AdminController } from './admin.controller';
 import { AdminAuthService } from './services/admin-auth.service';
 import { AdminTenantService } from './services/admin-tenant.service';
 import { AdminMetricsService } from './services/admin-metrics.service';
+import { AdminUsersService } from './services/admin-users.service';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { RedisService } from '../../shared/infrastructure/redis/redis.service';
 
@@ -19,9 +20,10 @@ import { RedisService } from '../../shared/infrastructure/redis/redis.service';
     AdminAuthService,
     AdminTenantService,
     AdminMetricsService,
+    AdminUsersService,
     PrismaService,
     RedisService,
   ],
-  exports: [AdminAuthService, AdminTenantService, AdminMetricsService],
+  exports: [AdminAuthService, AdminTenantService, AdminMetricsService, AdminUsersService],
 })
 export class AdminModule {}

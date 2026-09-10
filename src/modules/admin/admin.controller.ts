@@ -17,9 +17,11 @@ import { AuthGuard } from '@nestjs/passport';
 import { AdminAuthService } from './services/admin-auth.service';
 import { AdminTenantService } from './services/admin-tenant.service';
 import { AdminMetricsService } from './services/admin-metrics.service';
+import { AdminUsersService } from './services/admin-users.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { UpdateTenantStatusDto } from './dto/update-tenant-status.dto';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { CreateSuperAdminDto, UpdateSuperAdminStatusDto } from './dto/create-superadmin.dto';
 import { Public } from '../../shared/decorators/public.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
@@ -34,6 +36,7 @@ export class AdminController {
     private readonly adminAuthService: AdminAuthService,
     private readonly adminTenantService: AdminTenantService,
     private readonly adminMetricsService: AdminMetricsService,
+    private readonly adminUsersService: AdminUsersService,
   ) {}
 
   @Public()
@@ -178,5 +181,55 @@ export class AdminController {
   @ApiOperation({ summary: 'PostgreSQL ve Redis sistem sağlık durumu' })
   getSystemHealth() {
     return this.adminMetricsService.getSystemHealth();
+  }
+
+  // -------------------------------------------------------------
+  // SUPER ADMIN USER MANAGEMENT (PLATFORM YÖNETİCİLERİ)
+  // -------------------------------------------------------------
+
+  @Get('users')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Tüm Super Admin platform yöneticilerini listeler' })
+  getSuperAdmins() {
+    return this.adminUsersService.findAll();
+  }
+
+  @Post('users')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Yeni Super Admin hesabı açar' })
+  createSuperAdmin(
+    @Body() dto: CreateSuperAdminDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.adminUsersService.create(dto, user);
+  }
+
+  @Patch('users/:id/status')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Super Admin aktiflik durumunu günceller (Askıya Alma/Aktifleştirme)' })
+  updateSuperAdminStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateSuperAdminStatusDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.adminUsersService.updateStatus(id, dto.isActive, user?.id);
+  }
+
+  @Delete('users/:id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Super Admin hesabını kalıcı olarak siler' })
+  deleteSuperAdmin(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.adminUsersService.remove(id, user?.id);
   }
 }

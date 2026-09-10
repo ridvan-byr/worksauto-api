@@ -146,6 +146,7 @@ model Tenant {
   auditLogs       AuditLog[]
   notifications   Notification[]
   warehouseShelves WarehouseShelf[]
+  customerConsents CustomerConsent[]
 
   @@map("tenants")
 }
@@ -235,6 +236,7 @@ model Customer {
   invoices       Invoice[]
   payments       Payment[]
   currentAccount CurrentAccount?
+  consents       CustomerConsent[]
 
   @@index([tenantId, phone])
   @@index([tenantId, deletedAt])
@@ -733,3 +735,31 @@ model Notification {
   @@index([tenantId, createdAt])
   @@map("notifications")
 }
+
+// -------------------------------------------------------------
+// KVKK & İYS (CUSTOMER CONSENT & COMPLIANCE LEDGER)
+// -------------------------------------------------------------
+
+model CustomerConsent {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  customerId        String    @map("customer_id") @db.Uuid
+  consentType       String    @map("consent_type") // KVKK_AYDINLATMA, COMMERCIAL_SMS, COMMERCIAL_CALL
+  isGranted         Boolean   @default(true) @map("is_granted")
+  grantedAt         DateTime  @default(now()) @map("granted_at") @db.Timestamptz(6)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  channel           String    // ONLINE_BOOKING, SMS_LINK, TABLET_SIGN, MANUAL_STAFF
+  ipAddress         String?   @map("ip_address")
+  userAgent         String?   @map("user_agent")
+  policyVersion     String    @default("1.0") @map("policy_version")
+  verificationToken String?   @unique @map("verification_token")
+  expiresAt         DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, customerId])
+  @@index([verificationToken])
+  @@map("customer_consents")
+}
+

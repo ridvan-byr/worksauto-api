@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DashboardService } from './dashboard.service';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
-import { WorkOrderStatus, WorkOrderItemType, InvoiceStatus, PaymentMethod } from '@prisma/client';
+import { WorkOrderItemType, InvoiceStatus, PaymentMethod } from '@prisma/client';
 import { ReportPeriod } from './dto/financial-report.dto';
 
 describe('DashboardService - Financial Report', () => {

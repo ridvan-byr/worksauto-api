@@ -10,8 +10,11 @@ import { QuickLeadUseCase } from './application/use-cases/quick-lead.use-case';
 import { BatchImportCustomersUseCase } from './application/use-cases/batch-import-customers.use-case';
 import { AnonymizeCustomerUseCase } from './application/use-cases/anonymize-customer.use-case';
 
+import { ConsentPublicController } from './presentation/consent-public.controller';
+import { ManageConsentUseCase } from './application/use-cases/manage-consent.use-case';
+
 @Module({
-  controllers: [CustomersController],
+  controllers: [CustomersController, ConsentPublicController],
   providers: [
     PrismaService,
     {
@@ -24,6 +27,7 @@ import { AnonymizeCustomerUseCase } from './application/use-cases/anonymize-cust
     QuickLeadUseCase,
     BatchImportCustomersUseCase,
     AnonymizeCustomerUseCase,
+    ManageConsentUseCase,
   ],
   exports: [
     CUSTOMER_REPOSITORY,
@@ -33,6 +37,7 @@ import { AnonymizeCustomerUseCase } from './application/use-cases/anonymize-cust
     QuickLeadUseCase,
     BatchImportCustomersUseCase,
     AnonymizeCustomerUseCase,
+    ManageConsentUseCase,
   ],
 })
 export class CustomersModule {}

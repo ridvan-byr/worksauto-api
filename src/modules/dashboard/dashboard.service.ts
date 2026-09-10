@@ -356,7 +356,7 @@ export class DashboardService {
     const dailyTrend = Array.from(dailyMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([date, data]) => {
-        const [y, m, d] = date.split('-');
+        const [, m, d] = date.split('-');
         return {
           date,
           label: `${d}.${m}`,
