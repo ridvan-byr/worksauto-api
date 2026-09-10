@@ -211,7 +211,7 @@ npm run start:dev
 
 ## 👤 Lead Developer & Architect
 
-**Rıdvan Bayar**  
+**Rıdvan Emre Bayar**  
 * Lead Full-Stack Software Engineer & End-to-End System Architect  
 * GitHub: [@ridvan-byr](https://github.com/ridvan-byr)
 
