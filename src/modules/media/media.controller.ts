@@ -104,6 +104,8 @@ export class MediaController {
       'Content-Type': file.contentType,
       ...(file.contentLength && { 'Content-Length': String(file.contentLength) }),
       'Cache-Control': 'public, max-age=86400',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'Access-Control-Allow-Origin': '*',
     });
     (file.stream as any).pipe(res);
   }
