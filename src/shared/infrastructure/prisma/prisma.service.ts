@@ -24,6 +24,8 @@ const TENANT_SCOPED_MODELS = new Set([
   'Service',
   'IdempotencyRecord',
   'DocumentSequence',
+  'TenantConsent',
+  'TenantNotificationSetting',
 ]);
 
 @Injectable()

@@ -32,6 +32,9 @@ import { EventsModule } from './modules/events/events.module';
 import { QueueModule } from './modules/queues/queue.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 
+import { LegalModule } from './modules/legal/legal.module';
+import { LegalConsentGuard } from './shared/guards/legal-consent.guard';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -55,6 +58,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     QueueModule,
     NotificationsModule,
     AuthModule,
+    LegalModule,
     CustomersModule,
     VehiclesModule,
     AppointmentsModule,
@@ -84,6 +88,10 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: LegalConsentGuard,
     },
     {
       provide: APP_GUARD,

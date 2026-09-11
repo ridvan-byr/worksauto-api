@@ -124,11 +124,11 @@ worksauto-api/
 
 ## 📊 Database Schema (Prisma)
 
-Contains **27 production-grade relational models**:
+Contains **29 production-grade relational models**:
 
 | Category | Models |
 | :--- | :--- |
-| **Tenancy & IAM** | `Tenant`, `Branch`, `User`, `Role`, `RefreshToken` |
+| **Tenancy & IAM** | `Tenant`, `Branch`, `User`, `Role`, `RefreshToken`, `TenantConsent`, `TenantNotificationSetting` |
 | **CRM & Fleet** | `Customer`, `Vehicle`, `CustomerConsent`, `ComplianceRedactionLog` |
 | **Operations** | `Mechanic`, `Appointment`, `WorkOrder`, `WorkOrderItem`, `WorkOrderPhoto`, `WorkOrderNote` |
 | **Warehouse & Shelves** | `Product`, `StockMovement`, `WarehouseShelf`, `ShelfCell` |
@@ -148,10 +148,15 @@ All endpoints are documented via Swagger UI at `/api/docs`:
 | **Super Admin** | `GET` | `/api/v1/admin/audit-logs` | Platform-wide security audit inspection | `SUPER_ADMIN` |
 | **Auth** | `POST` | `/api/v1/auth/login` | Staff authentication & JWT issue | Public |
 | **Auth** | `POST` | `/api/v1/auth/refresh` | Silent Refresh Token Rotation | Public |
+| **Legal B2B** | `GET` | `/api/v1/legal/contract-details` | Public B2B SaaS & KVKK Contract Text | Public |
+| **Legal B2B** | `GET` | `/api/v1/legal/status` | Current tenant digital consent verification status | Staff (`@BypassB2bConsent`) |
+| **Legal B2B** | `POST` | `/api/v1/legal/sign` | Digitally sign B2B contract with IP & SHA-256 seal | Staff (`@BypassB2bConsent`) |
 | **Customers** | `GET` | `/api/v1/customers` | Paginated customer list & search | Staff |
 | **Customers** | `POST` | `/api/v1/customers/:id/consent/sms` | Send KVKK consent verification link | Staff |
 | **Public Consent** | `GET` | `/api/v1/consent/verify/:token` | Validate public customer verification token | Public |
 | **Public Consent** | `POST` | `/api/v1/consent/confirm/:token` | Digital signature & timestamp confirmation | Public |
+| **Tenant Settings** | `GET` | `/api/v1/tenants/notification-settings` | Get multi-channel notification configuration | Staff |
+| **Tenant Settings** | `PATCH` | `/api/v1/tenants/notification-settings` | Configure Fallback/Broadcast and priority | Owner / Manager |
 | **Shelves** | `POST` | `/api/v1/inventory/shelves` | Create shelf with automatic grid cells | Staff |
 | **Shelves** | `GET` | `/api/v1/inventory/shelves/:id/matrix` | Full 2D shelf matrix with product occupancy | Staff |
 | **Appointments**| `POST` | `/api/v1/appointments` | Book appointment with dual-collision check | Staff |
@@ -164,7 +169,7 @@ All endpoints are documented via Swagger UI at `/api/docs`:
 ## 🧪 Testing & Quality Gate
 
 ```bash
-# Unit & Use Case Test Suite (42 test suites, 125 tests)
+# Unit & Use Case Test Suite (49 test suites, 149 tests)
 npm run test
 
 # Clean Architecture Layer Boundary Verification Linter

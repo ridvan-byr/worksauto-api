@@ -107,6 +107,18 @@ enum CariReferenceType {
   MANUAL_COLLECTION
 }
 
+enum NotificationStrategy {
+  FALLBACK
+  BROADCAST
+  SINGLE
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+  SMS
+}
+
 // -------------------------------------------------------------
 // CORE ORGANIZATIONAL ENTITIES
 // -------------------------------------------------------------
@@ -135,6 +147,9 @@ model Tenant {
   activeLiftCount Int @default(3) @map("active_lift_count")
   criticalStockThreshold Int @default(5) @map("critical_stock_threshold")
   onboardingCompleted Boolean @default(false) @map("onboarding_completed")
+  b2bConsentAccepted Boolean @default(false) @map("b2b_consent_accepted")
+  b2bConsentAcceptedAt DateTime? @map("b2b_consent_accepted_at") @db.Timestamptz(6)
+  b2bContractVersion String @default("1.0") @map("b2b_contract_version")
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
@@ -157,6 +172,8 @@ model Tenant {
   warehouseShelves WarehouseShelf[]
   customerConsents CustomerConsent[]
   workshopBays    WorkshopBay[]
+  tenantConsents  TenantConsent[]
+  notificationSettings TenantNotificationSetting?
 
   @@map("tenants")
 }
@@ -195,6 +212,7 @@ model User {
   refreshTokens RefreshToken[]
   mechanic      Mechanic?
   notifications Notification[]
+  signedTenantConsents TenantConsent[]
 
   @@index([tenantId, phone])
   @@index([email])
@@ -797,5 +815,56 @@ model WorkshopBay {
   @@unique([tenantId, name])
   @@index([tenantId])
   @@map("workshop_bays")
+}
+
+// -------------------------------------------------------------
+// B2B LEGAL & PLATFORM CONSENTS (SUPER ADMIN <-> TENANT)
+// -------------------------------------------------------------
+
+model TenantConsent {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  signedByUserId         String   @map("signed_by_user_id") @db.Uuid
+  contractVersion        String   @default("1.0") @map("contract_version")
+  ipAddress              String   @map("ip_address")
+  userAgent              String   @map("user_agent")
+  verifiedVia            String   @default("WEB_DIGITAL_SIGNATURE") @map("verified_via") // WEB_DIGITAL_SIGNATURE, SMS_OTP, WHATSAPP_OTP
+  payloadHash            String   @map("payload_hash") // SHA-256 hash of the exact contract text agreed upon
+  saasTermsAccepted      Boolean  @default(true) @map("saas_terms_accepted")
+  dataProcessingAccepted Boolean  @default(true) @map("data_processing_accepted")
+  marketingAccepted      Boolean  @default(false) @map("marketing_accepted")
+  signedAt               DateTime @default(now()) @map("signed_at") @db.Timestamptz(6)
+
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  signedByUser User   @relation(fields: [signedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, contractVersion])
+  @@map("tenant_consents")
+}
+
+// -------------------------------------------------------------
+// MULTI-CHANNEL NOTIFICATION SETTINGS (TENANT LEVEL)
+// -------------------------------------------------------------
+
+model TenantNotificationSetting {
+  id                String               @id @default(uuid()) @db.Uuid
+  tenantId          String               @unique @map("tenant_id") @db.Uuid
+  strategy          NotificationStrategy @default(FALLBACK)
+  channelPriority   NotificationChannel[] @default([WHATSAPP, EMAIL, SMS]) @map("channel_priority")
+  singleChannel     NotificationChannel? @default(WHATSAPP) @map("single_channel")
+  
+  whatsappEnabled   Boolean              @default(true) @map("whatsapp_enabled")
+  emailEnabled      Boolean              @default(true) @map("email_enabled")
+  smsEnabled        Boolean              @default(false) @map("sms_enabled")
+
+  whatsappDeviceId  String?              @map("whatsapp_device_id")
+  whatsappConnected Boolean              @default(false) @map("whatsapp_connected")
+  
+  createdAt         DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime             @updatedAt @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_notification_settings")
 }
 

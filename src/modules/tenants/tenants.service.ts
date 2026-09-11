@@ -372,4 +372,46 @@ export class TenantsService {
       };
     });
   }
+
+  async getNotificationSettings(tenantId: string) {
+    let settings = await this.prisma.tenantNotificationSetting.findUnique({
+      where: { tenantId },
+    });
+
+    if (!settings) {
+      settings = await this.prisma.tenantNotificationSetting.create({
+        data: { tenantId },
+      });
+    }
+
+    return settings;
+  }
+
+  async updateNotificationSettings(
+    tenantId: string,
+    dto: import('./dto/update-notification-settings.dto').UpdateNotificationSettingsDto,
+  ) {
+    return this.prisma.tenantNotificationSetting.upsert({
+      where: { tenantId },
+      create: {
+        tenantId,
+        strategy: dto.strategy,
+        channelPriority: dto.channelPriority,
+        singleChannel: dto.singleChannel,
+        whatsappEnabled: dto.whatsappEnabled,
+        emailEnabled: dto.emailEnabled,
+        smsEnabled: dto.smsEnabled,
+        whatsappDeviceId: dto.whatsappDeviceId,
+      },
+      update: {
+        strategy: dto.strategy,
+        channelPriority: dto.channelPriority,
+        singleChannel: dto.singleChannel,
+        whatsappEnabled: dto.whatsappEnabled,
+        emailEnabled: dto.emailEnabled,
+        smsEnabled: dto.smsEnabled,
+        whatsappDeviceId: dto.whatsappDeviceId,
+      },
+    });
+  }
 }

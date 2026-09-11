@@ -24,6 +24,7 @@ import { RegisterTenantDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
+import { BypassB2bConsent } from '../../shared/decorators/bypass-b2b-consent.decorator';
 import { AuthGuard } from '@nestjs/passport';
 
 const getRefreshTokenCookieOptions = () => ({
@@ -151,6 +152,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @BypassB2bConsent()
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({

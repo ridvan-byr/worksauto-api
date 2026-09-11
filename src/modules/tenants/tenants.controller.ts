@@ -116,4 +116,25 @@ export class TenantsController {
   getBySlugPublic(@Param('slug') slug: string) {
     return this.tenantsService.getBySlugPublic(slug);
   }
+
+  @Get('notification-settings')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({
+    summary: 'İşletmenin çok kanallı bildirim ve iletişim tercihlerini getirir',
+  })
+  getNotificationSettings(@CurrentTenant() tenantId: string) {
+    return this.tenantsService.getNotificationSettings(tenantId);
+  }
+
+  @Patch('notification-settings')
+  @Roles(UserRole.OWNER)
+  @ApiOperation({
+    summary: 'İşletmenin kanal önceliği ve strateji ayarlarını günceller',
+  })
+  updateNotificationSettings(
+    @CurrentTenant() tenantId: string,
+    @Body() dto: import('./dto/update-notification-settings.dto').UpdateNotificationSettingsDto,
+  ) {
+    return this.tenantsService.updateNotificationSettings(tenantId, dto);
+  }
 }
