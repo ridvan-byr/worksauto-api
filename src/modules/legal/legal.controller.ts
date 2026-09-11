@@ -58,6 +58,26 @@ export class LegalController {
     return this.legalService.updateMarketingConsent(tenantId, !!marketingAccepted);
   }
 
+  @Public()
+  @Post('opt-out')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'SMS veya E-Posta içerisindeki ret bağlantısıyla şifresiz ticari ileti iznini iptal eder (6563 ETK)',
+  })
+  publicOptOutPost(
+    @Body('identifier') identifier: string,
+    @Req() req: Request,
+  ) {
+    const ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      '127.0.0.1';
+    const userAgent = req.headers['user-agent'] || 'Public Opt-Out Client';
+
+    return this.legalService.processPublicOptOut(identifier, { ip, userAgent });
+  }
+
   @BypassB2bConsent()
   @ApiBearerAuth('JWT-auth')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)

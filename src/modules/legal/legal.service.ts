@@ -120,6 +120,25 @@ export class LegalService {
         where: { id: latestConsent.id },
         data: { marketingAccepted },
       });
+    } else {
+      const user = await this.prisma.user.findFirst({ where: { tenantId } });
+      if (user) {
+        await this.prisma.tenantConsent.create({
+          data: {
+            tenantId,
+            signedByUserId: user.id,
+            contractVersion: CURRENT_B2B_CONTRACT_VERSION,
+            ipAddress: '127.0.0.1',
+            userAgent: 'SETTINGS_PANEL_PREFERENCE',
+            verifiedVia: 'WEB_SETTINGS_TOGGLE',
+            payloadHash: 'MARKETING_PREFERENCE_UPDATE',
+            saasTermsAccepted: true,
+            dataProcessingAccepted: true,
+            marketingAccepted,
+            signedAt: new Date(),
+          },
+        });
+      }
     }
 
     this.logger.log(
@@ -132,6 +151,66 @@ export class LegalService {
       message: marketingAccepted
         ? 'Ticari elektronik ileti izniniz aktif edildi.'
         : 'Ticari elektronik ileti izniniz iptal edildi. Ret talebiniz sisteme işlendi.',
+    };
+  }
+
+  /**
+   * E-Posta veya SMS içerisindeki ret bağlantısıyla şifresiz ret bildirimi (6563 s. ETK)
+   */
+  async processPublicOptOut(
+    identifier: string,
+    meta: { ip: string; userAgent: string },
+  ) {
+    if (!identifier || !identifier.trim()) {
+      throw new BadRequestException('Geçersiz ret talebi. Tanımlayıcı belirtilmedi.');
+    }
+
+    const cleanId = identifier.trim();
+
+    // 1. Tenant ID ile ara
+    let tenant = await this.prisma.tenant
+      .findUnique({ where: { id: cleanId } })
+      .catch(() => null);
+
+    // 2. Telefon veya e-posta ile ara
+    if (!tenant) {
+      tenant = await this.prisma.tenant.findFirst({
+        where: {
+          OR: [{ phone: cleanId }, { email: cleanId }],
+        },
+      });
+    }
+
+    // 3. User tablosundan ara
+    if (!tenant) {
+      const user = await this.prisma.user.findFirst({
+        where: {
+          OR: [{ phone: cleanId }, { email: cleanId }],
+        },
+      });
+      if (user?.tenantId) {
+        tenant = await this.prisma.tenant.findUnique({
+          where: { id: user.tenantId },
+        });
+      }
+    }
+
+    if (tenant) {
+      await this.updateMarketingConsent(tenant.id, false);
+      this.logger.log(
+        `🔕 [GENEL RET TALEBİ İŞLENDİ] İşletme: ${tenant.title} (${tenant.id}) | IP: ${meta.ip}`,
+      );
+      return {
+        success: true,
+        tenantTitle: tenant.title,
+        message: `${tenant.title} işletmesine ait ticari elektronik ileti izni 6563 sayılı Kanun uyarınca başarıyla iptal edilmiştir.`,
+      };
+    }
+
+    return {
+      success: true,
+      message:
+        'İletişim bilgileriniz ticari elektronik ileti listemizden başarıyla kaldırılmıştır.',
     };
   }
 
