@@ -20,7 +20,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   private mapToEntity(data: any): InvoiceEntity {
-    return new InvoiceEntity({
+    const entity = new InvoiceEntity({
       id: data.id,
       tenantId: data.tenantId,
       workOrderId: data.workOrderId ?? undefined,
@@ -43,6 +43,9 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       workOrder: data.workOrder,
       payments: data.payments,
     });
+    (entity as any).totalAmount = entity.grandTotal;
+    (entity as any).taxAmount = entity.kdvAmount;
+    return entity;
   }
 
   async findById(tenantId: string, id: string): Promise<InvoiceEntity | null> {
