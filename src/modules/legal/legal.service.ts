@@ -12,24 +12,36 @@ export const CURRENT_B2B_CONTRACT_VERSION = '1.0';
 
 export const B2B_CONTRACT_TEXT = `
 # WORKSAUTO B2B BULUT HİZMET SÖZLEŞMESİ & KVKK VERİ İŞLEYEN PROTOKOLÜ
-(Sürüm: 1.0 - 2026)
+(Sürüm: 1.0 - Kurumsal Lisans & Yasal Uyum Metni)
 
-1. TARAFLAR VE AMAÇ
-İşbu sözleşme; WorksAuto Bulut Servis Yönetim Platformu ("Platform Sağlayıcı") ile Platform'a kayıt olan ve lisans alan Oto Servis İşletmesi ("İşletme / Veri Sorumlusu") arasında akdedilmiştir.
+1. TARAFLAR VE SÖZLEŞMENİN AMACI
+İşbu Sözleşme; WorksAuto Bulut Servis Yönetim Platformu ("Platform Sağlayıcı / WorksAuto") ile sisteme üye olan, lisans alan veya yönetim panelini kullanan Oto Servis / Ekspertiz İşletmesi ("İşletme / Müşteri") arasında akdedilmiştir. Sözleşmenin amacı; İşletme'ye sunulan bulut tabanlı servis yönetim yazılımının kullanım şartlarını, tarafların 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) ve ilgili mevzuat kapsamındaki hak ve yükümlülüklerini belirlemektir.
 
-2. HİZMETİN KAPSAMI
-WorksAuto; oto servislerine randevu planlama, iş emri takibi, yedek parça ve stok yönetimi, dijital fatura, cari hesap takibi ve çok kanallı bildirim (WhatsApp, E-Posta, SMS) altyapısı sunan çok kiracılı (multi-tenant) bir SaaS yazılımıdır.
+2. HİZMETİN KAPSAMI VE LİSANS TAAHHÜDÜ
+WorksAuto; oto servislerine randevu planlama, atölye iş emirleri, teknisyen ve lift yönetimi, 2D depo ve raf matrisi, yedek parça ve atomik stok takibi, çift taraflı cari hesap mutabakatı, e-fatura/arşiv hazırlığı ve çok kanallı bildirim (WhatsApp, E-Posta, SMS) altyapısı sağlayan çok kiracılı (multi-tenant) bir SaaS platformudur. İşletme, seçtiği lisans paketi süresince platformu münhasır olmayan şekilde kullanma hakkına sahiptir.
 
-3. 6698 SAYILI KVKK KAPSAMINDA SORUMLULUKLAR
-3.1. İşletme (Oto Servisi); platforma kaydettiği araç sahiplerine ait kişisel veriler (ad, soyad, telefon, plaka, şasi no, cari hareketler) bakımından 6698 sayılı Kanun uyarınca münhasıran "VERİ SORUMLUSU" sıfatını haizdir.
-3.2. WorksAuto; söz konusu verileri yalnızca İşletme'nin talimatları ve SaaS hizmetinin ifası doğrultusunda işleyen "VERİ İŞLEYEN" konumundadır.
-3.3. İşletme; araç sahiplerine yönelik aydınlatma yükümlülüğünü yerine getirdiğini, gerekli hallerde açık rıza aldığını taahhüt eder.
+3. 6698 SAYILI KVKK VE VERİ İŞLEYEN PROTOKOLÜ
+3.1. Rollerin Belirlenmesi: İşletme; platforma kaydettiği araç sahiplerine, tedarikçilere ve personeline ait kişisel veriler (ad, soyad, telefon, TCKN/VKN, plaka, şasi no, servis geçmişi, cari bakiye vb.) bakımından 6698 sayılı Kanun kapsamında münhasıran "VERİ SORUMLUSU" sıfatını haizdir. WorksAuto ise bu verileri yalnızca İşletme'nin talimatları ve yazılım hizmetinin gereklilikleri doğrultusunda işleyen "VERİ İŞLEYEN" konumundadır.
+3.2. Aydınlatma ve Rıza Yükümlülüğü: İşletme; araç sahiplerinden gerekli açık rızaları aldığını, 6698 sayılı Kanun'un 10. maddesi uyarınca aydınlatma yükümlülüğünü yerine getirdiğini ve İYS (İleti Yönetim Sistemi) düzenlemelerine uygun hareket ettiğini gayrikabili rücu kabul ve taahhüt eder.
+3.3. Unutulma Hakkı (Anonimleştirme): Araç sahiplerinin kişisel verilerinin silinmesi veya anonimleştirilmesi talepleri doğrudan Veri Sorumlusu olan İşletme tarafından platform üzerinden yürütülür.
 
-4. BİLGİ GÜVENLİĞİ VE İZOLASYON
-WorksAuto; işletmenin ticari sırlarını, müşteri portföyünü ve stok maliyetlerini PostgreSQL Row-Level Security (RLS) ve kriptografik oturum mimarisi ile diğer tüm işletmelerden fiziksel olarak izole etmeyi taahhüt eder.
+4. MÜŞTERİ İLETİŞİMİ VE ÇOK KANALLI BİLDİRİM (WHATSAPP, E-POSTA, SMS)
+4.1. İşletme; araç kabul formu, ek parça onay talebi, ekspertiz fotoğrafları, hazır araç teslim bildirimi ve fatura bilgilendirmelerini müşterilerine iletmek üzere platformun sunduğu çok kanallı (WhatsApp, E-Posta, SMS) iletişim motorunu kullanır.
+4.2. Gönderilen ticari iletilerin içeriğinden, onay mekanizmasından ve alıcıların iletişim bilgilerinin doğruluğundan doğrudan İşletme sorumludur.
 
-5. ELEKTRONİK ONAY VE DELİL NİTELİĞİ
-İşbu sözleşmenin dijital ortamda zaman damgası, IP adresi ve kriptografik hash özetiyle onaylanması, 6100 sayılı Hukuk Muhakemeleri Kanunu uyarınca kesin delil niteliğindedir.
+5. VERİ İZOLASYONU, TİCARİ SIRLAR VE ROW-LEVEL SECURITY (RLS) GÜVENCESİ
+5.1. WorksAuto; İşletme'nin müşteri portföyünü, maliyetlerini, kârlılık oranlarını ve ticari sırlarını en üst seviyede korumayı taahhüt eder.
+5.2. Platform mimarisinde PostgreSQL Native Row-Level Security (RLS) ve kriptografik oturum izolasyonu uygulanmakta olup, bir işletmenin verilerine diğer hiçbir işletmenin veya yetkisiz personelin erişmesi fiziksel ve yazılımsal olarak engellenmiştir.
+
+6. MALİ MEVZUAT VE VERGİ USUL KANUNU (VUK) UYUMU
+6.1. Platform üzerinden oluşturulan iş emirleri, parça sarfiyatları, faturalar ve tahsilat makbuzları muhasebe ön kaydı niteliğindedir.
+6.2. Yasal defter ve beyannamelerin doğruluğu, KDV oranları ve resmi e-fatura/e-arşiv süreçlerinin mevzuata uygunluğu İşletme'nin ve yetkili mali müşavirinin sorumluluğundadır.
+
+7. HİZMET KESİNTİSİZLİĞİ VE YEDEKLEME (SLA)
+WorksAuto; bulut altyapısının %99.5 erişilebilirlik (uptime) standardında çalışmasını ve verilerin periyodik olarak güvenli yedekleme ortamlarında saklanmasını taahhüt eder. Mücbir sebepler ve planlı bakım çalışmaları İşletme'ye önceden bildirilir.
+
+8. ELEKTRONİK DELİL NİTELİĞİ VE YÜRÜRLÜK
+İşbu sözleşme; İşletme yetkilisinin dijital ortamda onay kutularını işaretleyerek "Sözleşmeyi Onayla ve Sistemi Aktif Et" butonuna tıklaması ile yürürlüğe girer. Taraflar; onay anında sunucu tarafından üretilen zaman damgası, IP adresi, imzalayan kullanıcı bilgileri ve sözleşme metninin SHA-256 kriptografik özetinin, 6100 sayılı Hukuk Muhakemeleri Kanunu'nun (HMK) 193. maddesi uyarınca taraflar arasında bağlayıcı "münhasır delil sözleşmesi" niteliğinde olduğunu kabul eder.
 `.trim();
 
 @Injectable()
