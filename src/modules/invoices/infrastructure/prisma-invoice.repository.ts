@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import { IInvoiceRepository, CreateInvoiceTransactionResult } from '../domain/invoice.repository.interface';
 import { InvoiceEntity } from '../domain/invoice.entity';
-import { InvoiceStatus, CariReferenceType } from '@prisma/client';
+import { InvoiceStatus, CariReferenceType, WorkOrderStatus } from '@prisma/client';
 
 @Injectable()
 export class PrismaInvoiceRepository implements IInvoiceRepository {
@@ -198,6 +198,17 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         },
       });
 
+      // 4. If linked to a work order, automatically mark work order as COMPLETED
+      if (invoice.workOrderId) {
+        await tx.workOrder.update({
+          where: { id: invoice.workOrderId },
+          data: {
+            status: WorkOrderStatus.COMPLETED,
+            completedAt: new Date(),
+          },
+        });
+      }
+
       const customerName =
         customer?.companyTitle || `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() || 'Müşteri';
       const creditLimit = customer?.creditLimit ? Number(customer.creditLimit) : 0;
@@ -226,17 +237,17 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         throw new BadRequestException('Bu fatura zaten iptal edilmiştir.');
       }
 
-      if (existing.status === InvoiceStatus.PAID || Number(existing.paidAmount) > 0) {
-        throw new BadRequestException(
-          'Ödemesi yapılmış veya tahsilat alınmış fatura doğrudan iptal edilemez. Önce tahsilatın iptali/iadesi yapılmalıdır.',
-        );
-      }
+      // Check if any payments are attached to this invoice
+      const attachedPayments = await tx.payment.findMany({
+        where: { invoiceId: existing.id, tenantId },
+      });
 
       const cancelled = await tx.invoice.update({
         where: { id: existing.id },
         data: {
           status: InvoiceStatus.CANCELLED,
           remainingAmount: 0,
+          workOrderId: null,
         },
       });
 
@@ -246,13 +257,20 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       });
 
       if (currentAccount) {
+        let totalCreditsAdjustment = 0;
+        for (const p of attachedPayments) {
+          totalCreditsAdjustment += Number(p.amount);
+        }
+
         const newTotalDebits = Math.max(0, Number(currentAccount.totalDebits) - Number(cancelled.grandTotal));
-        const newBalance = newTotalDebits - Number(currentAccount.totalCredits);
+        const newTotalCredits = Math.max(0, Number(currentAccount.totalCredits) - totalCreditsAdjustment);
+        const newBalance = newTotalDebits - newTotalCredits;
 
         await tx.currentAccount.update({
           where: { id: currentAccount.id },
           data: {
             totalDebits: newTotalDebits,
+            totalCredits: newTotalCredits,
             balance: newBalance,
           },
         });
@@ -268,6 +286,40 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
             debit: 0,
             credit: Number(cancelled.grandTotal),
             balanceAfter: newBalance,
+          },
+        });
+
+        // If payments were registered for this invoice, reverse them from cari & remove payment records
+        if (attachedPayments.length > 0) {
+          for (const p of attachedPayments) {
+            await tx.cariMovement.create({
+              data: {
+                tenantId,
+                currentAccountId: currentAccount.id,
+                date: new Date(),
+                description: `Fatura İptali Nedeniyle Tahsilat İadesi (#${cancelled.invoiceNumber})`,
+                referenceType: CariReferenceType.PAYMENT,
+                referenceNo: p.id.substring(0, 8),
+                debit: Number(p.amount),
+                credit: 0,
+                balanceAfter: newBalance,
+              },
+            });
+          }
+
+          await tx.payment.deleteMany({
+            where: { invoiceId: existing.id, tenantId },
+          });
+        }
+      }
+
+      // 3. If linked to a work order, reopen work order back to IN_PROGRESS
+      if (existing.workOrderId) {
+        await tx.workOrder.update({
+          where: { id: existing.workOrderId },
+          data: {
+            status: WorkOrderStatus.IN_PROGRESS,
+            completedAt: null,
           },
         });
       }

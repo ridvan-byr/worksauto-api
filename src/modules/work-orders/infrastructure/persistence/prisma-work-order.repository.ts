@@ -94,7 +94,7 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
         }
       }
 
-      // 4. If appointment referenced, verify appointment belongs to this tenant
+      // 4. If appointment referenced, verify appointment belongs to this tenant and mark as confirmed
       if (data.appointmentId) {
         const appt = await tx.appointment.findFirst({
           where: { id: data.appointmentId, tenantId: data.tenantId },
@@ -102,6 +102,10 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
         if (!appt) {
           throw new BadRequestException('Seçilen randevu bulunamadı veya bu işletmeye ait değil.');
         }
+        await tx.appointment.update({
+          where: { id: data.appointmentId },
+          data: { status: 'CONFIRMED' },
+        });
       }
 
       const workOrder = await tx.workOrder.create({
@@ -182,7 +186,16 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
         }
       }
 
-      return workOrder;
+      return tx.workOrder.findUnique({
+        where: { id: workOrder.id },
+        include: {
+          customer: true,
+          vehicle: true,
+          assignedMechanic: { include: { user: true } },
+          items: true,
+          photos: true,
+        },
+      });
     });
   }
 

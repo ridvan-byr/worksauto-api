@@ -48,10 +48,11 @@ export class MediaController {
     @Body('caption') caption?: string,
     @Body('photoType') photoType?: WorkOrderPhotoType,
   ) {
+    const uploaderName = user?.name || (user?.userId ? 'Personel' : 'SYSTEM');
     return this.mediaService.uploadWorkOrderPhoto(
       tenantId,
       workOrderId,
-      user?.userId || 'SYSTEM',
+      uploaderName,
       file,
       caption,
       photoType,
