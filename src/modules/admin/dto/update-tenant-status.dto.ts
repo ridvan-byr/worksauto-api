@@ -6,7 +6,11 @@ export class UpdateTenantStatusDto {
   @IsBoolean()
   isActive: boolean;
 
-  @ApiProperty({ required: false, example: 'Lisans ödemesi onaylandı', description: 'İşlem açıklaması veya dondurma gerekçesi' })
+  @ApiProperty({
+    required: false,
+    example: 'Lisans ödemesi onaylandı',
+    description: 'İşlem açıklaması veya dondurma gerekçesi',
+  })
   @IsOptional()
   @IsString()
   reason?: string;

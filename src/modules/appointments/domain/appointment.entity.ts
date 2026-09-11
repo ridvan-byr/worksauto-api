@@ -80,7 +80,9 @@ export class AppointmentEntity {
 
   public cancel(reason?: string): void {
     if (!this.canCancel()) {
-      throw new Error('Tamamlanmış veya zaten iptal edilmiş randevu iptal edilemez.');
+      throw new Error(
+        'Tamamlanmış veya zaten iptal edilmiş randevu iptal edilemez.',
+      );
     }
     this.status = 'CANCELLED';
     this.cancellationReason = reason;
@@ -98,7 +100,9 @@ export class AppointmentEntity {
     lift?: string,
   ): void {
     if (!this.canReschedule()) {
-      throw new Error('Tamamlanmış veya iptal edilmiş randevu yeniden planlanamaz.');
+      throw new Error(
+        'Tamamlanmış veya iptal edilmiş randevu yeniden planlanamaz.',
+      );
     }
     this.slotDate = slotDate;
     this.slotStartTime = slotStartTime;

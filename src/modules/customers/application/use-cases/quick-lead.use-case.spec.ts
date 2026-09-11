@@ -26,7 +26,11 @@ describe('QuickLeadUseCase', () => {
 
   it('should throw BadRequestException if required fields are missing', async () => {
     await expect(
-      useCase.execute('t-1', { firstName: '', phone: '05321112233', plate: '34ABC01' }),
+      useCase.execute('t-1', {
+        firstName: '',
+        phone: '05321112233',
+        plate: '34ABC01',
+      }),
     ).rejects.toThrow(BadRequestException);
   });
 

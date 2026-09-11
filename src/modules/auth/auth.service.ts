@@ -49,7 +49,9 @@ export class AuthService {
   async sendOtp(dto: SendOtpDto) {
     const normalizedPhone = this.normalizePhone(dto.phone);
     if (!normalizedPhone || normalizedPhone.length < 10) {
-      throw new BadRequestException('Lütfen geçerli bir cep telefonu numarası giriniz.');
+      throw new BadRequestException(
+        'Lütfen geçerli bir cep telefonu numarası giriniz.',
+      );
     }
 
     // 10 haneli saf numara (örn: 5551112233)
@@ -62,11 +64,16 @@ export class AuthService {
     const cooldownKey = `rate:otp:cooldown:${normalizedPhone}`;
     const isCoolingDown = await this.redis.get(cooldownKey);
     if (isCoolingDown) {
-      throw new BadRequestException('Lütfen yeni bir SMS kodu istemeden önce 60 saniye bekleyiniz.');
+      throw new BadRequestException(
+        'Lütfen yeni bir SMS kodu istemeden önce 60 saniye bekleyiniz.',
+      );
     }
 
     const hourlyLimitKey = `rate:otp:hourly:${normalizedPhone}`;
-    const hourlyCount = parseInt((await this.redis.get(hourlyLimitKey)) || '0', 10);
+    const hourlyCount = parseInt(
+      (await this.redis.get(hourlyLimitKey)) || '0',
+      10,
+    );
     if (hourlyCount >= 5) {
       throw new BadRequestException(
         'Bu telefon numarası için saatlik SMS gönderim limiti (5) aşıldı. Lütfen 1 saat sonra tekrar deneyiniz.',
@@ -101,9 +108,10 @@ export class AuthService {
     }
 
     // 6 Haneli Kriptografik Olarak Güvenli OTP Kod Üretimi
-    const otpCode = process.env.NODE_ENV === 'production'
-      ? crypto.randomInt(100000, 1000000).toString()
-      : '123456';
+    const otpCode =
+      process.env.NODE_ENV === 'production'
+        ? crypto.randomInt(100000, 1000000).toString()
+        : '123456';
 
     // Redis üzerinde 3 dakika (180 saniye) geçerli olarak sakla
     const redisKey = `otp:${normalizedPhone}`;
@@ -114,11 +122,16 @@ export class AuthService {
     await this.redis.set(hourlyLimitKey, (hourlyCount + 1).toString(), 3600);
 
     // Güvenli Log: Üretimde OTP kodunu asla loglama!
-    const maskedPhone = normalizedPhone.slice(0, 5) + '***' + normalizedPhone.slice(-2);
+    const maskedPhone =
+      normalizedPhone.slice(0, 5) + '***' + normalizedPhone.slice(-2);
     if (process.env.NODE_ENV !== 'production') {
-      this.logger.log(`📱 SMS OTP Gönderildi -> Telefon: ${maskedPhone} | Kod: ${otpCode} (Geçerlilik: 3 dk)`);
+      this.logger.log(
+        `📱 SMS OTP Gönderildi -> Telefon: ${maskedPhone} | Kod: ${otpCode} (Geçerlilik: 3 dk)`,
+      );
     } else {
-      this.logger.log(`📱 SMS OTP Gönderildi -> Telefon: ${maskedPhone} (Geçerlilik: 3 dk)`);
+      this.logger.log(
+        `📱 SMS OTP Gönderildi -> Telefon: ${maskedPhone} (Geçerlilik: 3 dk)`,
+      );
     }
 
     return {
@@ -127,7 +140,8 @@ export class AuthService {
       phone: normalizedPhone,
       expiresInSeconds: 180,
       devCode:
-        process.env.NODE_ENV === 'development' && process.env.ENABLE_DEV_OTP_BYPASS === 'true'
+        process.env.NODE_ENV === 'development' &&
+        process.env.ENABLE_DEV_OTP_BYPASS === 'true'
           ? otpCode
           : undefined,
     };
@@ -157,7 +171,9 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Bu telefon numarasına ait kullanıcı hesabı bulunamadı.');
+      throw new UnauthorizedException(
+        'Bu telefon numarasına ait kullanıcı hesabı bulunamadı.',
+      );
     }
 
     if (user.tenant && !user.tenant.isActive) {
@@ -186,7 +202,9 @@ export class AuthService {
       process.env.ENABLE_DEV_OTP_BYPASS === 'true' &&
       dto.code === '123456';
     if (!cachedCode && !isMasterDevCode) {
-      throw new UnauthorizedException('Doğrulama kodunun süresi dolmuş veya hiç istenmemiş.');
+      throw new UnauthorizedException(
+        'Doğrulama kodunun süresi dolmuş veya hiç istenmemiş.',
+      );
     }
 
     if (cachedCode && cachedCode !== dto.code && !isMasterDevCode) {
@@ -198,7 +216,9 @@ export class AuthService {
           'Çok fazla hatalı kod denemesi yapıldı. Güvenliğiniz için doğrulama kodu iptal edildi. Lütfen 15 dakika sonra yeni bir kod isteyiniz.',
         );
       }
-      throw new UnauthorizedException(`Girdiğiniz doğrulama kodu hatalı. Kalan deneme hakkı: ${5 - newAttempts}`);
+      throw new UnauthorizedException(
+        `Girdiğiniz doğrulama kodu hatalı. Kalan deneme hakkı: ${5 - newAttempts}`,
+      );
     }
 
     // Kod başarıyla doğrulandı, tek kullanımlık kodu ve deneme sayacını Redis'ten sil
@@ -208,7 +228,9 @@ export class AuthService {
     // 30 GÜNLÜK (1 AY) REFRESH TOKEN ÜRET
     const tokens = await this.generateTokens(user, user.tenantId);
 
-    this.logger.log(`✅ Usta / Yönetici giriş yaptı: ${user.name} ${user.surname} (${user.role}) - 30 Günlük Oturum Başlatıldı.`);
+    this.logger.log(
+      `✅ Usta / Yönetici giriş yaptı: ${user.name} ${user.surname} (${user.role}) - 30 Günlük Oturum Başlatıldı.`,
+    );
 
     return {
       user: {
@@ -234,7 +256,9 @@ export class AuthService {
     });
 
     if (existingSlug) {
-      throw new ConflictException('Bu servis URL kodu (slug) zaten kullanımda.');
+      throw new ConflictException(
+        'Bu servis URL kodu (slug) zaten kullanımda.',
+      );
     }
 
     const normalizedPhone = this.normalizePhone(dto.phone);
@@ -287,7 +311,10 @@ export class AuthService {
         secret: process.env.JWT_SECRET,
       });
 
-      const hashedToken = crypto.createHash('sha256').update(dto.refreshToken).digest('hex');
+      const hashedToken = crypto
+        .createHash('sha256')
+        .update(dto.refreshToken)
+        .digest('hex');
       let tokenRecord = await this.prisma.refreshToken.findUnique({
         where: { tokenHash: hashedToken },
       });
@@ -312,7 +339,9 @@ export class AuthService {
           where: { familyId: tokenRecord.familyId },
           data: { isRevoked: true },
         });
-        throw new UnauthorizedException('Güvenlik uyarısı: Oturumunuz sonlandırıldı. Lütfen telefonunuza SMS isteyerek tekrar giriş yapın.');
+        throw new UnauthorizedException(
+          'Güvenlik uyarısı: Oturumunuz sonlandırıldı. Lütfen telefonunuza SMS isteyerek tekrar giriş yapın.',
+        );
       }
 
       // Token rotasyonu
@@ -327,7 +356,9 @@ export class AuthService {
       });
 
       if (!user || !user.isActive) {
-        throw new UnauthorizedException('Kullanıcı hesabı bulunamadı veya pasif durumda.');
+        throw new UnauthorizedException(
+          'Kullanıcı hesabı bulunamadı veya pasif durumda.',
+        );
       }
 
       if (user.tenant && !user.tenant.isActive) {
@@ -338,7 +369,9 @@ export class AuthService {
 
       return this.generateTokens(user, user.tenantId, tokenRecord.familyId);
     } catch {
-      throw new UnauthorizedException('30 günlük oturum süreniz doldu. Lütfen SMS ile tekrar giriş yapınız.');
+      throw new UnauthorizedException(
+        '30 günlük oturum süreniz doldu. Lütfen SMS ile tekrar giriş yapınız.',
+      );
     }
   }
 
@@ -348,13 +381,13 @@ export class AuthService {
   async revokeRefreshToken(token?: string): Promise<void> {
     if (!token) return;
     try {
-      const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+      const hashedToken = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
       const tokenRecord = await this.prisma.refreshToken.findFirst({
         where: {
-          OR: [
-            { tokenHash: hashedToken },
-            { tokenHash: token },
-          ],
+          OR: [{ tokenHash: hashedToken }, { tokenHash: token }],
         },
       });
       if (tokenRecord) {
@@ -362,7 +395,9 @@ export class AuthService {
           where: { familyId: tokenRecord.familyId },
           data: { isRevoked: true },
         });
-        this.logger.log(`Refresh token family (${tokenRecord.familyId}) revoked on logout.`);
+        this.logger.log(
+          `Refresh token family (${tokenRecord.familyId}) revoked on logout.`,
+        );
       }
     } catch (err: any) {
       this.logger.warn(`Token revocation error: ${err.message}`);
@@ -372,7 +407,11 @@ export class AuthService {
   /**
    * 1 Saatlik Access Token + 30 GÜNLÜK (1 Ay) Refresh Token Üretir.
    */
-  private async generateTokens(user: any, tenantId: string, existingFamilyId?: string) {
+  private async generateTokens(
+    user: any,
+    tenantId: string,
+    existingFamilyId?: string,
+  ) {
     const payload = {
       sub: user.id,
       phone: user.phone,
@@ -395,7 +434,10 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30); // 30 Gün
 
-    const hashedToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const hashedToken = crypto
+      .createHash('sha256')
+      .update(refreshToken)
+      .digest('hex');
 
     await this.prisma.refreshToken.create({
       data: {
@@ -449,4 +491,3 @@ export class AuthService {
     };
   }
 }
-

@@ -55,8 +55,12 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
         await prisma.currentAccount?.deleteMany({ where: { tenantId } });
         await prisma.payment?.deleteMany({ where: { tenantId } });
         await prisma.invoice?.deleteMany({ where: { tenantId } });
-        await prisma.workOrderPhoto?.deleteMany({ where: { workOrder: { tenantId } } });
-        await prisma.workOrderItem?.deleteMany({ where: { workOrder: { tenantId } } });
+        await prisma.workOrderPhoto?.deleteMany({
+          where: { workOrder: { tenantId } },
+        });
+        await prisma.workOrderItem?.deleteMany({
+          where: { workOrder: { tenantId } },
+        });
         await prisma.workOrder?.deleteMany({ where: { tenantId } });
         await prisma.appointment?.deleteMany({ where: { tenantId } });
         await prisma.stockMovement?.deleteMany({ where: { tenantId } });
@@ -65,7 +69,9 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
         await prisma.customer?.deleteMany({ where: { tenantId } });
         await prisma.auditLog?.deleteMany({ where: { tenantId } });
         await prisma.notification?.deleteMany({ where: { tenantId } });
-        await prisma.refreshToken?.deleteMany({ where: { user: { tenantId } } });
+        await prisma.refreshToken?.deleteMany({
+          where: { user: { tenantId } },
+        });
         await prisma.user?.deleteMany({ where: { tenantId } });
         await prisma.tenant?.delete({ where: { id: tenantId } });
       } catch (err) {
@@ -227,7 +233,9 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
       })
       .expect(201);
 
-    expect(itemRes.body.items.some((i: any) => i.itemId === productId)).toBe(true);
+    expect(itemRes.body.items.some((i: any) => i.itemId === productId)).toBe(
+      true,
+    );
 
     // 5.4 Add SERVICE Item (1x İşçilik @ 1.000 TL + %20 KDV)
     await request(app.getHttpServer())
@@ -280,7 +288,9 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
       .set('Authorization', `Bearer ${authToken}`)
       .expect(200);
 
-    const autoInvoice = invoicesRes.body.find((inv: any) => inv.workOrderId === workOrderId);
+    const autoInvoice = invoicesRes.body.find(
+      (inv: any) => inv.workOrderId === workOrderId,
+    );
     expect(autoInvoice).toBeDefined();
     expect(autoInvoice.status).toBe('UNPAID');
     invoiceId = autoInvoice.id;
@@ -318,7 +328,9 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
       .set('Authorization', `Bearer ${authToken}`)
       .expect(200);
 
-    const matchingInvoices = invoicesRes.body.filter((inv: any) => inv.workOrderId === workOrderId);
+    const matchingInvoices = invoicesRes.body.filter(
+      (inv: any) => inv.workOrderId === workOrderId,
+    );
     expect(matchingInvoices.length).toBe(1);
   });
 
@@ -345,7 +357,10 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
 
     expect(invoiceCheck.body.status).toBe('PARTIALLY_PAID');
     expect(Number(invoiceCheck.body.paidAmount)).toBe(1200);
-    expect(Number(invoiceCheck.body.grandTotal) - Number(invoiceCheck.body.paidAmount)).toBe(1800);
+    expect(
+      Number(invoiceCheck.body.grandTotal) -
+        Number(invoiceCheck.body.paidAmount),
+    ).toBe(1800);
   });
 
   it('Step 9: Customer Current Account (Cari Hareket & Bakiye) Verification (Md. 28)', async () => {
@@ -430,7 +445,9 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
       .set('Authorization', `Bearer ${authToken}`)
       .expect(200);
 
-    const returnMovement = movements.body.find((m: any) => m.movementType === 'RETURN');
+    const returnMovement = movements.body.find(
+      (m: any) => m.movementType === 'RETURN',
+    );
     expect(returnMovement).toBeDefined();
     expect(returnMovement.quantity).toBe(1);
   });

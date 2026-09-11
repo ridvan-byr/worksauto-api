@@ -78,12 +78,18 @@ describe('CancelInvoiceUseCase', () => {
     });
 
     vi.mocked(mockRepo.findById).mockResolvedValue(unpaidInvoice);
-    vi.mocked(mockRepo.cancelWithCariReversal).mockResolvedValue(cancelledInvoice);
+    vi.mocked(mockRepo.cancelWithCariReversal).mockResolvedValue(
+      cancelledInvoice,
+    );
 
     const result = await useCase.execute('tenant-1', 'inv-1', 'Hatalı giriş');
 
     expect(result.status).toBe('CANCELLED');
-    expect(mockRepo.cancelWithCariReversal).toHaveBeenCalledWith('tenant-1', 'inv-1', 'Hatalı giriş');
+    expect(mockRepo.cancelWithCariReversal).toHaveBeenCalledWith(
+      'tenant-1',
+      'inv-1',
+      'Hatalı giriş',
+    );
     expect(mockAudit.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'invoice.cancelled' }),
     );

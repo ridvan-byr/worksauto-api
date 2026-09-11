@@ -36,7 +36,10 @@ describe('AdminMetricsService', () => {
       set: vi.fn().mockResolvedValue(undefined),
     };
 
-    service = new AdminMetricsService(mockPrisma as PrismaService, mockRedis as RedisService);
+    service = new AdminMetricsService(
+      mockPrisma as PrismaService,
+      mockRedis as RedisService,
+    );
   });
 
   it('should return SaaS KPI stats', async () => {

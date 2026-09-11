@@ -25,13 +25,19 @@ describe('RollbackWorkOrderUseCase', () => {
   it('should throw NotFoundException if work order is missing', async () => {
     mockRepo.findById = vi.fn().mockResolvedValue(null);
 
-    await expect(useCase.execute('t-1', 'wo-1')).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('t-1', 'wo-1')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should throw BadRequestException if cannot rollback from first status', async () => {
-    mockRepo.findById = vi.fn().mockResolvedValue({ id: 'wo-1', status: WorkOrderStatusEnum.QUEUE });
+    mockRepo.findById = vi
+      .fn()
+      .mockResolvedValue({ id: 'wo-1', status: WorkOrderStatusEnum.QUEUE });
 
-    await expect(useCase.execute('t-1', 'wo-1')).rejects.toThrow(BadRequestException);
+    await expect(useCase.execute('t-1', 'wo-1')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('should rollback from IN_PROGRESS to QUEUE and emit event', async () => {
@@ -48,7 +54,11 @@ describe('RollbackWorkOrderUseCase', () => {
 
     const result = await useCase.execute('t-1', 'wo-1');
     expect(result.status).toBe(WorkOrderStatusEnum.QUEUE);
-    expect(mockRepo.rollbackStatus).toHaveBeenCalledWith('t-1', 'wo-1', WorkOrderStatusEnum.QUEUE);
+    expect(mockRepo.rollbackStatus).toHaveBeenCalledWith(
+      't-1',
+      'wo-1',
+      WorkOrderStatusEnum.QUEUE,
+    );
     expect(mockEvents.emitToTenant).toHaveBeenCalled();
   });
 });

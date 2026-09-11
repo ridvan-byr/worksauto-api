@@ -16,7 +16,10 @@ export class CreateProductDto {
   @IsString()
   barcode?: string;
 
-  @ApiPropertyOptional({ enum: ProductCategory, default: ProductCategory.GENERAL })
+  @ApiPropertyOptional({
+    enum: ProductCategory,
+    default: ProductCategory.GENERAL,
+  })
   @IsOptional()
   @IsEnum(ProductCategory)
   category?: ProductCategory;

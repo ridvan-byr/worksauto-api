@@ -15,7 +15,10 @@ export class HealthService {
     private readonly redis: RedisService,
   ) {}
 
-  async checkDetail(): Promise<{ isHealthy: boolean; result: HealthCheckResult }> {
+  async checkDetail(): Promise<{
+    isHealthy: boolean;
+    result: HealthCheckResult;
+  }> {
     const checks: Record<string, any> = {};
     let isHealthy = true;
 

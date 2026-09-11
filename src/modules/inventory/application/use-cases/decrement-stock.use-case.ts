@@ -1,5 +1,13 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
-import { IInventoryRepository, INVENTORY_REPOSITORY } from '../../domain/inventory.repository.interface';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  IInventoryRepository,
+  INVENTORY_REPOSITORY,
+} from '../../domain/inventory.repository.interface';
 import { StockItemEntity } from '../../domain/stock-item.entity';
 import { EventsGateway } from '../../../events/events.gateway';
 import { NotificationsService } from '../../../notifications/notifications.service';

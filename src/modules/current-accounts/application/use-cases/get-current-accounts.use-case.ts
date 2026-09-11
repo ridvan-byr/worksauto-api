@@ -1,5 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { ICurrentAccountRepository, CURRENT_ACCOUNT_REPOSITORY } from '../../domain/current-account.repository.interface';
+import {
+  ICurrentAccountRepository,
+  CURRENT_ACCOUNT_REPOSITORY,
+} from '../../domain/current-account.repository.interface';
 import { CurrentAccountEntity } from '../../domain/current-account.entity';
 
 @Injectable()

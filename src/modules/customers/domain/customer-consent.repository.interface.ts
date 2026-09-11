@@ -15,7 +15,10 @@ export interface CreateConsentInput {
 }
 
 export interface ICustomerConsentRepository {
-  findCustomerWithTenant(tenantId: string, customerId: string): Promise<any | null>;
+  findCustomerWithTenant(
+    tenantId: string,
+    customerId: string,
+  ): Promise<any | null>;
   findCustomerConsents(tenantId: string, customerId: string): Promise<any[]>;
   createConsent(data: CreateConsentInput): Promise<any>;
   findConsentByToken(token: string): Promise<any | null>;

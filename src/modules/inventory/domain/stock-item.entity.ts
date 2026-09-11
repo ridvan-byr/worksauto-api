@@ -79,7 +79,9 @@ export class StockItemEntity {
       throw new Error('Düşülecek miktar 0 dan büyük olmalıdır.');
     }
     if (!this.canDecrement(qty)) {
-      throw new Error(`Yetersiz stok! Mevcut stok: ${this.stockQuantity}, istenen: ${qty}`);
+      throw new Error(
+        `Yetersiz stok! Mevcut stok: ${this.stockQuantity}, istenen: ${qty}`,
+      );
     }
     this.stockQuantity -= qty;
   }

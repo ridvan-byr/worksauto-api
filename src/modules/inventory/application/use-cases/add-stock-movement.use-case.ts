@@ -1,5 +1,13 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
-import { IInventoryRepository, INVENTORY_REPOSITORY } from '../../domain/inventory.repository.interface';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  IInventoryRepository,
+  INVENTORY_REPOSITORY,
+} from '../../domain/inventory.repository.interface';
 import { StockItemEntity } from '../../domain/stock-item.entity';
 import { EventsGateway } from '../../../events/events.gateway';
 import { NotificationsService } from '../../../notifications/notifications.service';
@@ -39,7 +47,10 @@ export class AddStockMovementUseCase {
         );
       }
       item.decrement(input.quantity);
-    } else if (input.movementType === 'IN_PURCHASE' || input.movementType === 'RETURN') {
+    } else if (
+      input.movementType === 'IN_PURCHASE' ||
+      input.movementType === 'RETURN'
+    ) {
       item.increment(input.quantity);
     } else if (input.movementType === 'ADJUSTMENT') {
       item.stockQuantity = input.quantity;

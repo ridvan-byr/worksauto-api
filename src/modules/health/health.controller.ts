@@ -59,9 +59,14 @@ export class HealthController {
   @UseGuards(OptionalJwtAuthGuard)
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Get('detail')
-  @ApiOperation({ summary: 'Korumalı detaylı sistem sağlık ve gecikme metrikleri' })
+  @ApiOperation({
+    summary: 'Korumalı detaylı sistem sağlık ve gecikme metrikleri',
+  })
   @ApiResponse({ status: 200, description: 'Tüm alt sistemler operasyonel.' })
-  @ApiResponse({ status: 503, description: 'Bir veya daha fazla alt sistem yanıt vermiyor.' })
+  @ApiResponse({
+    status: 503,
+    description: 'Bir veya daha fazla alt sistem yanıt vermiyor.',
+  })
   async checkDetail(
     @Headers('x-health-token') healthToken: string,
     @CurrentUser() user: any,
@@ -74,14 +79,16 @@ export class HealthController {
       configuredToken &&
       configuredToken.trim().length >= 16 &&
       healthToken &&
-      timingSafeCompare(healthToken, configuredToken)
+      timingSafeCompare(healthToken, configuredToken),
     );
 
     const isSuperAdmin = Boolean(user && user.role === 'SUPER_ADMIN');
 
     // Yetkisiz erişim durumunda detay sızdırmadan fail-closed durdur
     if (!isTokenValid && !isSuperAdmin) {
-      throw new UnauthorizedException('Detaylı sistem sağlığı kontrolü için yetkiniz bulunmamaktadır.');
+      throw new UnauthorizedException(
+        'Detaylı sistem sağlığı kontrolü için yetkiniz bulunmamaktadır.',
+      );
     }
 
     const { isHealthy, result } = await this.healthService.checkDetail();

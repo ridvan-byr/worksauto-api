@@ -10,7 +10,13 @@ export interface CreateNotificationDto {
   actorUserId?: string; // İşlemi yapan kullanıcı (kendi ekranında zil çalmaz)
   targetRoles?: string[]; // Hedef roller (örn: ['OWNER', 'CASHIER'])
   type?: NotificationType;
-  category: 'APPOINTMENT' | 'WORK_ORDER' | 'INVENTORY' | 'FINANCE' | 'SECURITY' | 'SYSTEM';
+  category:
+    | 'APPOINTMENT'
+    | 'WORK_ORDER'
+    | 'INVENTORY'
+    | 'FINANCE'
+    | 'SECURITY'
+    | 'SYSTEM';
   title: string;
   message: string;
   link?: string;
@@ -94,7 +100,11 @@ export class NotificationsService {
 
       // 3. WebSocket Canlı Yayın (Actor Exclusion & Role Filtering)
       if (dto.userId) {
-        this.eventsGateway.emitToUser(dto.userId, 'notification:new', primaryNotif || dto);
+        this.eventsGateway.emitToUser(
+          dto.userId,
+          'notification:new',
+          primaryNotif || dto,
+        );
       } else if (dto.tenantId) {
         this.eventsGateway.emitToTenantExcept(
           dto.tenantId,
@@ -138,7 +148,10 @@ export class NotificationsService {
 
       return primaryNotif;
     } catch (err: any) {
-      this.logger.error(`Failed to create notification: ${err.message}`, err.stack);
+      this.logger.error(
+        `Failed to create notification: ${err.message}`,
+        err.stack,
+      );
       return null;
     }
   }
@@ -173,11 +186,17 @@ export class NotificationsService {
     }
 
     // Rol bazlı gizlilik (Teknisyen / Depocu finansal bildirimleri göremez)
-    if (options.role && (options.role === 'TECHNICIAN' || options.role === 'WAREHOUSE_KEEPER')) {
+    if (
+      options.role &&
+      (options.role === 'TECHNICIAN' || options.role === 'WAREHOUSE_KEEPER')
+    ) {
       if (!where.category) {
         where.category = { not: 'FINANCE' };
       } else if (where.category === 'FINANCE') {
-        return { data: [], meta: { page, limit, total: 0, unreadCount: 0, totalPages: 1 } };
+        return {
+          data: [],
+          meta: { page, limit, total: 0, unreadCount: 0, totalPages: 1 },
+        };
       }
     }
 

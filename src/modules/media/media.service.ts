@@ -1,4 +1,10 @@
-import { Injectable, Logger, OnModuleInit, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -32,11 +38,23 @@ export class MediaService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    const endpoint = this.configService.get<string>('S3_ENDPOINT', 'http://localhost:9000');
+    const endpoint = this.configService.get<string>(
+      'S3_ENDPOINT',
+      'http://localhost:9000',
+    );
     const region = this.configService.get<string>('S3_REGION', 'us-east-1');
-    const accessKeyId = this.configService.get<string>('S3_ACCESS_KEY', 'minioadmin');
-    const secretAccessKey = this.configService.get<string>('S3_SECRET_KEY', 'minioadmin');
-    this.bucketName = this.configService.get<string>('S3_BUCKET_NAME', 'worksauto-media');
+    const accessKeyId = this.configService.get<string>(
+      'S3_ACCESS_KEY',
+      'minioadmin',
+    );
+    const secretAccessKey = this.configService.get<string>(
+      'S3_SECRET_KEY',
+      'minioadmin',
+    );
+    this.bucketName = this.configService.get<string>(
+      'S3_BUCKET_NAME',
+      'worksauto-media',
+    );
 
     this.s3Client = new S3Client({
       endpoint,
@@ -55,19 +73,30 @@ export class MediaService implements OnModuleInit {
 
   private async ensureBucketExists() {
     try {
-      await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucketName }));
+      await this.s3Client.send(
+        new HeadBucketCommand({ Bucket: this.bucketName }),
+      );
       this.logger.log(`Bucket "${this.bucketName}" verified.`);
     } catch (err: any) {
       if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) {
-        this.logger.warn(`Bucket "${this.bucketName}" not found. Creating it...`);
+        this.logger.warn(
+          `Bucket "${this.bucketName}" not found. Creating it...`,
+        );
         try {
-          await this.s3Client.send(new CreateBucketCommand({ Bucket: this.bucketName }));
+          await this.s3Client.send(
+            new CreateBucketCommand({ Bucket: this.bucketName }),
+          );
           this.logger.log(`Bucket "${this.bucketName}" created successfully.`);
         } catch (createErr) {
-          this.logger.error(`Failed to create bucket "${this.bucketName}":`, createErr);
+          this.logger.error(
+            `Failed to create bucket "${this.bucketName}":`,
+            createErr,
+          );
         }
       } else {
-        this.logger.warn(`MinIO connection not yet established or bucket check skipped: ${err.message}`);
+        this.logger.warn(
+          `MinIO connection not yet established or bucket check skipped: ${err.message}`,
+        );
       }
     }
   }
@@ -92,12 +121,21 @@ export class MediaService implements OnModuleInit {
       where: { id: workOrderId, tenantId },
     });
     if (!workOrder) {
-      throw new BadRequestException('İş emri bulunamadı veya bu işletmeye ait değil.');
+      throw new BadRequestException(
+        'İş emri bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/heic',
+    ];
     if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new BadRequestException('Geçersiz dosya formatı. Sadece JPG, PNG, WEBP desteklenir.');
+      throw new BadRequestException(
+        'Geçersiz dosya formatı. Sadece JPG, PNG, WEBP desteklenir.',
+      );
     }
 
     const ext = file.originalname.split('.').pop() || 'jpg';
@@ -137,15 +175,25 @@ export class MediaService implements OnModuleInit {
   /**
    * Generate temporary presigned download URL (Tenant-scoped security check)
    */
-  async getPresignedUrl(tenantId: string, objectKey: string, expiresInSeconds = 3600): Promise<string> {
+  async getPresignedUrl(
+    tenantId: string,
+    objectKey: string,
+    expiresInSeconds = 3600,
+  ): Promise<string> {
     // Path traversal defense
     if (!objectKey || objectKey.includes('..') || objectKey.includes('\\')) {
       throw new BadRequestException('Geçersiz medya anahtarı.');
     }
 
     // Cross-tenant protection: ObjectKey must belong to the requesting tenant or be public
-    if (tenantId && !objectKey.startsWith(`${tenantId}/`) && !objectKey.startsWith('public/')) {
-      throw new ForbiddenException('Bu medyaya erişim yetkiniz bulunmamaktadır.');
+    if (
+      tenantId &&
+      !objectKey.startsWith(`${tenantId}/`) &&
+      !objectKey.startsWith('public/')
+    ) {
+      throw new ForbiddenException(
+        'Bu medyaya erişim yetkiniz bulunmamaktadır.',
+      );
     }
 
     try {
@@ -153,9 +201,14 @@ export class MediaService implements OnModuleInit {
         Bucket: this.bucketName,
         Key: objectKey,
       });
-      return await getSignedUrl(this.s3Client, command, { expiresIn: expiresInSeconds });
+      return await getSignedUrl(this.s3Client, command, {
+        expiresIn: expiresInSeconds,
+      });
     } catch (err: any) {
-      this.logger.error(`Failed to generate presigned URL for key "${objectKey}":`, err);
+      this.logger.error(
+        `Failed to generate presigned URL for key "${objectKey}":`,
+        err,
+      );
       return '';
     }
   }
@@ -179,7 +232,9 @@ export class MediaService implements OnModuleInit {
 
     // Strict Cross-tenant validation
     if (!photo.workOrder || photo.workOrder.tenantId !== tenantId) {
-      throw new ForbiddenException('Bu fotoğrafı silme yetkiniz bulunmamaktadır.');
+      throw new ForbiddenException(
+        'Bu fotoğrafı silme yetkiniz bulunmamaktadır.',
+      );
     }
 
     // Delete from MinIO
@@ -225,7 +280,9 @@ export class MediaService implements OnModuleInit {
     }
 
     if (!photo.workOrder || photo.workOrder.tenantId !== tenantId) {
-      throw new ForbiddenException('Bu fotoğrafı güncelleme yetkiniz bulunmamaktadır.');
+      throw new ForbiddenException(
+        'Bu fotoğrafı güncelleme yetkiniz bulunmamaktadır.',
+      );
     }
 
     const updated = await this.prisma.workOrderPhoto.update({
@@ -247,8 +304,14 @@ export class MediaService implements OnModuleInit {
       throw new BadRequestException('Geçersiz medya anahtarı.');
     }
 
-    if (tenantId && !objectKey.startsWith(`${tenantId}/`) && !objectKey.startsWith('public/')) {
-      throw new ForbiddenException('Bu medyaya erişim yetkiniz bulunmamaktadır.');
+    if (
+      tenantId &&
+      !objectKey.startsWith(`${tenantId}/`) &&
+      !objectKey.startsWith('public/')
+    ) {
+      throw new ForbiddenException(
+        'Bu medyaya erişim yetkiniz bulunmamaktadır.',
+      );
     }
 
     const command = new GetObjectCommand({

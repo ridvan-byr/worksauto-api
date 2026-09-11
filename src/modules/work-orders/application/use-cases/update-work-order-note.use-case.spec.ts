@@ -32,7 +32,13 @@ describe('UpdateWorkOrderNoteUseCase', () => {
     mockRepo.findNoteById = vi.fn().mockResolvedValue(null);
 
     await expect(
-      useCase.execute('t-1', 'wo-1', 'n-1', { text: 'Güncellendi' }, { id: 'u-1', name: 'Ali' }),
+      useCase.execute(
+        't-1',
+        'wo-1',
+        'n-1',
+        { text: 'Güncellendi' },
+        { id: 'u-1', name: 'Ali' },
+      ),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -46,7 +52,13 @@ describe('UpdateWorkOrderNoteUseCase', () => {
     });
 
     await expect(
-      useCase.execute('t-1', 'wo-1', 'n-1', { text: 'Güncellendi' }, { id: 'u-1', name: 'Ali' }),
+      useCase.execute(
+        't-1',
+        'wo-1',
+        'n-1',
+        { text: 'Güncellendi' },
+        { id: 'u-1', name: 'Ali' },
+      ),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -75,10 +87,19 @@ describe('UpdateWorkOrderNoteUseCase', () => {
     );
 
     expect(result.text).toBe('Yeni metin');
-    expect(mockRepo.updateNote).toHaveBeenCalledWith('t-1', 'wo-1', 'n-1', 'Yeni metin');
-    expect(mockEvents.emitToTenant).toHaveBeenCalledWith('t-1', 'workOrderNoteUpdated', {
-      workOrderId: 'wo-1',
-      note: result,
-    });
+    expect(mockRepo.updateNote).toHaveBeenCalledWith(
+      't-1',
+      'wo-1',
+      'n-1',
+      'Yeni metin',
+    );
+    expect(mockEvents.emitToTenant).toHaveBeenCalledWith(
+      't-1',
+      'workOrderNoteUpdated',
+      {
+        workOrderId: 'wo-1',
+        note: result,
+      },
+    );
   });
 });

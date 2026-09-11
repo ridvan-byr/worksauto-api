@@ -12,15 +12,25 @@ async function bootstrap() {
 
   // 0. Fail-Fast Environment & Security Verification
   if (!process.env.JWT_SECRET) {
-    throw new Error('FATAL: JWT_SECRET ortam değişkeni zorunludur! Uygulama başlatılamaz.');
+    throw new Error(
+      'FATAL: JWT_SECRET ortam değişkeni zorunludur! Uygulama başlatılamaz.',
+    );
   }
 
   if (process.env.NODE_ENV === 'production') {
-    if (process.env.JWT_SECRET.includes('super_secret_jwt_key_2026_production_grade')) {
-      throw new Error('FATAL: Üretim ortamında varsayılan JWT_SECRET kullanılamaz! Lütfen rastgele ve güçlü bir anahtar tanımlayınız.');
+    if (
+      process.env.JWT_SECRET.includes(
+        'super_secret_jwt_key_2026_production_grade',
+      )
+    ) {
+      throw new Error(
+        'FATAL: Üretim ortamında varsayılan JWT_SECRET kullanılamaz! Lütfen rastgele ve güçlü bir anahtar tanımlayınız.',
+      );
     }
     if (process.env.ENABLE_DEV_OTP_BYPASS === 'true') {
-      throw new Error('FATAL: Üretim ortamında geliştirici OTP bypass anahtarı (ENABLE_DEV_OTP_BYPASS) aktif edilemez!');
+      throw new Error(
+        'FATAL: Üretim ortamında geliştirici OTP bypass anahtarı (ENABLE_DEV_OTP_BYPASS) aktif edilemez!',
+      );
     }
   }
 
@@ -31,7 +41,8 @@ async function bootstrap() {
     helmet({
       crossOriginEmbedderPolicy: false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
-      contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+      contentSecurityPolicy:
+        process.env.NODE_ENV === 'production' ? undefined : false,
     }),
   );
 
@@ -40,7 +51,8 @@ async function bootstrap() {
     origin: getAllowedOrigins(),
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Accept, Authorization, X-Idempotency-Key, X-Tenant-Id, X-Health-Token',
+    allowedHeaders:
+      'Content-Type, Accept, Authorization, X-Idempotency-Key, X-Tenant-Id, X-Health-Token',
   });
 
   // 3. Cookie Parser Middleware (For Secure httpOnly Refresh Tokens)
@@ -68,7 +80,9 @@ async function bootstrap() {
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('WorksAuto Enterprise API')
-      .setDescription('Multi-Tenant Cloud ERP & Workshop Management System REST API')
+      .setDescription(
+        'Multi-Tenant Cloud ERP & Workshop Management System REST API',
+      )
       .setVersion('1.0.0')
       .addBearerAuth(
         {
@@ -91,7 +105,9 @@ async function bootstrap() {
     });
     logger.log('📚 Swagger Docs available at: /api/docs');
   } else {
-    logger.log('🔒 Swagger Docs disabled in production mode for security hardening.');
+    logger.log(
+      '🔒 Swagger Docs disabled in production mode for security hardening.',
+    );
   }
 
   const port = process.env.PORT || 4000;

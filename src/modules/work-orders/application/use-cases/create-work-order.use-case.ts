@@ -32,8 +32,14 @@ export class CreateWorkOrderUseCase {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async execute(tenantId: string, input: CreateWorkOrderInput, author: string, actorUserId?: string) {
-    const woNumber = await this.workOrderRepository.getNextWorkOrderNumber(tenantId);
+  async execute(
+    tenantId: string,
+    input: CreateWorkOrderInput,
+    author: string,
+    actorUserId?: string,
+  ) {
+    const woNumber =
+      await this.workOrderRepository.getNextWorkOrderNumber(tenantId);
 
     let subtotal = 0;
     let kdvTotal = 0;

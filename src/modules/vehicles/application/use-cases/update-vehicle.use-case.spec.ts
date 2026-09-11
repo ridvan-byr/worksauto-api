@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UpdateVehicleUseCase } from './update-vehicle.use-case';
 import { IVehicleRepository } from '../../domain/vehicle.repository.interface';
 import { VehicleEntity } from '../../domain/vehicle.entity';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 
 describe('UpdateVehicleUseCase', () => {
   let useCase: UpdateVehicleUseCase;
@@ -24,9 +28,9 @@ describe('UpdateVehicleUseCase', () => {
   it('should throw NotFoundException if vehicle does not exist', async () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(null);
 
-    await expect(useCase.execute('t-1', 'v-non-existent', { brand: 'Audi' })).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      useCase.execute('t-1', 'v-non-existent', { brand: 'Audi' }),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('should throw ConflictException if new plate belongs to another vehicle', async () => {
@@ -53,9 +57,9 @@ describe('UpdateVehicleUseCase', () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(current);
     vi.mocked(mockRepo.findByPlate).mockResolvedValue(another);
 
-    await expect(useCase.execute('t-1', 'v-1', { plate: '34DEF456' })).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(
+      useCase.execute('t-1', 'v-1', { plate: '34DEF456' }),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('should throw BadRequestException if km is negative', async () => {
@@ -72,9 +76,9 @@ describe('UpdateVehicleUseCase', () => {
 
     vi.mocked(mockRepo.findById).mockResolvedValue(current);
 
-    await expect(useCase.execute('t-1', 'v-1', { currentKm: -100 })).rejects.toThrow(
-      BadRequestException,
-    );
+    await expect(
+      useCase.execute('t-1', 'v-1', { currentKm: -100 }),
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('should update vehicle details successfully', async () => {

@@ -1,5 +1,13 @@
-import { Injectable, Inject, ConflictException, BadRequestException } from '@nestjs/common';
-import { IAppointmentRepository, APPOINTMENT_REPOSITORY } from '../../domain/appointment.repository.interface';
+import {
+  Injectable,
+  Inject,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  IAppointmentRepository,
+  APPOINTMENT_REPOSITORY,
+} from '../../domain/appointment.repository.interface';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
@@ -30,7 +38,11 @@ export class CreateAppointmentUseCase {
     private readonly queueService: QueueService,
   ) {}
 
-  async execute(tenantId: string, dto: CreateAppointmentInput, userId?: string): Promise<AppointmentEntity> {
+  async execute(
+    tenantId: string,
+    dto: CreateAppointmentInput,
+    userId?: string,
+  ): Promise<AppointmentEntity> {
     const start = new Date(dto.slotStartTime);
     const end = new Date(dto.slotEndTime);
 
@@ -44,26 +56,33 @@ export class CreateAppointmentUseCase {
     });
 
     if (!preliminaryEntity.isValidSlot()) {
-      throw new BadRequestException('Randevu bitiş saati başlangıç saatinden sonra olmalıdır.');
+      throw new BadRequestException(
+        'Randevu bitiş saati başlangıç saatinden sonra olmalıdır.',
+      );
     }
 
     const now = new Date();
     // Allow up to 2 minutes grace period for network/form submission latency
     if (start.getTime() < now.getTime() - 2 * 60 * 1000) {
-      throw new BadRequestException('Geçmiş bir tarih veya saate randevu oluşturulamaz.');
+      throw new BadRequestException(
+        'Geçmiş bir tarih veya saate randevu oluşturulamaz.',
+      );
     }
 
     // Concurrency Check 1: Mechanic Double Booking Prevention
     if (dto.assignedMechanicId) {
-      const mechanicConflict = await this.appointmentRepository.checkMechanicConflict(
-        tenantId,
-        dto.assignedMechanicId,
-        start,
-        end,
-      );
+      const mechanicConflict =
+        await this.appointmentRepository.checkMechanicConflict(
+          tenantId,
+          dto.assignedMechanicId,
+          start,
+          end,
+        );
 
       if (mechanicConflict) {
-        throw new ConflictException('Seçilen teknisyenin bu saat aralığında başka bir randevusu bulunmaktadır.');
+        throw new ConflictException(
+          'Seçilen teknisyenin bu saat aralığında başka bir randevusu bulunmaktadır.',
+        );
       }
     }
 
@@ -77,7 +96,9 @@ export class CreateAppointmentUseCase {
       );
 
       if (liftConflict) {
-        throw new ConflictException(`"${dto.assignedLift}" için bu saat aralığında başka bir randevu bulunmaktadır.`);
+        throw new ConflictException(
+          `"${dto.assignedLift}" için bu saat aralığında başka bir randevu bulunmaktadır.`,
+        );
       }
     }
 

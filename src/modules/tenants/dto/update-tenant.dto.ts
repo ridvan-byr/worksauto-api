@@ -7,7 +7,10 @@ export class UpdateTenantDto {
   @IsString()
   title?: string;
 
-  @ApiProperty({ required: false, example: 'Bayar Otomotiv San. ve Tic. Ltd. Şti.' })
+  @ApiProperty({
+    required: false,
+    example: 'Bayar Otomotiv San. ve Tic. Ltd. Şti.',
+  })
   @IsOptional()
   @IsString()
   legalName?: string;
@@ -22,7 +25,10 @@ export class UpdateTenantDto {
   @IsString()
   email?: string;
 
-  @ApiProperty({ required: false, example: 'İkitelli OSB, Dolapdere Sanayi Sitesi' })
+  @ApiProperty({
+    required: false,
+    example: 'İkitelli OSB, Dolapdere Sanayi Sitesi',
+  })
   @IsOptional()
   @IsString()
   address?: string;
@@ -47,7 +53,11 @@ export class UpdateTenantDto {
   @IsString()
   taxNumber?: string;
 
-  @ApiProperty({ required: false, example: true, description: 'İş emri tamamlandığında otomatik fatura kesilsin mi?' })
+  @ApiProperty({
+    required: false,
+    example: true,
+    description: 'İş emri tamamlandığında otomatik fatura kesilsin mi?',
+  })
   @IsOptional()
   @IsBoolean()
   autoInvoiceOnComplete?: boolean;

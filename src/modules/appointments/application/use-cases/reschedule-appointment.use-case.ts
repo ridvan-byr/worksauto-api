@@ -1,5 +1,14 @@
-import { Injectable, Inject, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
-import { IAppointmentRepository, APPOINTMENT_REPOSITORY } from '../../domain/appointment.repository.interface';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
+import {
+  IAppointmentRepository,
+  APPOINTMENT_REPOSITORY,
+} from '../../domain/appointment.repository.interface';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
@@ -36,7 +45,9 @@ export class RescheduleAppointmentUseCase {
     }
 
     if (!app.canReschedule()) {
-      throw new BadRequestException('Tamamlanmış veya iptal edilmiş randevular yeniden planlanamaz.');
+      throw new BadRequestException(
+        'Tamamlanmış veya iptal edilmiş randevular yeniden planlanamaz.',
+      );
     }
 
     const start = new Date(dto.slotStartTime);
@@ -45,11 +56,17 @@ export class RescheduleAppointmentUseCase {
     const now = new Date();
     // Allow up to 2 minutes grace period for network latency
     if (start.getTime() < now.getTime() - 2 * 60 * 1000) {
-      throw new BadRequestException('Geçmiş bir tarih veya saate randevu yeniden planlanamaz.');
+      throw new BadRequestException(
+        'Geçmiş bir tarih veya saate randevu yeniden planlanamaz.',
+      );
     }
 
-    const mechanicId = dto.assignedMechanicId !== undefined ? dto.assignedMechanicId : app.assignedMechanicId;
-    const lift = dto.assignedLift !== undefined ? dto.assignedLift : app.assignedLift;
+    const mechanicId =
+      dto.assignedMechanicId !== undefined
+        ? dto.assignedMechanicId
+        : app.assignedMechanicId;
+    const lift =
+      dto.assignedLift !== undefined ? dto.assignedLift : app.assignedLift;
 
     if (mechanicId) {
       const conflict = await this.appointmentRepository.checkMechanicConflict(
@@ -60,7 +77,9 @@ export class RescheduleAppointmentUseCase {
         id,
       );
       if (conflict) {
-        throw new ConflictException('Seçilen teknisyenin bu saat aralığında başka bir randevusu bulunmaktadır.');
+        throw new ConflictException(
+          'Seçilen teknisyenin bu saat aralığında başka bir randevusu bulunmaktadır.',
+        );
       }
     }
 
@@ -73,17 +92,29 @@ export class RescheduleAppointmentUseCase {
         id,
       );
       if (conflict) {
-        throw new ConflictException(`"${lift}" için bu saat aralığında başka bir randevu bulunmaktadır.`);
+        throw new ConflictException(
+          `"${lift}" için bu saat aralığında başka bir randevu bulunmaktadır.`,
+        );
       }
     }
 
     const oldDate = app.slotDate;
     const oldStart = app.slotStartTime;
 
-    app.reschedule(new Date(dto.slotDate), start, end, dto.assignedMechanicId, dto.assignedLift);
+    app.reschedule(
+      new Date(dto.slotDate),
+      start,
+      end,
+      dto.assignedMechanicId,
+      dto.assignedLift,
+    );
     const updated = await this.appointmentRepository.save(app);
 
-    this.eventsGateway.emitToTenant(tenantId, 'appointment:rescheduled', updated);
+    this.eventsGateway.emitToTenant(
+      tenantId,
+      'appointment:rescheduled',
+      updated,
+    );
 
     await this.notificationsService.createNotification({
       tenantId,
@@ -103,7 +134,10 @@ export class RescheduleAppointmentUseCase {
       entityName: 'Appointment',
       entityId: id,
       changesBefore: { slotDate: oldDate, slotStartTime: oldStart },
-      changesAfter: { slotDate: dto.slotDate, slotStartTime: dto.slotStartTime },
+      changesAfter: {
+        slotDate: dto.slotDate,
+        slotStartTime: dto.slotStartTime,
+      },
     });
 
     return updated;

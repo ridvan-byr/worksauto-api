@@ -1,5 +1,8 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { IInventoryRepository, INVENTORY_REPOSITORY } from '../../domain/inventory.repository.interface';
+import {
+  IInventoryRepository,
+  INVENTORY_REPOSITORY,
+} from '../../domain/inventory.repository.interface';
 import { StockItemEntity } from '../../domain/stock-item.entity';
 import { UpdateProductDto } from '../../dto/update-product.dto';
 
@@ -25,10 +28,14 @@ export class UpdateStockItemUseCase {
     if (dto.barcode !== undefined) existing.barcode = dto.barcode;
     if (dto.category !== undefined) existing.category = dto.category;
     if (dto.brand !== undefined) existing.brand = dto.brand;
-    if (dto.stockQuantity !== undefined) existing.stockQuantity = dto.stockQuantity;
-    if (dto.minStockLevel !== undefined) existing.minStockLevel = dto.minStockLevel;
-    if (dto.shelfLocation !== undefined) existing.shelfLocation = dto.shelfLocation;
-    if (dto.purchasePrice !== undefined) existing.purchasePrice = dto.purchasePrice;
+    if (dto.stockQuantity !== undefined)
+      existing.stockQuantity = dto.stockQuantity;
+    if (dto.minStockLevel !== undefined)
+      existing.minStockLevel = dto.minStockLevel;
+    if (dto.shelfLocation !== undefined)
+      existing.shelfLocation = dto.shelfLocation;
+    if (dto.purchasePrice !== undefined)
+      existing.purchasePrice = dto.purchasePrice;
     if (dto.salePrice !== undefined) existing.salePrice = dto.salePrice;
     if (dto.kdvRate !== undefined) existing.kdvRate = dto.kdvRate;
     if (dto.shelfCellId !== undefined) existing.shelfCellId = dto.shelfCellId;

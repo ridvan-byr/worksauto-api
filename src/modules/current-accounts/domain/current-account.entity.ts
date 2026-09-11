@@ -61,7 +61,12 @@ export class CurrentAccountEntity {
     return potentialBalance <= this.creditLimit;
   }
 
-  public addDebit(amount: number, description: string, referenceType: string, referenceNo?: string): void {
+  public addDebit(
+    amount: number,
+    description: string,
+    referenceType: string,
+    referenceNo?: string,
+  ): void {
     if (amount <= 0) {
       throw new Error('Borç tutarı pozitif olmalıdır.');
     }
@@ -85,7 +90,12 @@ export class CurrentAccountEntity {
     });
   }
 
-  public addCredit(amount: number, description: string, referenceType: string, referenceNo?: string): void {
+  public addCredit(
+    amount: number,
+    description: string,
+    referenceType: string,
+    referenceNo?: string,
+  ): void {
     if (amount <= 0) {
       throw new Error('Alacak tutarı pozitif olmalıdır.');
     }

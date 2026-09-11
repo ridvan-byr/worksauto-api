@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
@@ -47,15 +51,14 @@ export class StaffService {
 
     const existing = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { phone: normalizedPhone },
-          { phone: '+' + normalizedPhone },
-        ],
+        OR: [{ phone: normalizedPhone }, { phone: '+' + normalizedPhone }],
       },
     });
 
     if (existing) {
-      throw new ConflictException('Bu telefon numarasıyla kayıtlı bir personel zaten var.');
+      throw new ConflictException(
+        'Bu telefon numarasıyla kayıtlı bir personel zaten var.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -117,15 +120,14 @@ export class StaffService {
       const existing = await this.prisma.user.findFirst({
         where: {
           id: { not: id },
-          OR: [
-            { phone: normalizedPhone },
-            { phone: '+' + normalizedPhone },
-          ],
+          OR: [{ phone: normalizedPhone }, { phone: '+' + normalizedPhone }],
         },
       });
 
       if (existing) {
-        throw new ConflictException(`Bu telefon numarası (${dto.phone}) zaten başka bir personele (${existing.name} ${existing.surname}) kayıtlıdır.`);
+        throw new ConflictException(
+          `Bu telefon numarası (${dto.phone}) zaten başka bir personele (${existing.name} ${existing.surname}) kayıtlıdır.`,
+        );
       }
     }
 
@@ -147,7 +149,11 @@ export class StaffService {
       const isTechnician = (dto.role || user.role) === UserRole.TECHNICIAN;
       let updatedMechanic: any = prevMechanic;
 
-      if (isTechnician || dto.specialty !== undefined || dto.assignedLift !== undefined) {
+      if (
+        isTechnician ||
+        dto.specialty !== undefined ||
+        dto.assignedLift !== undefined
+      ) {
         const existingMechanic = await tx.mechanic.findUnique({
           where: { userId: id },
         });
@@ -156,9 +162,15 @@ export class StaffService {
           updatedMechanic = await tx.mechanic.update({
             where: { userId: id },
             data: {
-              ...(dto.specialty !== undefined ? { specialty: dto.specialty } : {}),
-              ...(dto.assignedLift !== undefined ? { assignedLift: dto.assignedLift } : {}),
-              ...(dto.dailyCapacityHours !== undefined ? { dailyCapacityHours: dto.dailyCapacityHours } : {}),
+              ...(dto.specialty !== undefined
+                ? { specialty: dto.specialty }
+                : {}),
+              ...(dto.assignedLift !== undefined
+                ? { assignedLift: dto.assignedLift }
+                : {}),
+              ...(dto.dailyCapacityHours !== undefined
+                ? { dailyCapacityHours: dto.dailyCapacityHours }
+                : {}),
             },
           });
         } else if (isTechnician) {
@@ -176,13 +188,17 @@ export class StaffService {
 
       const oldLift = prevMechanic?.assignedLift || 'Atanmamış';
       const newLift = updatedMechanic?.assignedLift || 'Atanmamış';
-      const isLiftChanged = dto.assignedLift !== undefined && oldLift !== newLift;
-      const isRoleChanged = dto.role !== undefined && dto.role !== previousUser.role;
-      const isStatusChanged = dto.isActive !== undefined && dto.isActive !== previousUser.isActive;
+      const isLiftChanged =
+        dto.assignedLift !== undefined && oldLift !== newLift;
+      const isRoleChanged =
+        dto.role !== undefined && dto.role !== previousUser.role;
+      const isStatusChanged =
+        dto.isActive !== undefined && dto.isActive !== previousUser.isActive;
 
-      const action = isLiftChanged && !isRoleChanged && !isStatusChanged
-        ? 'staff.lift_changed'
-        : 'staff.updated';
+      const action =
+        isLiftChanged && !isRoleChanged && !isStatusChanged
+          ? 'staff.lift_changed'
+          : 'staff.updated';
 
       try {
         await this.auditService.log({
@@ -191,7 +207,8 @@ export class StaffService {
           entityName: 'User',
           entityId: id,
           changesBefore: {
-            staffName: `${previousUser.name} ${previousUser.surname || ''}`.trim(),
+            staffName:
+              `${previousUser.name} ${previousUser.surname || ''}`.trim(),
             name: `${previousUser.name} ${previousUser.surname || ''}`.trim(),
             role: previousUser.role,
             assignedLift: oldLift,
@@ -246,7 +263,9 @@ export class StaffService {
           phone: user.phone,
         },
         changesAfter: {
-          reason: hasReferences ? 'Geçmiş iş emri/randevu kayıtları olduğu için pasife alındı' : 'Kadro kaydı kalıcı silindi',
+          reason: hasReferences
+            ? 'Geçmiş iş emri/randevu kayıtları olduğu için pasife alındı'
+            : 'Kadro kaydı kalıcı silindi',
         },
       });
     } catch (err) {
@@ -264,7 +283,10 @@ export class StaffService {
         where: { id },
         data: { isActive: false },
       });
-      return { success: true, message: 'Personel geçmiş kayıtları bulunduğu için pasife alındı.' };
+      return {
+        success: true,
+        message: 'Personel geçmiş kayıtları bulunduğu için pasife alındı.',
+      };
     }
   }
 }

@@ -1,5 +1,21 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, UseInterceptors } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentTenant } from '../../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
@@ -47,17 +63,32 @@ export class WorkOrdersController {
   ) {}
 
   @Get()
-  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN, UserRole.CASHIER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.SERVICE_MANAGER,
+    UserRole.TECHNICIAN,
+    UserRole.CASHIER,
+  )
   @RequirePermission(Permission.WORK_ORDER_VIEW)
   @ApiOperation({ summary: 'İş emirlerini durumuna göre listeler' })
-  findAll(@CurrentTenant() tenantId: string, @Query('status') status?: WorkOrderStatus) {
+  findAll(
+    @CurrentTenant() tenantId: string,
+    @Query('status') status?: WorkOrderStatus,
+  ) {
     return this.getWorkOrdersUseCase.findAll(tenantId, status);
   }
 
   @Get(':id')
-  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN, UserRole.CASHIER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.SERVICE_MANAGER,
+    UserRole.TECHNICIAN,
+    UserRole.CASHIER,
+  )
   @RequirePermission(Permission.WORK_ORDER_VIEW)
-  @ApiOperation({ summary: 'İş emri detayını, kalemlerini ve fotoğraflarını döner' })
+  @ApiOperation({
+    summary: 'İş emri detayını, kalemlerini ve fotoğraflarını döner',
+  })
   findOne(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.getWorkOrdersUseCase.findOne(tenantId, id);
   }
@@ -65,35 +96,61 @@ export class WorkOrdersController {
   @Post()
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
   @RequirePermission(Permission.WORK_ORDER_CREATE)
-  @ApiOperation({ summary: 'Yeni iş emri açar ve parçaları atomik olarak stoktan düşer' })
-  @ApiHeader({ name: 'X-Idempotency-Key', required: false, description: 'Tekrarlanan istek koruması için benzersiz anahtar' })
+  @ApiOperation({
+    summary: 'Yeni iş emri açar ve parçaları atomik olarak stoktan düşer',
+  })
+  @ApiHeader({
+    name: 'X-Idempotency-Key',
+    required: false,
+    description: 'Tekrarlanan istek koruması için benzersiz anahtar',
+  })
   create(
     @CurrentTenant() tenantId: string,
     @Body() dto: CreateWorkOrderDto,
     @CurrentUser() user: any,
   ) {
-    return this.createWorkOrderUseCase.execute(tenantId, dto, user?.name || 'Servis Danışmanı', user?.id);
+    return this.createWorkOrderUseCase.execute(
+      tenantId,
+      dto,
+      user?.name || 'Servis Danışmanı',
+      user?.id,
+    );
   }
 
   @Patch(':id/status')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
   @RequirePermission(Permission.WORK_ORDER_UPDATE)
-  @ApiOperation({ summary: 'İş emri aşamasını ilerletir (QUEUE -> IN_PROGRESS -> COMPLETED)' })
-  @ApiHeader({ name: 'X-Idempotency-Key', required: false, description: 'Tekrarlanan istek koruması için benzersiz anahtar' })
+  @ApiOperation({
+    summary: 'İş emri aşamasını ilerletir (QUEUE -> IN_PROGRESS -> COMPLETED)',
+  })
+  @ApiHeader({
+    name: 'X-Idempotency-Key',
+    required: false,
+    description: 'Tekrarlanan istek koruması için benzersiz anahtar',
+  })
   updateStatus(
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
     @Param('id') id: string,
     @Body('status') status: WorkOrderStatus,
   ) {
-    return this.updateWorkOrderStatusUseCase.execute(tenantId, id, status, user?.id);
+    return this.updateWorkOrderStatusUseCase.execute(
+      tenantId,
+      id,
+      status,
+      user?.id,
+    );
   }
 
   @Post(':id/rollback')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
   @RequirePermission(Permission.WORK_ORDER_ROLLBACK)
   @ApiOperation({ summary: 'İş emrini güvenle bir önceki aşamaya geri alır' })
-  @ApiHeader({ name: 'X-Idempotency-Key', required: false, description: 'Tekrarlanan istek koruması için benzersiz anahtar' })
+  @ApiHeader({
+    name: 'X-Idempotency-Key',
+    required: false,
+    description: 'Tekrarlanan istek koruması için benzersiz anahtar',
+  })
   rollback(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.rollbackWorkOrderUseCase.execute(tenantId, id);
   }
@@ -121,19 +178,30 @@ export class WorkOrdersController {
 
   @Post(':id/items')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
-  @ApiOperation({ summary: 'Açık iş emrine yeni parça veya işçilik kalemi ekler (Stoktan atomik düşer)' })
+  @ApiOperation({
+    summary:
+      'Açık iş emrine yeni parça veya işçilik kalemi ekler (Stoktan atomik düşer)',
+  })
   addItem(
     @CurrentTenant() tenantId: string,
     @Param('id') id: string,
     @Body() dto: AddWorkOrderItemDto,
     @CurrentUser('name') userName: string,
   ) {
-    return this.addWorkOrderItemUseCase.execute(tenantId, id, dto, userName || 'Teknisyen');
+    return this.addWorkOrderItemUseCase.execute(
+      tenantId,
+      id,
+      dto,
+      userName || 'Teknisyen',
+    );
   }
 
   @Patch(':id/items/:itemId')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
-  @ApiOperation({ summary: 'İş emrindeki kalemi günceller (İşçilik adı/fiyatı veya parça miktarı/stok farkı)' })
+  @ApiOperation({
+    summary:
+      'İş emrindeki kalemi günceller (İşçilik adı/fiyatı veya parça miktarı/stok farkı)',
+  })
   updateItemQuantity(
     @CurrentTenant() tenantId: string,
     @Param('id') id: string,
@@ -141,19 +209,32 @@ export class WorkOrdersController {
     @Body() dto: UpdateWorkOrderItemDto,
     @CurrentUser('name') userName: string,
   ) {
-    return this.updateWorkOrderItemQuantityUseCase.execute(tenantId, id, itemId, dto, userName || 'Teknisyen');
+    return this.updateWorkOrderItemQuantityUseCase.execute(
+      tenantId,
+      id,
+      itemId,
+      dto,
+      userName || 'Teknisyen',
+    );
   }
 
   @Delete(':id/items/:itemId')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
-  @ApiOperation({ summary: 'İş emrinden kalem çıkarır (Parça stoğunu depoya iade eder)' })
+  @ApiOperation({
+    summary: 'İş emrinden kalem çıkarır (Parça stoğunu depoya iade eder)',
+  })
   removeItem(
     @CurrentTenant() tenantId: string,
     @Param('id') id: string,
     @Param('itemId') itemId: string,
     @CurrentUser('name') userName: string,
   ) {
-    return this.removeWorkOrderItemUseCase.execute(tenantId, id, itemId, userName || 'Teknisyen');
+    return this.removeWorkOrderItemUseCase.execute(
+      tenantId,
+      id,
+      itemId,
+      userName || 'Teknisyen',
+    );
   }
 
   @Post(':id/notes')
@@ -174,7 +255,9 @@ export class WorkOrdersController {
 
   @Patch(':id/notes/:noteId')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
-  @ApiOperation({ summary: 'Dahili notu günceller (Yalnızca notu yazan kişi düzenleyebilir)' })
+  @ApiOperation({
+    summary: 'Dahili notu günceller (Yalnızca notu yazan kişi düzenleyebilir)',
+  })
   updateNote(
     @CurrentTenant() tenantId: string,
     @Param('id') id: string,
@@ -191,7 +274,9 @@ export class WorkOrdersController {
 
   @Delete(':id/notes/:noteId')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
-  @ApiOperation({ summary: 'Dahili notu siler (Not sahibi veya Yönetici silebilir)' })
+  @ApiOperation({
+    summary: 'Dahili notu siler (Not sahibi veya Yönetici silebilir)',
+  })
   deleteNote(
     @CurrentTenant() tenantId: string,
     @Param('id') id: string,

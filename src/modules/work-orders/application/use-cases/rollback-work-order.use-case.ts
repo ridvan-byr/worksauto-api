@@ -1,6 +1,14 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
-import { WorkOrderStatusVO, WorkOrderStatusEnum } from '../../domain/value-objects/work-order-status.vo';
+import {
+  WorkOrderStatusVO,
+  WorkOrderStatusEnum,
+} from '../../domain/value-objects/work-order-status.vo';
 import { EventsGateway } from '../../../events/events.gateway';
 
 @Injectable()
@@ -20,10 +28,16 @@ export class RollbackWorkOrderUseCase {
       const statusVO = new WorkOrderStatusVO(wo.status);
       prevStatus = statusVO.getPreviousStatus();
     } catch (err: any) {
-      throw new BadRequestException(err.message || 'Kuyruktaki bir iş emri daha geri alınamaz.');
+      throw new BadRequestException(
+        err.message || 'Kuyruktaki bir iş emri daha geri alınamaz.',
+      );
     }
 
-    const rolledBack = await this.workOrderRepository.rollbackStatus(tenantId, id, prevStatus);
+    const rolledBack = await this.workOrderRepository.rollbackStatus(
+      tenantId,
+      id,
+      prevStatus,
+    );
 
     this.eventsGateway.emitToTenant(tenantId, 'work_order:status_changed', {
       workOrderId: id,

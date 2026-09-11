@@ -4,7 +4,10 @@ export const INVENTORY_REPOSITORY = 'IInventoryRepository';
 
 export interface IInventoryRepository {
   findById(tenantId: string, id: string): Promise<StockItemEntity | null>;
-  findAll(tenantId: string, params?: { search?: string; category?: string }): Promise<StockItemEntity[]>;
+  findAll(
+    tenantId: string,
+    params?: { search?: string; category?: string },
+  ): Promise<StockItemEntity[]>;
   create(item: StockItemEntity, author: string): Promise<StockItemEntity>;
   save(item: StockItemEntity): Promise<StockItemEntity>;
   delete(tenantId: string, id: string): Promise<void>;

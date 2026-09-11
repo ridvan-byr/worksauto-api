@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CurrentTenant } from '../../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
@@ -46,7 +54,9 @@ export class AppointmentsController {
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
-  @ApiOperation({ summary: 'Yeni randevu oluşturur (Usta + Lift çakışma kilitli)' })
+  @ApiOperation({
+    summary: 'Yeni randevu oluşturur (Usta + Lift çakışma kilitli)',
+  })
   create(
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
@@ -68,7 +78,10 @@ export class AppointmentsController {
 
   @Post(':id/reschedule')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
-  @ApiOperation({ summary: 'Randevu tarih ve saatini yeniden planlar (Usta/Lift çakışma kilitli)' })
+  @ApiOperation({
+    summary:
+      'Randevu tarih ve saatini yeniden planlar (Usta/Lift çakışma kilitli)',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -86,9 +99,21 @@ export class AppointmentsController {
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
     @Param('id') id: string,
-    @Body() dto: { slotDate: string; slotStartTime: string; slotEndTime: string; assignedMechanicId?: string; assignedLift?: string },
+    @Body()
+    dto: {
+      slotDate: string;
+      slotStartTime: string;
+      slotEndTime: string;
+      assignedMechanicId?: string;
+      assignedLift?: string;
+    },
   ) {
-    return this.rescheduleAppointmentUseCase.execute(tenantId, id, dto, user?.id);
+    return this.rescheduleAppointmentUseCase.execute(
+      tenantId,
+      id,
+      dto,
+      user?.id,
+    );
   }
 
   @Patch(':id/status')
@@ -112,19 +137,38 @@ export class AppointmentsController {
 
   @Patch(':id/no-show')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
-  @ApiOperation({ summary: 'Müşteri randevuya gelmedi (NO_SHOW) olarak işaretler' })
+  @ApiOperation({
+    summary: 'Müşteri randevuya gelmedi (NO_SHOW) olarak işaretler',
+  })
   markNoShow(
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
     @Param('id') id: string,
   ) {
-    return this.updateAppointmentStatusUseCase.markNoShow(tenantId, id, user?.id);
+    return this.updateAppointmentStatusUseCase.markNoShow(
+      tenantId,
+      id,
+      user?.id,
+    );
   }
 
   @Patch(':id/cancel')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
-  @ApiOperation({ summary: 'Randevuyu standart neden belirterek iptal eder (Bağlı iş emri varsa iptal edilir)' })
-  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string', example: 'Müşteri seyahatte olduğunu bildirdi' } } } })
+  @ApiOperation({
+    summary:
+      'Randevuyu standart neden belirterek iptal eder (Bağlı iş emri varsa iptal edilir)',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        reason: {
+          type: 'string',
+          example: 'Müşteri seyahatte olduğunu bildirdi',
+        },
+      },
+    },
+  })
   cancelAppointment(
     @CurrentTenant() tenantId: string,
     @CurrentUser() user: any,
@@ -142,7 +186,10 @@ export class AppointmentsController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('public/:slug')
-  @ApiOperation({ summary: 'Dış müşteri randevu formu (Oturumsuz, herkese açık online randevu)' })
+  @ApiOperation({
+    summary:
+      'Dış müşteri randevu formu (Oturumsuz, herkese açık online randevu)',
+  })
   createPublic(
     @Param('slug') slug: string,
     @Body() dto: CreatePublicAppointmentDto,

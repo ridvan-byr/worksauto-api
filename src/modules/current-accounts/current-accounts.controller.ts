@@ -26,8 +26,13 @@ export class CurrentAccountsController {
 
   @Get('customer/:customerId')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
-  @ApiOperation({ summary: 'Müşterinin detaylı cari hesap hareketlerini (ekstre) döner' })
-  findByCustomerId(@CurrentTenant() tenantId: string, @Param('customerId') customerId: string) {
+  @ApiOperation({
+    summary: 'Müşterinin detaylı cari hesap hareketlerini (ekstre) döner',
+  })
+  findByCustomerId(
+    @CurrentTenant() tenantId: string,
+    @Param('customerId') customerId: string,
+  ) {
     return this.getCustomerCurrentAccountUseCase.execute(tenantId, customerId);
   }
 }

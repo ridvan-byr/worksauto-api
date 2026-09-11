@@ -38,7 +38,9 @@ describe('GetAppointmentsUseCase', () => {
   });
 
   it('should throw NotFoundException on non-uuid id', async () => {
-    await expect(useCase.getById('t-1', 'invalid-id')).rejects.toThrow(NotFoundException);
+    await expect(useCase.getById('t-1', 'invalid-id')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should get appointment by valid uuid', async () => {

@@ -29,7 +29,10 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
   constructor(private readonly redis: RedisService) {}
 
-  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
 
@@ -49,9 +52,13 @@ export class IdempotencyInterceptor implements NestInterceptor {
     }
 
     // 2. Tenant Scoping & Payload Hash
-    const tenantId = request.user?.tenantId || request.headers['x-tenant-id'] || 'default';
+    const tenantId =
+      request.user?.tenantId || request.headers['x-tenant-id'] || 'default';
     const bodyStr = JSON.stringify(request.body || {});
-    const payloadHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
+    const payloadHash = crypto
+      .createHash('sha256')
+      .update(bodyStr)
+      .digest('hex');
 
     const redisKey = `idempotency:${tenantId}:${keyStr}`;
 
@@ -67,26 +74,40 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     if (!client || !this.redis.isHealthy()) {
       if (isFinancialRoute) {
-        this.logger.error(`Redis unavailable for financial idempotency on ${reqUrl}. FAILING CLOSED.`);
+        this.logger.error(
+          `Redis unavailable for financial idempotency on ${reqUrl}. FAILING CLOSED.`,
+        );
         throw new ServiceUnavailableException(
           'Finansal işlem güvenliği için kilit servisi (Redis) şu anda yanıt vermiyor. Çift işlem riskini önlemek için talep durduruldu, lütfen az sonra tekrar deneyiniz.',
         );
       }
-      this.logger.warn(`Redis is unavailable for idempotency locking on non-financial route ${reqUrl}. Operating in fail-open mode.`);
+      this.logger.warn(
+        `Redis is unavailable for idempotency locking on non-financial route ${reqUrl}. Operating in fail-open mode.`,
+      );
       return next.handle();
     }
 
     let lockResult: string | null = null;
     try {
-      lockResult = await client.set(redisKey, `PROCESSING:${payloadHash}`, 'EX', 60, 'NX');
+      lockResult = await client.set(
+        redisKey,
+        `PROCESSING:${payloadHash}`,
+        'EX',
+        60,
+        'NX',
+      );
     } catch (err: any) {
       if (isFinancialRoute) {
-        this.logger.error(`Redis lock acquisition error on financial route ${reqUrl}: ${err.message}. FAILING CLOSED.`);
+        this.logger.error(
+          `Redis lock acquisition error on financial route ${reqUrl}: ${err.message}. FAILING CLOSED.`,
+        );
         throw new ServiceUnavailableException(
           'Finansal işlem kilit servisinde hata oluştu. Çift işlem riskini önlemek için talep durduruldu.',
         );
       }
-      this.logger.warn(`Redis lock acquisition error: ${err.message}. Proceeding fail-open.`);
+      this.logger.warn(
+        `Redis lock acquisition error: ${err.message}. Proceeding fail-open.`,
+      );
       return next.handle();
     }
 
@@ -98,7 +119,9 @@ export class IdempotencyInterceptor implements NestInterceptor {
       if (existingValue) {
         // Case A: In-flight execution in progress (Race Condition)
         if (existingValue.startsWith('PROCESSING:')) {
-          throw new ConflictException('İşlem şu anda yürütülüyor, lütfen bekleyiniz.');
+          throw new ConflictException(
+            'İşlem şu anda yürütülüyor, lütfen bekleyiniz.',
+          );
         }
 
         // Case B: Completed execution previously cached
@@ -122,7 +145,9 @@ export class IdempotencyInterceptor implements NestInterceptor {
           if (parseError instanceof ConflictException) {
             throw parseError;
           }
-          this.logger.warn(`Failed to parse cached idempotency record: ${parseError}`);
+          this.logger.warn(
+            `Failed to parse cached idempotency record: ${parseError}`,
+          );
         }
       }
     }
@@ -141,13 +166,17 @@ export class IdempotencyInterceptor implements NestInterceptor {
           // Cache successful execution for 24 hours (86,400 seconds)
           await this.redis.set(redisKey, cacheData, 86400);
         } catch (cacheErr: any) {
-          this.logger.warn(`Failed to cache idempotency result: ${cacheErr.message}`);
+          this.logger.warn(
+            `Failed to cache idempotency result: ${cacheErr.message}`,
+          );
         }
       }),
       catchError((error) => {
         // Critical: Unlock on error immediately so client can fix issues and retry
         this.redis.del(redisKey).catch((delErr: any) => {
-          this.logger.warn(`Failed to release idempotency lock on error: ${delErr.message}`);
+          this.logger.warn(
+            `Failed to release idempotency lock on error: ${delErr.message}`,
+          );
         });
         return throwError(() => error);
       }),

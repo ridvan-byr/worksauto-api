@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, Min, Max, Length } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  Min,
+  Max,
+  Length,
+} from 'class-validator';
 import { FuelType, TransmissionType } from '@prisma/client';
 
 export class CreateVehicleDto {
@@ -50,7 +59,10 @@ export class CreateVehicleDto {
   @IsEnum(FuelType)
   fuelType?: FuelType;
 
-  @ApiPropertyOptional({ enum: TransmissionType, default: TransmissionType.MANUAL })
+  @ApiPropertyOptional({
+    enum: TransmissionType,
+    default: TransmissionType.MANUAL,
+  })
   @IsOptional()
   @IsEnum(TransmissionType)
   transmission?: TransmissionType;

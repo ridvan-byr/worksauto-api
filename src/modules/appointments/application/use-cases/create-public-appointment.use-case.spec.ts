@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CreatePublicAppointmentUseCase } from './create-public-appointment.use-case';
 import { IAppointmentRepository } from '../../domain/appointment.repository.interface';
 import { AppointmentEntity } from '../../domain/appointment.entity';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 
 describe('CreatePublicAppointmentUseCase', () => {
   let useCase: CreatePublicAppointmentUseCase;
@@ -17,7 +21,13 @@ describe('CreatePublicAppointmentUseCase', () => {
       create: vi.fn(),
       save: vi.fn(),
       findTenantBySlug: vi.fn(),
-      findActiveOnlineBays: vi.fn().mockResolvedValue(['Lift 1 (Hızlı Kabul)', 'Lift 2 (Mekanik)', 'Kabul Alanı']),
+      findActiveOnlineBays: vi
+        .fn()
+        .mockResolvedValue([
+          'Lift 1 (Hızlı Kabul)',
+          'Lift 2 (Mekanik)',
+          'Kabul Alanı',
+        ]),
       checkLiftConflict: vi.fn(),
       findOrCreateCustomerForPublic: vi.fn(),
       findOrCreateVehicleForPublic: vi.fn(),
@@ -31,7 +41,11 @@ describe('CreatePublicAppointmentUseCase', () => {
       emitToTenant: vi.fn(),
     };
 
-    useCase = new CreatePublicAppointmentUseCase(mockRepo, mockNotifications, mockEvents);
+    useCase = new CreatePublicAppointmentUseCase(
+      mockRepo,
+      mockNotifications,
+      mockEvents,
+    );
   });
 
   it('should throw NotFoundException if tenant slug is invalid', async () => {
@@ -50,7 +64,10 @@ describe('CreatePublicAppointmentUseCase', () => {
   });
 
   it('should throw BadRequestException if appointment slot is in the past', async () => {
-    vi.mocked(mockRepo.findTenantBySlug).mockResolvedValue({ id: 'tenant-1', slug: 'oto-servis' } as any);
+    vi.mocked(mockRepo.findTenantBySlug).mockResolvedValue({
+      id: 'tenant-1',
+      slug: 'oto-servis',
+    } as any);
 
     await expect(
       useCase.execute('oto-servis', {
@@ -65,7 +82,10 @@ describe('CreatePublicAppointmentUseCase', () => {
   });
 
   it('should throw ConflictException if lift has conflict', async () => {
-    vi.mocked(mockRepo.findTenantBySlug).mockResolvedValue({ id: 'tenant-1', slug: 'oto-servis' } as any);
+    vi.mocked(mockRepo.findTenantBySlug).mockResolvedValue({
+      id: 'tenant-1',
+      slug: 'oto-servis',
+    } as any);
     vi.mocked(mockRepo.checkLiftConflict).mockResolvedValue(true);
 
     await expect(
@@ -81,10 +101,17 @@ describe('CreatePublicAppointmentUseCase', () => {
   });
 
   it('should create public appointment successfully', async () => {
-    vi.mocked(mockRepo.findTenantBySlug).mockResolvedValue({ id: 'tenant-1', slug: 'oto-servis' } as any);
+    vi.mocked(mockRepo.findTenantBySlug).mockResolvedValue({
+      id: 'tenant-1',
+      slug: 'oto-servis',
+    } as any);
     vi.mocked(mockRepo.checkLiftConflict).mockResolvedValue(false);
-    vi.mocked(mockRepo.findOrCreateCustomerForPublic).mockResolvedValue({ id: 'cust-1' } as any);
-    vi.mocked(mockRepo.findOrCreateVehicleForPublic).mockResolvedValue({ id: 'veh-1' } as any);
+    vi.mocked(mockRepo.findOrCreateCustomerForPublic).mockResolvedValue({
+      id: 'cust-1',
+    } as any);
+    vi.mocked(mockRepo.findOrCreateVehicleForPublic).mockResolvedValue({
+      id: 'veh-1',
+    } as any);
 
     const created = new AppointmentEntity({
       id: 'app-1',
@@ -108,6 +135,10 @@ describe('CreatePublicAppointmentUseCase', () => {
     });
 
     expect(result.id).toBe('app-1');
-    expect(mockEvents.emitToTenant).toHaveBeenCalledWith('tenant-1', 'appointment:public_created', created);
+    expect(mockEvents.emitToTenant).toHaveBeenCalledWith(
+      'tenant-1',
+      'appointment:public_created',
+      created,
+    );
   });
 });

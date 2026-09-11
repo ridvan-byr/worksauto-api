@@ -9,8 +9,13 @@ export class WorkOrderStatusVO {
   private readonly value: WorkOrderStatusEnum;
 
   constructor(status: string | WorkOrderStatusEnum) {
-    const normalized = (status as string) === 'PENDING' ? WorkOrderStatusEnum.QUEUE : status;
-    if (!Object.values(WorkOrderStatusEnum).includes(normalized as WorkOrderStatusEnum)) {
+    const normalized =
+      (status as string) === 'PENDING' ? WorkOrderStatusEnum.QUEUE : status;
+    if (
+      !Object.values(WorkOrderStatusEnum).includes(
+        normalized as WorkOrderStatusEnum,
+      )
+    ) {
       throw new Error(`Geçersiz iş emri durumu: ${status}`);
     }
     this.value = normalized as WorkOrderStatusEnum;
@@ -41,11 +46,18 @@ export class WorkOrderStatusVO {
     if (this.isCompleted() || this.isCancelled()) return false;
 
     if (this.isQueue()) {
-      return next === WorkOrderStatusEnum.IN_PROGRESS || next === WorkOrderStatusEnum.CANCELLED;
+      return (
+        next === WorkOrderStatusEnum.IN_PROGRESS ||
+        next === WorkOrderStatusEnum.CANCELLED
+      );
     }
 
     if (this.isInProgress()) {
-      return next === WorkOrderStatusEnum.COMPLETED || next === WorkOrderStatusEnum.CANCELLED || next === WorkOrderStatusEnum.QUEUE;
+      return (
+        next === WorkOrderStatusEnum.COMPLETED ||
+        next === WorkOrderStatusEnum.CANCELLED ||
+        next === WorkOrderStatusEnum.QUEUE
+      );
     }
 
     return false;

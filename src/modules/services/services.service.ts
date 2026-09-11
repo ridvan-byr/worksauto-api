@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -43,7 +47,8 @@ export class ServicesService {
     const service = await this.prisma.service.findFirst({
       where: { id, tenantId },
     });
-    if (!service) throw new NotFoundException('Hizmet / işçilik kalemi bulunamadı.');
+    if (!service)
+      throw new NotFoundException('Hizmet / işçilik kalemi bulunamadı.');
     return service;
   }
 
@@ -53,7 +58,9 @@ export class ServicesService {
       where: { tenantId, code: dto.code },
     });
     if (existing) {
-      throw new ConflictException(`"${dto.code}" koduna sahip bir hizmet zaten mevcut.`);
+      throw new ConflictException(
+        `"${dto.code}" koduna sahip bir hizmet zaten mevcut.`,
+      );
     }
 
     const service = await this.prisma.service.create({
@@ -75,13 +82,22 @@ export class ServicesService {
       action: 'service.created',
       entityName: 'Service',
       entityId: service.id,
-      changesAfter: { name: service.name, code: service.code, price: service.basePrice },
+      changesAfter: {
+        name: service.name,
+        code: service.code,
+        price: service.basePrice,
+      },
     });
 
     return service;
   }
 
-  async update(tenantId: string, id: string, dto: UpdateServiceDto, userId?: string) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateServiceDto,
+    userId?: string,
+  ) {
     const current = await this.findOne(tenantId, id);
 
     if (dto.code && dto.code !== current.code) {
@@ -89,7 +105,9 @@ export class ServicesService {
         where: { tenantId, code: dto.code, NOT: { id } },
       });
       if (existing) {
-        throw new ConflictException(`"${dto.code}" koduna sahip başka bir hizmet zaten mevcut.`);
+        throw new ConflictException(
+          `"${dto.code}" koduna sahip başka bir hizmet zaten mevcut.`,
+        );
       }
     }
 
@@ -99,7 +117,9 @@ export class ServicesService {
         ...(dto.name && { name: dto.name }),
         ...(dto.code && { code: dto.code.toUpperCase() }),
         ...(dto.category && { category: dto.category.toUpperCase() }),
-        ...(dto.defaultDurationMin !== undefined && { defaultDurationMin: dto.defaultDurationMin }),
+        ...(dto.defaultDurationMin !== undefined && {
+          defaultDurationMin: dto.defaultDurationMin,
+        }),
         ...(dto.basePrice !== undefined && { basePrice: dto.basePrice }),
         ...(dto.kdvRate !== undefined && { kdvRate: dto.kdvRate }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
@@ -112,8 +132,16 @@ export class ServicesService {
       action: 'service.updated',
       entityName: 'Service',
       entityId: id,
-      changesBefore: { name: current.name, basePrice: current.basePrice, isActive: current.isActive },
-      changesAfter: { name: updated.name, basePrice: updated.basePrice, isActive: updated.isActive },
+      changesBefore: {
+        name: current.name,
+        basePrice: current.basePrice,
+        isActive: current.isActive,
+      },
+      changesAfter: {
+        name: updated.name,
+        basePrice: updated.basePrice,
+        isActive: updated.isActive,
+      },
     });
 
     return updated;
@@ -154,18 +182,20 @@ export class ServicesService {
         isActive: service.isActive,
       },
       changesAfter: {
-        status: isDeactivated ? 'PASİFE ALINDI (INACTIVE)' : 'KALICI SİLİNDİ (DELETED)',
+        status: isDeactivated
+          ? 'PASİFE ALINDI (INACTIVE)'
+          : 'KALICI SİLİNDİ (DELETED)',
         reason: isDeactivated
           ? `Bu hizmete bağlı ${appointmentsCount} adet randevu geçmişi korunduğu için pasife alındı.`
           : 'Hizmet kataloğundan kalıcı olarak kaldırıldı.',
       },
     });
 
-    return { 
-      success: true, 
-      message: isDeactivated 
-        ? 'Hizmete bağlı randevular bulunduğu için geçmişi korumak adına pasife alındı.' 
-        : 'Hizmet başarıyla kaldırıldı.' 
+    return {
+      success: true,
+      message: isDeactivated
+        ? 'Hizmete bağlı randevular bulunduğu için geçmişi korumak adına pasife alındı.'
+        : 'Hizmet başarıyla kaldırıldı.',
     };
   }
 }

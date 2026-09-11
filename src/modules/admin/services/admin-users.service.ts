@@ -42,7 +42,10 @@ export class AdminUsersService {
     });
   }
 
-  async create(dto: CreateSuperAdminDto, creatorUser?: { id: string; email: string }) {
+  async create(
+    dto: CreateSuperAdminDto,
+    creatorUser?: { id: string; email: string },
+  ) {
     const emailNormalized = dto.email.trim().toLowerCase();
     const phoneNormalized = this.normalizePhone(dto.phone);
 
@@ -50,14 +53,18 @@ export class AdminUsersService {
       where: { email: emailNormalized },
     });
     if (existingEmail) {
-      throw new ConflictException('Bu e-posta adresiyle kayıtlı bir kullanıcı zaten mevcut.');
+      throw new ConflictException(
+        'Bu e-posta adresiyle kayıtlı bir kullanıcı zaten mevcut.',
+      );
     }
 
     const existingPhone = await this.prisma.user.findFirst({
       where: { phone: phoneNormalized },
     });
     if (existingPhone) {
-      throw new ConflictException('Bu telefon numarasıyla kayıtlı bir kullanıcı zaten mevcut.');
+      throw new ConflictException(
+        'Bu telefon numarasıyla kayıtlı bir kullanıcı zaten mevcut.',
+      );
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -126,7 +133,9 @@ export class AdminUsersService {
         where: { role: UserRole.SUPER_ADMIN, isActive: true },
       });
       if (activeCount <= 1) {
-        throw new BadRequestException('Sistemdeki son aktif Super Admin hesabı askıya alınamaz.');
+        throw new BadRequestException(
+          'Sistemdeki son aktif Super Admin hesabı askıya alınamaz.',
+        );
       }
     }
 
@@ -150,7 +159,9 @@ export class AdminUsersService {
         data: {
           tenantId: null,
           userId: currentAdminId || null,
-          action: isActive ? 'SECURITY_SUPERADMIN_ACTIVATED' : 'SECURITY_SUPERADMIN_SUSPENDED',
+          action: isActive
+            ? 'SECURITY_SUPERADMIN_ACTIVATED'
+            : 'SECURITY_SUPERADMIN_SUSPENDED',
           entityName: 'User',
           entityId: id,
           changesAfter: {
@@ -185,7 +196,9 @@ export class AdminUsersService {
       where: { role: UserRole.SUPER_ADMIN },
     });
     if (totalCount <= 1) {
-      throw new BadRequestException('Sistemdeki son Super Admin hesabı silinemez.');
+      throw new BadRequestException(
+        'Sistemdeki son Super Admin hesabı silinemez.',
+      );
     }
 
     await this.prisma.user.delete({

@@ -1,8 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
-import { IInvoiceRepository, CreateInvoiceTransactionResult } from '../domain/invoice.repository.interface';
+import {
+  IInvoiceRepository,
+  CreateInvoiceTransactionResult,
+} from '../domain/invoice.repository.interface';
 import { InvoiceEntity } from '../domain/invoice.entity';
-import { InvoiceStatus, CariReferenceType, WorkOrderStatus } from '@prisma/client';
+import {
+  InvoiceStatus,
+  CariReferenceType,
+  WorkOrderStatus,
+} from '@prisma/client';
 
 @Injectable()
 export class PrismaInvoiceRepository implements IInvoiceRepository {
@@ -67,14 +78,19 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     return data.map((d) => this.mapToEntity(d));
   }
 
-  async findByWorkOrderId(tenantId: string, workOrderId: string): Promise<InvoiceEntity | null> {
+  async findByWorkOrderId(
+    tenantId: string,
+    workOrderId: string,
+  ): Promise<InvoiceEntity | null> {
     const data = await this.prisma.invoice.findFirst({
       where: { tenantId, workOrderId },
     });
     return data ? this.mapToEntity(data) : null;
   }
 
-  async getNextInvoiceNumber(tenantId: string): Promise<{ invoiceNumber: string; gibInvoiceNumber: string }> {
+  async getNextInvoiceNumber(
+    tenantId: string,
+  ): Promise<{ invoiceNumber: string; gibInvoiceNumber: string }> {
     const year = new Date().getFullYear();
     const sequence = await this.prisma.documentSequence.upsert({
       where: {
@@ -100,16 +116,29 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     return { invoiceNumber, gibInvoiceNumber };
   }
 
-  async createWithCariMovement(invoice: InvoiceEntity): Promise<CreateInvoiceTransactionResult> {
+  async createWithCariMovement(
+    invoice: InvoiceEntity,
+  ): Promise<CreateInvoiceTransactionResult> {
     return this.prisma.$transaction(async (tx) => {
       // 1. Verify customer strictly belongs to this tenant (IDOR Protection)
       const customer = await tx.customer.findFirst({
-        where: { id: invoice.customerId, tenantId: invoice.tenantId, deletedAt: null },
-        select: { firstName: true, lastName: true, companyTitle: true, creditLimit: true },
+        where: {
+          id: invoice.customerId,
+          tenantId: invoice.tenantId,
+          deletedAt: null,
+        },
+        select: {
+          firstName: true,
+          lastName: true,
+          companyTitle: true,
+          creditLimit: true,
+        },
       });
 
       if (!customer) {
-        throw new BadRequestException('Faturanın ait olduğu müşteri bulunamadı veya bu işletmeye ait değil.');
+        throw new BadRequestException(
+          'Faturanın ait olduğu müşteri bulunamadı veya bu işletmeye ait değil.',
+        );
       }
 
       // 2. If workOrderId is provided, verify workOrder strictly belongs to this tenant and has no active invoice
@@ -119,7 +148,9 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         });
 
         if (!workOrder) {
-          throw new BadRequestException('Faturanın ait olduğu iş emri bulunamadı veya bu işletmeye ait değil.');
+          throw new BadRequestException(
+            'Faturanın ait olduğu iş emri bulunamadı veya bu işletmeye ait değil.',
+          );
         }
 
         const existingInvoiceForWO = await tx.invoice.findFirst({
@@ -152,7 +183,9 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       }
 
       if (currentAccount.isBlocked) {
-        throw new BadRequestException('Bu müşterinin cari hesabı bloke durumdadır. Yeni fatura kesilemez.');
+        throw new BadRequestException(
+          'Bu müşterinin cari hesabı bloke durumdadır. Yeni fatura kesilemez.',
+        );
       }
 
       const created = await tx.invoice.create({
@@ -210,8 +243,12 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       }
 
       const customerName =
-        customer?.companyTitle || `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() || 'Müşteri';
-      const creditLimit = customer?.creditLimit ? Number(customer.creditLimit) : 0;
+        customer?.companyTitle ||
+        `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
+        'Müşteri';
+      const creditLimit = customer?.creditLimit
+        ? Number(customer.creditLimit)
+        : 0;
 
       return {
         invoice: this.mapToEntity(created),
@@ -222,7 +259,11 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     });
   }
 
-  async cancelWithCariReversal(tenantId: string, id: string, reason: string): Promise<InvoiceEntity> {
+  async cancelWithCariReversal(
+    tenantId: string,
+    id: string,
+    reason: string,
+  ): Promise<InvoiceEntity> {
     return this.prisma.$transaction(async (tx) => {
       // 1. Verify invoice belongs strictly to this tenant (IDOR Protection)
       const existing = await tx.invoice.findFirst({
@@ -230,7 +271,9 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       });
 
       if (!existing) {
-        throw new NotFoundException('Fatura bulunamadı veya bu işletmeye ait değil.');
+        throw new NotFoundException(
+          'Fatura bulunamadı veya bu işletmeye ait değil.',
+        );
       }
 
       if (existing.status === InvoiceStatus.CANCELLED) {
@@ -262,8 +305,14 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
           totalCreditsAdjustment += Number(p.amount);
         }
 
-        const newTotalDebits = Math.max(0, Number(currentAccount.totalDebits) - Number(cancelled.grandTotal));
-        const newTotalCredits = Math.max(0, Number(currentAccount.totalCredits) - totalCreditsAdjustment);
+        const newTotalDebits = Math.max(
+          0,
+          Number(currentAccount.totalDebits) - Number(cancelled.grandTotal),
+        );
+        const newTotalCredits = Math.max(
+          0,
+          Number(currentAccount.totalCredits) - totalCreditsAdjustment,
+        );
         const newBalance = newTotalDebits - newTotalCredits;
 
         await tx.currentAccount.update({
@@ -328,4 +377,3 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     });
   }
 }
-

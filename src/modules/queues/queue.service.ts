@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { Queue, JobsOptions } from 'bullmq';
 
 export const QUEUE_NOTIFICATIONS = 'worksauto_notifications';
@@ -44,9 +49,13 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      this.logger.log('🐂 BullMQ Queues initialized (notifications, maintenance)');
+      this.logger.log(
+        '🐂 BullMQ Queues initialized (notifications, maintenance)',
+      );
     } catch (err: any) {
-      this.logger.warn(`Failed to initialize BullMQ Queues: ${err.message}. System continues in fail-open mode.`);
+      this.logger.warn(
+        `Failed to initialize BullMQ Queues: ${err.message}. System continues in fail-open mode.`,
+      );
     }
   }
 
@@ -64,7 +73,9 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
    */
   async addNotificationJob(name: string, data: any, opts?: JobsOptions) {
     if (!this.notificationsQueue) {
-      this.logger.debug(`Notification queue unavailable, bypassing async job ${name}`);
+      this.logger.debug(
+        `Notification queue unavailable, bypassing async job ${name}`,
+      );
       return null;
     }
     return this.notificationsQueue.add(name, data, opts);
@@ -73,7 +84,11 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   /**
    * Randevu zamanı için gecikmeli (Delayed) hatırlatıcı işi planlar
    */
-  async scheduleAppointmentReminder(appointmentId: string, delayMs: number, data: any) {
+  async scheduleAppointmentReminder(
+    appointmentId: string,
+    delayMs: number,
+    data: any,
+  ) {
     if (!this.notificationsQueue) return null;
     return this.notificationsQueue.add(
       'appointment-reminder',
@@ -82,7 +97,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         delay: Math.max(0, delayMs),
         jobId: `reminder-app-${appointmentId}`,
         removeOnComplete: true,
-      }
+      },
     );
   }
 }

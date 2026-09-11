@@ -5,7 +5,11 @@ import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
 import { EventsGateway } from '../../../events/events.gateway';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 
 describe('RescheduleAppointmentUseCase', () => {
   let useCase: RescheduleAppointmentUseCase;

@@ -54,10 +54,20 @@ describe('AnonymizeCustomerUseCase', () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(existing);
     vi.mocked(mockRepo.anonymizeCustomer).mockResolvedValue(anonymized);
 
-    const result = await useCase.execute('tenant-1', 'cust-1', 'user-1', 'KVKK-2026-001');
+    const result = await useCase.execute(
+      'tenant-1',
+      'cust-1',
+      'user-1',
+      'KVKK-2026-001',
+    );
 
     expect(result.isAnonymized).toBe(true);
     expect(result.firstName).toBe('ANONİM');
-    expect(mockRepo.anonymizeCustomer).toHaveBeenCalledWith('tenant-1', 'cust-1', 'user-1', 'KVKK-2026-001');
+    expect(mockRepo.anonymizeCustomer).toHaveBeenCalledWith(
+      'tenant-1',
+      'cust-1',
+      'user-1',
+      'KVKK-2026-001',
+    );
   });
 });

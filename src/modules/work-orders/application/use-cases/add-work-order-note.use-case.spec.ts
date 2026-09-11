@@ -33,20 +33,34 @@ describe('AddWorkOrderNoteUseCase', () => {
     mockRepo.findById = vi.fn().mockResolvedValue(null);
 
     await expect(
-      useCase.execute('t-1', 'wo-1', { text: 'Test not' }, { id: 'u-1', name: 'Ali' }),
+      useCase.execute(
+        't-1',
+        'wo-1',
+        { text: 'Test not' },
+        { id: 'u-1', name: 'Ali' },
+      ),
     ).rejects.toThrow(NotFoundException);
   });
 
   it('should throw BadRequestException if work order is cancelled', async () => {
-    mockRepo.findById = vi.fn().mockResolvedValue({ id: 'wo-1', status: WorkOrderStatus.CANCELLED });
+    mockRepo.findById = vi
+      .fn()
+      .mockResolvedValue({ id: 'wo-1', status: WorkOrderStatus.CANCELLED });
 
     await expect(
-      useCase.execute('t-1', 'wo-1', { text: 'Test not' }, { id: 'u-1', name: 'Ali' }),
+      useCase.execute(
+        't-1',
+        'wo-1',
+        { text: 'Test not' },
+        { id: 'u-1', name: 'Ali' },
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
   it('should successfully add note and emit event', async () => {
-    mockRepo.findById = vi.fn().mockResolvedValue({ id: 'wo-1', status: WorkOrderStatus.IN_PROGRESS });
+    mockRepo.findById = vi
+      .fn()
+      .mockResolvedValue({ id: 'wo-1', status: WorkOrderStatus.IN_PROGRESS });
     mockRepo.addNote = vi.fn().mockResolvedValue({
       id: 'note-1',
       authorId: 'u-1',
@@ -63,10 +77,21 @@ describe('AddWorkOrderNoteUseCase', () => {
     );
 
     expect(result.id).toBe('note-1');
-    expect(mockRepo.addNote).toHaveBeenCalledWith('t-1', 'wo-1', 'u-1', 'Ali Yılmaz', 'Test notu', true);
-    expect(mockEvents.emitToTenant).toHaveBeenCalledWith('t-1', 'workOrderNoteAdded', {
-      workOrderId: 'wo-1',
-      note: result,
-    });
+    expect(mockRepo.addNote).toHaveBeenCalledWith(
+      't-1',
+      'wo-1',
+      'u-1',
+      'Ali Yılmaz',
+      'Test notu',
+      true,
+    );
+    expect(mockEvents.emitToTenant).toHaveBeenCalledWith(
+      't-1',
+      'workOrderNoteAdded',
+      {
+        workOrderId: 'wo-1',
+        note: result,
+      },
+    );
   });
 });

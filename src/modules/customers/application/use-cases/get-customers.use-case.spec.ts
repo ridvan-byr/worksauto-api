@@ -27,7 +27,13 @@ describe('GetCustomersUseCase', () => {
 
   it('should list customers for tenant', async () => {
     const list = [
-      new CustomerEntity({ id: 'c-1', tenantId: 't-1', firstName: 'Ali', lastName: 'Veli', phone: '0532' }),
+      new CustomerEntity({
+        id: 'c-1',
+        tenantId: 't-1',
+        firstName: 'Ali',
+        lastName: 'Veli',
+        phone: '0532',
+      }),
     ];
     vi.mocked(mockRepo.findAll).mockResolvedValue(list);
 
@@ -39,9 +45,17 @@ describe('GetCustomersUseCase', () => {
   it('should get customer by id or throw NotFoundException', async () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(null);
 
-    await expect(useCase.getById('t-1', 'nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(useCase.getById('t-1', 'nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
 
-    const customer = new CustomerEntity({ id: 'c-1', tenantId: 't-1', firstName: 'Ali', lastName: 'Veli', phone: '0532' });
+    const customer = new CustomerEntity({
+      id: 'c-1',
+      tenantId: 't-1',
+      firstName: 'Ali',
+      lastName: 'Veli',
+      phone: '0532',
+    });
     vi.mocked(mockRepo.findById).mockResolvedValue(customer);
 
     const result = await useCase.getById('t-1', 'c-1');
@@ -49,7 +63,13 @@ describe('GetCustomersUseCase', () => {
   });
 
   it('should return customer stats', async () => {
-    const customer = new CustomerEntity({ id: 'c-1', tenantId: 't-1', firstName: 'Ali', lastName: 'Veli', phone: '0532' });
+    const customer = new CustomerEntity({
+      id: 'c-1',
+      tenantId: 't-1',
+      firstName: 'Ali',
+      lastName: 'Veli',
+      phone: '0532',
+    });
     vi.mocked(mockRepo.findById).mockResolvedValue(customer);
     vi.mocked(mockRepo.getCustomerStats).mockResolvedValue({
       totalAppointments: 5,
@@ -72,7 +92,13 @@ describe('GetCustomersUseCase', () => {
   });
 
   it('should soft delete customer', async () => {
-    const customer = new CustomerEntity({ id: 'c-1', tenantId: 't-1', firstName: 'Ali', lastName: 'Veli', phone: '0532' });
+    const customer = new CustomerEntity({
+      id: 'c-1',
+      tenantId: 't-1',
+      firstName: 'Ali',
+      lastName: 'Veli',
+      phone: '0532',
+    });
     vi.mocked(mockRepo.findById).mockResolvedValue(customer);
     vi.mocked(mockRepo.softDelete).mockResolvedValue(customer);
 

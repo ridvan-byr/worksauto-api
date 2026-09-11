@@ -1,5 +1,8 @@
 import { Injectable, Inject, ConflictException } from '@nestjs/common';
-import { ICustomerRepository, CUSTOMER_REPOSITORY } from '../../domain/customer.repository.interface';
+import {
+  ICustomerRepository,
+  CUSTOMER_REPOSITORY,
+} from '../../domain/customer.repository.interface';
 import { CustomerEntity, CustomerTypeVo } from '../../domain/customer.entity';
 
 export interface CreateCustomerInput {
@@ -23,12 +26,20 @@ export class CreateCustomerUseCase {
     private readonly customerRepository: ICustomerRepository,
   ) {}
 
-  async execute(tenantId: string, dto: CreateCustomerInput): Promise<CustomerEntity> {
+  async execute(
+    tenantId: string,
+    dto: CreateCustomerInput,
+  ): Promise<CustomerEntity> {
     const cleanPhone = dto.phone.replace(/[\s()-]/g, '');
 
-    const existing = await this.customerRepository.findByPhone(tenantId, cleanPhone);
+    const existing = await this.customerRepository.findByPhone(
+      tenantId,
+      cleanPhone,
+    );
     if (existing) {
-      throw new ConflictException('Bu telefon numarasıyla kayıtlı bir müşteri zaten mevcut.');
+      throw new ConflictException(
+        'Bu telefon numarasıyla kayıtlı bir müşteri zaten mevcut.',
+      );
     }
 
     const entity = new CustomerEntity({

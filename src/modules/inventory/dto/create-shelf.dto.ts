@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min, ValidateIf } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 
 export class CreateShelfDto {
   @ApiProperty({ example: 'A Koridoru - Ön Takım Rafı' })
@@ -29,7 +38,9 @@ export class CreateShelfDto {
   @Max(30)
   columns: number;
 
-  @ApiPropertyOptional({ example: 'Ön fren diskleri ve balatalar için ayrılmıştır.' })
+  @ApiPropertyOptional({
+    example: 'Ön fren diskleri ve balatalar için ayrılmıştır.',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -41,7 +52,10 @@ export class AssignProductCellDto {
   @IsNotEmpty()
   productId: string;
 
-  @ApiPropertyOptional({ example: 'c1b07384-d113-4a44-9c8a-789bb4671402', nullable: true })
+  @ApiPropertyOptional({
+    example: 'c1b07384-d113-4a44-9c8a-789bb4671402',
+    nullable: true,
+  })
   @IsOptional()
   @ValidateIf((_, val) => val !== null && val !== undefined)
   @IsString()
@@ -49,18 +63,29 @@ export class AssignProductCellDto {
 }
 
 export class BulkAssignProductCellDto {
-  @ApiProperty({ example: ['d3b07384-d113-4a44-9c8a-789bb4671401'], description: 'Taşınacak ürünlerin ID dizisi' })
+  @ApiProperty({
+    example: ['d3b07384-d113-4a44-9c8a-789bb4671401'],
+    description: 'Taşınacak ürünlerin ID dizisi',
+  })
   @IsArray()
   @IsString({ each: true })
   productIds: string[];
 
-  @ApiPropertyOptional({ example: 'c1b07384-d113-4a44-9c8a-789bb4671402', nullable: true, description: 'Hedef raf hücresi ID' })
+  @ApiPropertyOptional({
+    example: 'c1b07384-d113-4a44-9c8a-789bb4671402',
+    nullable: true,
+    description: 'Hedef raf hücresi ID',
+  })
   @IsOptional()
   @ValidateIf((_, val) => val !== null && val !== undefined)
   @IsString()
   shelfCellId?: string | null;
 
-  @ApiPropertyOptional({ example: 's1b07384-d113-4a44-9c8a-789bb4671403', nullable: true, description: 'Hedef raf ID (hücre verilmediyse ilk göze veya rafa atar)' })
+  @ApiPropertyOptional({
+    example: 's1b07384-d113-4a44-9c8a-789bb4671403',
+    nullable: true,
+    description: 'Hedef raf ID (hücre verilmediyse ilk göze veya rafa atar)',
+  })
   @IsOptional()
   @ValidateIf((_, val) => val !== null && val !== undefined)
   @IsString()

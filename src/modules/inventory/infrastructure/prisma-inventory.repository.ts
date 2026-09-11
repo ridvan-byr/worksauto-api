@@ -19,14 +19,23 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       brand: data.brand,
       stockQuantity: data.stockQuantity,
       minStockLevel: data.minStockLevel,
-      shelfLocation: data.shelfLocation ?? data.shelfCell?.cellCode ?? undefined,
+      shelfLocation:
+        data.shelfLocation ?? data.shelfCell?.cellCode ?? undefined,
       purchasePrice: Number(data.purchasePrice),
       salePrice: Number(data.salePrice),
       kdvRate: data.kdvRate,
-      aisle: data.aisle ?? data.shelfCell?.shelf?.zone ?? data.shelfCell?.shelf?.name ?? undefined,
+      aisle:
+        data.aisle ??
+        data.shelfCell?.shelf?.zone ??
+        data.shelfCell?.shelf?.name ??
+        undefined,
       rack: data.rack ?? data.shelfCell?.shelf?.code ?? undefined,
-      tier: data.tier ?? (data.shelfCell ? `Kat ${data.shelfCell.rowNumber}` : undefined),
-      bin: data.bin ?? (data.shelfCell ? `Göz ${data.shelfCell.colNumber}` : undefined),
+      tier:
+        data.tier ??
+        (data.shelfCell ? `Kat ${data.shelfCell.rowNumber}` : undefined),
+      bin:
+        data.bin ??
+        (data.shelfCell ? `Göz ${data.shelfCell.colNumber}` : undefined),
       shelfId: data.shelfId ?? data.shelfCell?.shelfId ?? undefined,
       shelfCellId: data.shelfCellId ?? data.shelfCell?.id ?? undefined,
       createdAt: data.createdAt,
@@ -34,7 +43,10 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     });
   }
 
-  async findById(tenantId: string, id: string): Promise<StockItemEntity | null> {
+  async findById(
+    tenantId: string,
+    id: string,
+  ): Promise<StockItemEntity | null> {
     const data = await this.prisma.product.findFirst({
       where: { id, tenantId, deletedAt: null },
       include: {
@@ -48,7 +60,10 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     return data ? this.mapToEntity(data) : null;
   }
 
-  async findAll(tenantId: string, params?: { search?: string; category?: string }): Promise<StockItemEntity[]> {
+  async findAll(
+    tenantId: string,
+    params?: { search?: string; category?: string },
+  ): Promise<StockItemEntity[]> {
     const category = params?.category as ProductCategory | undefined;
     const search = params?.search;
 
@@ -81,7 +96,10 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     return data.map((d) => this.mapToEntity(d));
   }
 
-  async create(item: StockItemEntity, author: string): Promise<StockItemEntity> {
+  async create(
+    item: StockItemEntity,
+    author: string,
+  ): Promise<StockItemEntity> {
     return this.prisma.$transaction(async (tx) => {
       let resolvedShelfId = item.shelfId;
       let resolvedShelfLocation = item.shelfLocation;
@@ -111,7 +129,8 @@ export class PrismaInventoryRepository implements IInventoryRepository {
           name: item.name,
           oemCode: item.oemCode,
           barcode: item.barcode,
-          category: (item.category as ProductCategory) || ProductCategory.GENERAL,
+          category:
+            (item.category as ProductCategory) || ProductCategory.GENERAL,
           brand: item.brand,
           stockQuantity: item.stockQuantity,
           minStockLevel: item.minStockLevel,
@@ -150,7 +169,9 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       where: { id: item.id, tenantId: item.tenantId, deletedAt: null },
     });
     if (!existing) {
-      throw new BadRequestException('Ürün bulunamadı veya bu işletmeye ait değil.');
+      throw new BadRequestException(
+        'Ürün bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
     let resolvedShelfId = existing.shelfId;
@@ -241,7 +262,9 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       `;
 
       if (updated === 0) {
-        throw new BadRequestException('Yetersiz stok! Talep edilen miktar mevcut stoktan fazladır.');
+        throw new BadRequestException(
+          'Yetersiz stok! Talep edilen miktar mevcut stoktan fazladır.',
+        );
       }
 
       await tx.stockMovement.create({
@@ -277,7 +300,9 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       });
 
       if (!existing) {
-        throw new BadRequestException('Ürün bulunamadı veya bu işletmeye ait değil.');
+        throw new BadRequestException(
+          'Ürün bulunamadı veya bu işletmeye ait değil.',
+        );
       }
 
       const updated = await tx.product.update({
@@ -314,7 +339,9 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       where: { id: productId, tenantId },
     });
     if (!product) {
-      throw new BadRequestException('Ürün bulunamadı veya bu işletmeye ait değil.');
+      throw new BadRequestException(
+        'Ürün bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
     await this.prisma.stockMovement.create({

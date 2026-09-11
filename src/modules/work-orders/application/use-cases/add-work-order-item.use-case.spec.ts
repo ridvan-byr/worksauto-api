@@ -31,26 +31,51 @@ describe('AddWorkOrderItemUseCase', () => {
     mockRepo.findById = vi.fn().mockResolvedValue(null);
 
     await expect(
-      useCase.execute('t-1', 'wo-1', { itemType: 'PART', name: 'Filtre', quantity: 1, unitPrice: 100 }, 'Ali'),
+      useCase.execute(
+        't-1',
+        'wo-1',
+        { itemType: 'PART', name: 'Filtre', quantity: 1, unitPrice: 100 },
+        'Ali',
+      ),
     ).rejects.toThrow(NotFoundException);
   });
 
   it('should throw BadRequestException if work order is completed', async () => {
-    mockRepo.findById = vi.fn().mockResolvedValue({ id: 'wo-1', status: WorkOrderStatusEnum.COMPLETED });
+    mockRepo.findById = vi
+      .fn()
+      .mockResolvedValue({ id: 'wo-1', status: WorkOrderStatusEnum.COMPLETED });
 
     await expect(
-      useCase.execute('t-1', 'wo-1', { itemType: 'PART', name: 'Filtre', quantity: 1, unitPrice: 100 }, 'Ali'),
+      useCase.execute(
+        't-1',
+        'wo-1',
+        { itemType: 'PART', name: 'Filtre', quantity: 1, unitPrice: 100 },
+        'Ali',
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 
   it('should add item successfully and emit event', async () => {
-    mockRepo.findById = vi.fn().mockResolvedValue({ id: 'wo-1', status: WorkOrderStatusEnum.IN_PROGRESS });
-    mockRepo.addItem = vi.fn().mockResolvedValue({ id: 'item-1', name: 'Filtre' });
+    mockRepo.findById = vi
+      .fn()
+      .mockResolvedValue({
+        id: 'wo-1',
+        status: WorkOrderStatusEnum.IN_PROGRESS,
+      });
+    mockRepo.addItem = vi
+      .fn()
+      .mockResolvedValue({ id: 'item-1', name: 'Filtre' });
 
     const result = await useCase.execute(
       't-1',
       'wo-1',
-      { itemType: 'PART', name: 'Filtre', quantity: 1, unitPrice: 100, kdvRate: 20 },
+      {
+        itemType: 'PART',
+        name: 'Filtre',
+        quantity: 1,
+        unitPrice: 100,
+        kdvRate: 20,
+      },
       'Ali',
     );
 

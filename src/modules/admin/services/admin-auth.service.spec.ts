@@ -25,7 +25,10 @@ describe('AdminAuthService', () => {
       sign: vi.fn().mockReturnValue('mock-jwt-token'),
     };
 
-    service = new AdminAuthService(mockPrisma as PrismaService, mockJwt as JwtService);
+    service = new AdminAuthService(
+      mockPrisma as PrismaService,
+      mockJwt as JwtService,
+    );
   });
 
   it('should throw UnauthorizedException if user not found or not SUPER_ADMIN', async () => {
@@ -46,7 +49,10 @@ describe('AdminAuthService', () => {
     });
 
     await expect(
-      service.login({ email: 'admin@worksauto.com', password: 'wrongpassword' }),
+      service.login({
+        email: 'admin@worksauto.com',
+        password: 'wrongpassword',
+      }),
     ).rejects.toThrow(UnauthorizedException);
   });
 
@@ -63,7 +69,10 @@ describe('AdminAuthService', () => {
       isActive: true,
     });
 
-    const result = await service.login({ email: 'admin@worksauto.com', password: 'secret123' });
+    const result = await service.login({
+      email: 'admin@worksauto.com',
+      password: 'secret123',
+    });
 
     expect(result.success).toBe(true);
     expect(result.accessToken).toBe('mock-jwt-token');

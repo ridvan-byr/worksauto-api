@@ -36,7 +36,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     if (payload.role !== 'SUPER_ADMIN' && !payload.tenantId) {
-      throw new UnauthorizedException('Geçersiz oturum belirteci (tenantId eksik).');
+      throw new UnauthorizedException(
+        'Geçersiz oturum belirteci (tenantId eksik).',
+      );
     }
 
     // Set tenant context into Cls for RLS isolation
@@ -48,7 +50,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       });
 
       if (!tenant || !tenant.isActive) {
-        throw new UnauthorizedException('Bu oto servisinin lisansı askıya alınmıştır veya servis aktif değildir. Lütfen platform yöneticisi ile iletişime geçiniz.');
+        throw new UnauthorizedException(
+          'Bu oto servisinin lisansı askıya alınmıştır veya servis aktif değildir. Lütfen platform yöneticisi ile iletişime geçiniz.',
+        );
       }
 
       this.cls.set('tenantId', payload.tenantId);

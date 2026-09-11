@@ -22,7 +22,10 @@ export class CreatePublicAppointmentDto {
   @IsString()
   brandModel?: string;
 
-  @ApiPropertyOptional({ example: 's0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', description: 'Hizmet ID' })
+  @ApiPropertyOptional({
+    example: 's0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33',
+    description: 'Hizmet ID',
+  })
   @IsOptional()
   @IsString()
   serviceId?: string;
@@ -32,17 +35,26 @@ export class CreatePublicAppointmentDto {
   @IsString()
   slotDate: string;
 
-  @ApiProperty({ example: '2026-09-12T10:00:00.000Z', description: 'Başlangıç Saati (ISO)' })
+  @ApiProperty({
+    example: '2026-09-12T10:00:00.000Z',
+    description: 'Başlangıç Saati (ISO)',
+  })
   @IsNotEmpty()
   @IsString()
   slotStartTime: string;
 
-  @ApiProperty({ example: '2026-09-12T11:00:00.000Z', description: 'Bitiş Saati (ISO)' })
+  @ApiProperty({
+    example: '2026-09-12T11:00:00.000Z',
+    description: 'Bitiş Saati (ISO)',
+  })
   @IsNotEmpty()
   @IsString()
   slotEndTime: string;
 
-  @ApiPropertyOptional({ example: 'Periyodik bakım yapılacak', description: 'Notlar' })
+  @ApiPropertyOptional({
+    example: 'Periyodik bakım yapılacak',
+    description: 'Notlar',
+  })
   @IsOptional()
   @IsString()
   customerNotes?: string;

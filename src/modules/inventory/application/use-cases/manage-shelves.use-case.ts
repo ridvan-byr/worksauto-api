@@ -1,5 +1,13 @@
-import { Injectable, Inject, BadRequestException, NotFoundException } from '@nestjs/common';
-import { SHELF_REPOSITORY, IShelfRepository } from '../../domain/shelf.repository.interface';
+import {
+  Injectable,
+  Inject,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  SHELF_REPOSITORY,
+  IShelfRepository,
+} from '../../domain/shelf.repository.interface';
 import { CreateShelfDto } from '../../dto/create-shelf.dto';
 
 @Injectable()
@@ -14,7 +22,9 @@ export class ManageShelvesUseCase {
     const existing = await this.shelfRepository.findByCode(tenantId, code);
 
     if (existing) {
-      throw new BadRequestException(`'${code}' kodlu raf ünitesi zaten mevcut.`);
+      throw new BadRequestException(
+        `'${code}' kodlu raf ünitesi zaten mevcut.`,
+      );
     }
 
     return this.shelfRepository.createShelfWithCells(tenantId, {
@@ -32,7 +42,10 @@ export class ManageShelvesUseCase {
   }
 
   async getShelfWithMatrix(tenantId: string, shelfId: string) {
-    const shelf = await this.shelfRepository.findByIdWithMatrix(tenantId, shelfId);
+    const shelf = await this.shelfRepository.findByIdWithMatrix(
+      tenantId,
+      shelfId,
+    );
 
     if (!shelf) {
       throw new NotFoundException('Raf ünitesi bulunamadı.');
@@ -41,7 +54,11 @@ export class ManageShelvesUseCase {
     return shelf;
   }
 
-  async assignProductToCell(tenantId: string, productId: string, shelfCellId?: string | null) {
+  async assignProductToCell(
+    tenantId: string,
+    productId: string,
+    shelfCellId?: string | null,
+  ) {
     const product = await this.shelfRepository.findProduct(tenantId, productId);
 
     if (!product) {
@@ -49,33 +66,41 @@ export class ManageShelvesUseCase {
     }
 
     if (!shelfCellId) {
-      const updated = await this.shelfRepository.updateProductLocation(productId, {
-        shelfCellId: null,
-        shelfId: null,
-        shelfLocation: '',
-        aisle: null,
-        rack: null,
-        tier: null,
-        bin: null,
-      });
+      const updated = await this.shelfRepository.updateProductLocation(
+        productId,
+        {
+          shelfCellId: null,
+          shelfId: null,
+          shelfLocation: '',
+          aisle: null,
+          rack: null,
+          tier: null,
+          bin: null,
+        },
+      );
       return { success: true, product: updated };
     }
 
     const cell = await this.shelfRepository.findCell(shelfCellId);
 
     if (!cell || cell.shelf.tenantId !== tenantId) {
-      throw new BadRequestException('Seçilen raf hücresi bulunamadı veya bu işletmeye ait değil.');
+      throw new BadRequestException(
+        'Seçilen raf hücresi bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
-    const updated = await this.shelfRepository.updateProductLocation(productId, {
-      shelfCellId: cell.id,
-      shelfId: cell.shelf.id,
-      shelfLocation: cell.cellCode,
-      aisle: cell.shelf.zone || cell.shelf.name,
-      rack: cell.shelf.code,
-      tier: `Kat ${cell.rowNumber}`,
-      bin: `Göz ${cell.colNumber}`,
-    });
+    const updated = await this.shelfRepository.updateProductLocation(
+      productId,
+      {
+        shelfCellId: cell.id,
+        shelfId: cell.shelf.id,
+        shelfLocation: cell.cellCode,
+        aisle: cell.shelf.zone || cell.shelf.name,
+        rack: cell.shelf.code,
+        tier: `Kat ${cell.rowNumber}`,
+        bin: `Göz ${cell.colNumber}`,
+      },
+    );
 
     return { success: true, product: updated, cellCode: cell.cellCode };
   }
@@ -87,20 +112,31 @@ export class ManageShelvesUseCase {
     targetShelfId?: string | null,
   ) {
     if (!productIds || productIds.length === 0) {
-      return { success: true, count: 0, message: 'İşlem yapılacak parça bulunamadı.' };
+      return {
+        success: true,
+        count: 0,
+        message: 'İşlem yapılacak parça bulunamadı.',
+      };
     }
 
     if (!shelfCellId && !targetShelfId) {
-      const count = await this.shelfRepository.updateManyProductLocations(productIds, {
-        shelfCellId: null,
-        shelfId: null,
-        shelfLocation: 'Depo',
-        aisle: null,
-        rack: null,
-        tier: null,
-        bin: null,
-      });
-      return { success: true, count, message: `${count} parça raflardan serbest alana çıkarıldı.` };
+      const count = await this.shelfRepository.updateManyProductLocations(
+        productIds,
+        {
+          shelfCellId: null,
+          shelfId: null,
+          shelfLocation: 'Depo',
+          aisle: null,
+          rack: null,
+          tier: null,
+          bin: null,
+        },
+      );
+      return {
+        success: true,
+        count,
+        message: `${count} parça raflardan serbest alana çıkarıldı.`,
+      };
     }
 
     if (shelfCellId) {
@@ -108,15 +144,18 @@ export class ManageShelvesUseCase {
       if (!cell) {
         throw new NotFoundException('Hedef raf hücresi bulunamadı.');
       }
-      const count = await this.shelfRepository.updateManyProductLocations(productIds, {
-        shelfCellId: cell.id,
-        shelfId: cell.shelf.id,
-        shelfLocation: cell.cellCode,
-        aisle: cell.shelf.zone || cell.shelf.name,
-        rack: cell.shelf.code,
-        tier: `Kat ${cell.rowNumber}`,
-        bin: `Göz ${cell.colNumber}`,
-      });
+      const count = await this.shelfRepository.updateManyProductLocations(
+        productIds,
+        {
+          shelfCellId: cell.id,
+          shelfId: cell.shelf.id,
+          shelfLocation: cell.cellCode,
+          aisle: cell.shelf.zone || cell.shelf.name,
+          rack: cell.shelf.code,
+          tier: `Kat ${cell.rowNumber}`,
+          bin: `Göz ${cell.colNumber}`,
+        },
+      );
       return {
         success: true,
         count,
@@ -127,21 +166,28 @@ export class ManageShelvesUseCase {
     }
 
     if (targetShelfId) {
-      const shelf = await this.shelfRepository.findShelfById(tenantId, targetShelfId);
+      const shelf = await this.shelfRepository.findShelfById(
+        tenantId,
+        targetShelfId,
+      );
       if (!shelf) {
         throw new NotFoundException('Hedef raf bulunamadı.');
       }
-      const firstCell = await this.shelfRepository.findFirstCellOfShelf(targetShelfId);
+      const firstCell =
+        await this.shelfRepository.findFirstCellOfShelf(targetShelfId);
       if (firstCell) {
-        const count = await this.shelfRepository.updateManyProductLocations(productIds, {
-          shelfCellId: firstCell.id,
-          shelfId: firstCell.shelf.id,
-          shelfLocation: firstCell.cellCode,
-          aisle: firstCell.shelf.zone || firstCell.shelf.name,
-          rack: firstCell.shelf.code,
-          tier: `Kat ${firstCell.rowNumber}`,
-          bin: `Göz ${firstCell.colNumber}`,
-        });
+        const count = await this.shelfRepository.updateManyProductLocations(
+          productIds,
+          {
+            shelfCellId: firstCell.id,
+            shelfId: firstCell.shelf.id,
+            shelfLocation: firstCell.cellCode,
+            aisle: firstCell.shelf.zone || firstCell.shelf.name,
+            rack: firstCell.shelf.code,
+            tier: `Kat ${firstCell.rowNumber}`,
+            bin: `Göz ${firstCell.colNumber}`,
+          },
+        );
         return {
           success: true,
           count,
@@ -162,7 +208,10 @@ export class ManageShelvesUseCase {
       throw new NotFoundException('Raf bulunamadı.');
     }
 
-    const totalAssignedProducts = shelf.cells.reduce((acc: number, c: any) => acc + c._count.products, 0);
+    const totalAssignedProducts = shelf.cells.reduce(
+      (acc: number, c: any) => acc + c._count.products,
+      0,
+    );
     if (totalAssignedProducts > 0) {
       throw new BadRequestException(
         `Bu rafta halihazırda ${totalAssignedProducts} adet atanmış parça var. Önce parçaların raf atamasını kaldırınız.`,

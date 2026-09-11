@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { WorkOrderStatusVO } from '../../domain/value-objects/work-order-status.vo';
 import { AuditService } from '../../../audit/audit.service';
@@ -26,7 +31,9 @@ export class UpdateWorkOrderItemQuantityUseCase {
 
     const statusVO = new WorkOrderStatusVO(wo.status);
     if (statusVO.isCompleted() || statusVO.isCancelled()) {
-      throw new BadRequestException('Tamamlanmış veya iptal edilmiş iş emrinde kalem güncellenemez.');
+      throw new BadRequestException(
+        'Tamamlanmış veya iptal edilmiş iş emrinde kalem güncellenemez.',
+      );
     }
 
     const item = (wo.items || []).find((it: any) => it.id === itemId);
@@ -76,14 +83,19 @@ export class UpdateWorkOrderItemQuantityUseCase {
           quantityChange: diff > 0 ? `+${diff}` : `${diff}`,
           stockMovement: stockActionText,
           unitPrice: Number(item.unitPrice),
-          totalPrice: updated?.items?.find((i: any) => i.id === itemId)?.totalPrice || (Number(item.unitPrice) * newQty),
+          totalPrice:
+            updated?.items?.find((i: any) => i.id === itemId)?.totalPrice ||
+            Number(item.unitPrice) * newQty,
           plate: wo.vehicle?.plate || 'Belirtilmedi',
           workOrderNumber: wo.workOrderNumber,
           author,
         },
       });
     } catch (err) {
-      console.error('Audit log failed for work_order.item_quantity_updated:', err);
+      console.error(
+        'Audit log failed for work_order.item_quantity_updated:',
+        err,
+      );
     }
 
     this.eventsGateway.emitToTenant(tenantId, 'work_order:item_updated', {

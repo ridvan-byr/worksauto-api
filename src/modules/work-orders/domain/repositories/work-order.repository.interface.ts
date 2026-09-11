@@ -31,8 +31,17 @@ export interface IWorkOrderRepository {
   findById(tenantId: string, id: string): Promise<any | null>;
   getNextWorkOrderNumber(tenantId: string): Promise<string>;
   create(data: CreateWorkOrderData): Promise<any>;
-  updateStatus(tenantId: string, id: string, status: string, completedAt?: Date | null): Promise<any>;
-  rollbackStatus(tenantId: string, id: string, prevStatus: string): Promise<any>;
+  updateStatus(
+    tenantId: string,
+    id: string,
+    status: string,
+    completedAt?: Date | null,
+  ): Promise<any>;
+  rollbackStatus(
+    tenantId: string,
+    id: string,
+    prevStatus: string,
+  ): Promise<any>;
   addItem(
     tenantId: string,
     workOrderId: string,
@@ -47,7 +56,13 @@ export interface IWorkOrderRepository {
     },
     author: string,
   ): Promise<any>;
-  updateItemQuantity(tenantId: string, workOrderId: string, itemId: string, quantity: number, author: string): Promise<any>;
+  updateItemQuantity(
+    tenantId: string,
+    workOrderId: string,
+    itemId: string,
+    quantity: number,
+    author: string,
+  ): Promise<any>;
   updateItem(
     tenantId: string,
     workOrderId: string,
@@ -55,8 +70,20 @@ export interface IWorkOrderRepository {
     data: { name?: string; unitPrice?: number; quantity?: number },
     author: string,
   ): Promise<any>;
-  removeItem(tenantId: string, workOrderId: string, itemId: string, author: string): Promise<any>;
-  addPhoto(tenantId: string, id: string, url: string, caption: string, photoType: string, uploadedBy: string): Promise<any>;
+  removeItem(
+    tenantId: string,
+    workOrderId: string,
+    itemId: string,
+    author: string,
+  ): Promise<any>;
+  addPhoto(
+    tenantId: string,
+    id: string,
+    url: string,
+    caption: string,
+    photoType: string,
+    uploadedBy: string,
+  ): Promise<any>;
   addNote(
     tenantId: string,
     workOrderId: string,
@@ -65,10 +92,31 @@ export interface IWorkOrderRepository {
     text: string,
     isInternal?: boolean,
   ): Promise<any>;
-  updateNote(tenantId: string, workOrderId: string, noteId: string, text: string): Promise<any>;
-  deleteNote(tenantId: string, workOrderId: string, noteId: string): Promise<any>;
+  updateNote(
+    tenantId: string,
+    workOrderId: string,
+    noteId: string,
+    text: string,
+  ): Promise<any>;
+  deleteNote(
+    tenantId: string,
+    workOrderId: string,
+    noteId: string,
+  ): Promise<any>;
+  syncAppointmentStatus(
+    tenantId: string,
+    appointmentId: string,
+    status: string,
+  ): Promise<void>;
   findNoteById(tenantId: string, noteId: string): Promise<any | null>;
-  restoreCancelledStock(tenantId: string, workOrderId: string, userId?: string): Promise<void>;
+  restoreCancelledStock(
+    tenantId: string,
+    workOrderId: string,
+    userId?: string,
+  ): Promise<void>;
   getTenantAutoInvoiceConfig(tenantId: string): Promise<boolean>;
-  findInvoiceByWorkOrder(tenantId: string, workOrderId: string): Promise<any | null>;
+  findInvoiceByWorkOrder(
+    tenantId: string,
+    workOrderId: string,
+  ): Promise<any | null>;
 }

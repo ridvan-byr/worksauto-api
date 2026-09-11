@@ -1,5 +1,8 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { IAppointmentRepository, APPOINTMENT_REPOSITORY } from '../../domain/appointment.repository.interface';
+import {
+  IAppointmentRepository,
+  APPOINTMENT_REPOSITORY,
+} from '../../domain/appointment.repository.interface';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
@@ -16,7 +19,11 @@ export class UpdateAppointmentStatusUseCase {
     private readonly eventsGateway: EventsGateway,
   ) {}
 
-  async approve(tenantId: string, id: string, userId?: string): Promise<AppointmentEntity> {
+  async approve(
+    tenantId: string,
+    id: string,
+    userId?: string,
+  ): Promise<AppointmentEntity> {
     const app = await this.appointmentRepository.findById(tenantId, id);
     if (!app) {
       throw new NotFoundException('Randevu bulunamadı.');
@@ -43,7 +50,10 @@ export class UpdateAppointmentStatusUseCase {
         ? new Date(app.slotStartTime).toLocaleDateString('tr-TR')
         : '';
       const formattedTime = app.slotStartTime
-        ? new Date(app.slotStartTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        ? new Date(app.slotStartTime).toLocaleTimeString('tr-TR', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
         : '';
       await this.notificationsService.createNotification({
         tenantId,
@@ -89,7 +99,11 @@ export class UpdateAppointmentStatusUseCase {
 
     const updated = await this.appointmentRepository.save(app);
 
-    this.eventsGateway.emitToTenant(tenantId, 'appointment:status_changed', updated);
+    this.eventsGateway.emitToTenant(
+      tenantId,
+      'appointment:status_changed',
+      updated,
+    );
 
     await this.auditService.log({
       tenantId,
@@ -104,7 +118,11 @@ export class UpdateAppointmentStatusUseCase {
     return updated;
   }
 
-  async markNoShow(tenantId: string, id: string, userId?: string): Promise<AppointmentEntity> {
+  async markNoShow(
+    tenantId: string,
+    id: string,
+    userId?: string,
+  ): Promise<AppointmentEntity> {
     const app = await this.appointmentRepository.findById(tenantId, id);
     if (!app) {
       throw new NotFoundException('Randevu bulunamadı.');

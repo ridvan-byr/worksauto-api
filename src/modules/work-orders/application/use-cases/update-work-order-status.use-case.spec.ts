@@ -48,7 +48,9 @@ describe('UpdateWorkOrderStatusUseCase', () => {
   it('should throw NotFoundException if work order is missing', async () => {
     mockRepo.findById = vi.fn().mockResolvedValue(null);
 
-    await expect(useCase.execute('t-1', 'wo-1', 'IN_PROGRESS')).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('t-1', 'wo-1', 'IN_PROGRESS')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should update status and trigger audit log', async () => {
@@ -61,9 +63,19 @@ describe('UpdateWorkOrderStatusUseCase', () => {
       customer: { firstName: 'Ali', lastName: 'Yılmaz' },
     };
     mockRepo.findById = vi.fn().mockResolvedValue(existing);
-    mockRepo.updateStatus = vi.fn().mockResolvedValue({ ...existing, status: WorkOrderStatusEnum.IN_PROGRESS });
+    mockRepo.updateStatus = vi
+      .fn()
+      .mockResolvedValue({
+        ...existing,
+        status: WorkOrderStatusEnum.IN_PROGRESS,
+      });
 
-    const result = await useCase.execute('t-1', 'wo-1', 'IN_PROGRESS', 'user-1');
+    const result = await useCase.execute(
+      't-1',
+      'wo-1',
+      'IN_PROGRESS',
+      'user-1',
+    );
     expect(result.status).toBe(WorkOrderStatusEnum.IN_PROGRESS);
     expect(mockAudit.log).toHaveBeenCalled();
     expect(mockEvents.emitToTenant).toHaveBeenCalled();

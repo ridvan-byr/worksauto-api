@@ -1,5 +1,20 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { ServicesService } from './services.service';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -17,7 +32,12 @@ export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
   @Get()
-  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN, UserRole.CASHIER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.SERVICE_MANAGER,
+    UserRole.TECHNICIAN,
+    UserRole.CASHIER,
+  )
   @ApiOperation({ summary: 'Servis/işçilik kataloğunu listeler' })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'category', required: false })
@@ -29,11 +49,20 @@ export class ServicesController {
     @Query('isActive') isActive?: string,
   ) {
     const activeBool = isActive !== undefined ? isActive === 'true' : undefined;
-    return this.servicesService.findAll(tenantId, { search, category, isActive: activeBool });
+    return this.servicesService.findAll(tenantId, {
+      search,
+      category,
+      isActive: activeBool,
+    });
   }
 
   @Get(':id')
-  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN, UserRole.CASHIER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.SERVICE_MANAGER,
+    UserRole.TECHNICIAN,
+    UserRole.CASHIER,
+  )
   @ApiOperation({ summary: 'Hizmet detayını getirir' })
   findOne(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.servicesService.findOne(tenantId, id);

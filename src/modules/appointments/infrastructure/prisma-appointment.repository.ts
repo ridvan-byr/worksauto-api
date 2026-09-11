@@ -1,8 +1,15 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import { IAppointmentRepository } from '../domain/appointment.repository.interface';
-import { AppointmentEntity, AppointmentStatusType } from '../domain/appointment.entity';
-import { AppointmentStatus, WorkOrderStatus, CustomerType } from '@prisma/client';
+import {
+  AppointmentEntity,
+  AppointmentStatusType,
+} from '../domain/appointment.entity';
+import {
+  AppointmentStatus,
+  WorkOrderStatus,
+  CustomerType,
+} from '@prisma/client';
 
 @Injectable()
 export class PrismaAppointmentRepository implements IAppointmentRepository {
@@ -45,7 +52,10 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return status as AppointmentStatus;
   }
 
-  async findById(tenantId: string, id: string): Promise<AppointmentEntity | null> {
+  async findById(
+    tenantId: string,
+    id: string,
+  ): Promise<AppointmentEntity | null> {
     const data = await this.prisma.appointment.findFirst({
       where: { id, tenantId },
       include: {
@@ -87,36 +97,58 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   async create(appointment: AppointmentEntity): Promise<AppointmentEntity> {
     const [customer, vehicle] = await Promise.all([
       this.prisma.customer.findFirst({
-        where: { id: appointment.customerId, tenantId: appointment.tenantId, deletedAt: null },
+        where: {
+          id: appointment.customerId,
+          tenantId: appointment.tenantId,
+          deletedAt: null,
+        },
       }),
       this.prisma.vehicle.findFirst({
-        where: { id: appointment.vehicleId, tenantId: appointment.tenantId, deletedAt: null },
+        where: {
+          id: appointment.vehicleId,
+          tenantId: appointment.tenantId,
+          deletedAt: null,
+        },
       }),
     ]);
 
     if (!customer) {
-      throw new BadRequestException('Müşteri bulunamadı veya bu işletmeye ait değil.');
+      throw new BadRequestException(
+        'Müşteri bulunamadı veya bu işletmeye ait değil.',
+      );
     }
     if (!vehicle) {
-      throw new BadRequestException('Araç bulunamadı veya bu işletmeye ait değil.');
+      throw new BadRequestException(
+        'Araç bulunamadı veya bu işletmeye ait değil.',
+      );
     }
     if (vehicle.customerId !== appointment.customerId) {
-      throw new BadRequestException('Seçilen araç belirtilen müşteriye ait değil.');
+      throw new BadRequestException(
+        'Seçilen araç belirtilen müşteriye ait değil.',
+      );
     }
 
     if (appointment.assignedMechanicId) {
       const mechanic = await this.prisma.mechanic.findFirst({
-        where: { id: appointment.assignedMechanicId, tenantId: appointment.tenantId },
+        where: {
+          id: appointment.assignedMechanicId,
+          tenantId: appointment.tenantId,
+        },
       });
       if (!mechanic) {
-        throw new BadRequestException('Atanan teknisyen bu işletmeye ait değil.');
+        throw new BadRequestException(
+          'Atanan teknisyen bu işletmeye ait değil.',
+        );
       }
     }
 
     // Validate and sanitize serviceId (Foreign Key Protection)
     let validatedServiceId: string | null = null;
     if (appointment.serviceId) {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(appointment.serviceId);
+      const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          appointment.serviceId,
+        );
       if (isUuid) {
         const srv = await this.prisma.service.findFirst({
           where: { id: appointment.serviceId, tenantId: appointment.tenantId },
@@ -127,9 +159,18 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       }
     }
 
-    const slotDate = appointment.slotDate instanceof Date ? appointment.slotDate : new Date(appointment.slotDate);
-    const slotStartTime = appointment.slotStartTime instanceof Date ? appointment.slotStartTime : new Date(appointment.slotStartTime);
-    const slotEndTime = appointment.slotEndTime instanceof Date ? appointment.slotEndTime : new Date(appointment.slotEndTime);
+    const slotDate =
+      appointment.slotDate instanceof Date
+        ? appointment.slotDate
+        : new Date(appointment.slotDate);
+    const slotStartTime =
+      appointment.slotStartTime instanceof Date
+        ? appointment.slotStartTime
+        : new Date(appointment.slotStartTime);
+    const slotEndTime =
+      appointment.slotEndTime instanceof Date
+        ? appointment.slotEndTime
+        : new Date(appointment.slotEndTime);
 
     const data = await this.prisma.appointment.create({
       data: {
@@ -160,12 +201,23 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       where: { id: appointment.id, tenantId: appointment.tenantId },
     });
     if (!existing) {
-      throw new BadRequestException('Randevu bulunamadı veya bu işletmeye ait değil.');
+      throw new BadRequestException(
+        'Randevu bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
-    const slotDate = appointment.slotDate instanceof Date ? appointment.slotDate : new Date(appointment.slotDate);
-    const slotStartTime = appointment.slotStartTime instanceof Date ? appointment.slotStartTime : new Date(appointment.slotStartTime);
-    const slotEndTime = appointment.slotEndTime instanceof Date ? appointment.slotEndTime : new Date(appointment.slotEndTime);
+    const slotDate =
+      appointment.slotDate instanceof Date
+        ? appointment.slotDate
+        : new Date(appointment.slotDate);
+    const slotStartTime =
+      appointment.slotStartTime instanceof Date
+        ? appointment.slotStartTime
+        : new Date(appointment.slotStartTime);
+    const slotEndTime =
+      appointment.slotEndTime instanceof Date
+        ? appointment.slotEndTime
+        : new Date(appointment.slotEndTime);
 
     // Validate serviceId if updated
     let validatedServiceId = existing.serviceId;
@@ -173,10 +225,16 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       if (appointment.serviceId === null) {
         validatedServiceId = null;
       } else {
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(appointment.serviceId);
+        const isUuid =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            appointment.serviceId,
+          );
         if (isUuid) {
           const srv = await this.prisma.service.findFirst({
-            where: { id: appointment.serviceId, tenantId: appointment.tenantId },
+            where: {
+              id: appointment.serviceId,
+              tenantId: appointment.tenantId,
+            },
           });
           validatedServiceId = srv ? srv.id : null;
         } else {
@@ -222,7 +280,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         tenantId,
         assignedMechanicId: mechanicId,
         ...(excludeId ? { id: { not: excludeId } } : {}),
-        status: { notIn: [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW] },
+        status: {
+          notIn: [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW],
+        },
         slotStartTime: { lt: end },
         slotEndTime: { gt: start },
       },
@@ -243,7 +303,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         tenantId,
         assignedLift: lift.trim(),
         ...(excludeId ? { id: { not: excludeId } } : {}),
-        status: { notIn: [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW] },
+        status: {
+          notIn: [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW],
+        },
         slotStartTime: { lt: end },
         slotEndTime: { gt: start },
       },
@@ -261,7 +323,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         where: { id, tenantId },
       });
       if (!existing) {
-        throw new BadRequestException('Randevu bulunamadı veya bu işletmeye ait değil.');
+        throw new BadRequestException(
+          'Randevu bulunamadı veya bu işletmeye ait değil.',
+        );
       }
 
       const updatedApp = await tx.appointment.update({
@@ -277,7 +341,10 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         },
       });
 
-      if (updatedApp.workOrder && updatedApp.workOrder.status !== WorkOrderStatus.CANCELLED) {
+      if (
+        updatedApp.workOrder &&
+        updatedApp.workOrder.status !== WorkOrderStatus.CANCELLED
+      ) {
         await tx.workOrder.update({
           where: { id: updatedApp.workOrder.id },
           data: {
@@ -321,7 +388,11 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     return bays.map((b) => b.name);
   }
 
-  async findOrCreateCustomerForPublic(tenantId: string, name: string, phone: string): Promise<any> {
+  async findOrCreateCustomerForPublic(
+    tenantId: string,
+    name: string,
+    phone: string,
+  ): Promise<any> {
     const nameParts = name.trim().split(/\s+/);
     const firstName = nameParts[0] || 'Müşteri';
     const lastName = nameParts.slice(1).join(' ').trim() || '';

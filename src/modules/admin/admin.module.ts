@@ -24,6 +24,11 @@ import { RedisService } from '../../shared/infrastructure/redis/redis.service';
     PrismaService,
     RedisService,
   ],
-  exports: [AdminAuthService, AdminTenantService, AdminMetricsService, AdminUsersService],
+  exports: [
+    AdminAuthService,
+    AdminTenantService,
+    AdminMetricsService,
+    AdminUsersService,
+  ],
 })
 export class AdminModule {}

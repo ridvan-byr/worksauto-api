@@ -44,7 +44,9 @@ describe('AdminTenantService', () => {
         isActive: true,
         createdAt: new Date(),
         _count: { users: 3, workOrders: 10, vehicles: 5, customers: 8 },
-        users: [{ name: 'Ali', surname: 'Usta', phone: '0532', email: 'ali@oto.com' }],
+        users: [
+          { name: 'Ali', surname: 'Usta', phone: '0532', email: 'ali@oto.com' },
+        ],
       },
     ]);
 
@@ -57,12 +59,22 @@ describe('AdminTenantService', () => {
   it('should throw NotFoundException on non-existing tenant detail', async () => {
     mockPrisma.tenant.findUnique.mockResolvedValue(null);
 
-    await expect(service.getTenantDetail('nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(service.getTenantDetail('nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should update tenant status', async () => {
-    mockPrisma.tenant.findUnique.mockResolvedValue({ id: 't-1', title: 'Oto Servis', isActive: false });
-    mockPrisma.tenant.update.mockResolvedValue({ id: 't-1', title: 'Oto Servis', isActive: true });
+    mockPrisma.tenant.findUnique.mockResolvedValue({
+      id: 't-1',
+      title: 'Oto Servis',
+      isActive: false,
+    });
+    mockPrisma.tenant.update.mockResolvedValue({
+      id: 't-1',
+      title: 'Oto Servis',
+      isActive: true,
+    });
 
     const result = await service.updateTenantStatus('t-1', { isActive: true });
     expect(result.success).toBe(true);

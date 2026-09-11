@@ -22,6 +22,7 @@ describe('DecrementStockUseCase', () => {
       incrementAtomic: vi.fn(),
       addStockMovement: vi.fn(),
       getMovements: vi.fn(),
+      delete: vi.fn(),
     };
 
     mockEvents = {
@@ -32,7 +33,11 @@ describe('DecrementStockUseCase', () => {
       createNotification: vi.fn(),
     } as any;
 
-    useCase = new DecrementStockUseCase(mockRepo, mockEvents, mockNotifications);
+    useCase = new DecrementStockUseCase(
+      mockRepo,
+      mockEvents,
+      mockNotifications,
+    );
   });
 
   it('should throw NotFoundException when product does not exist', async () => {
@@ -84,10 +89,22 @@ describe('DecrementStockUseCase', () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(existing);
     vi.mocked(mockRepo.decrementAtomic).mockResolvedValue(updated);
 
-    const result = await useCase.execute('tenant-1', 'prod-1', 2, 'wo-1', 'Usta');
+    const result = await useCase.execute(
+      'tenant-1',
+      'prod-1',
+      2,
+      'wo-1',
+      'Usta',
+    );
 
     expect(result.stockQuantity).toBe(8);
-    expect(mockRepo.decrementAtomic).toHaveBeenCalledWith('tenant-1', 'prod-1', 2, 'wo-1', 'Usta');
+    expect(mockRepo.decrementAtomic).toHaveBeenCalledWith(
+      'tenant-1',
+      'prod-1',
+      2,
+      'wo-1',
+      'Usta',
+    );
     expect(mockEvents.emitToTenant).toHaveBeenCalledWith(
       'tenant-1',
       'inventory:stock_changed',

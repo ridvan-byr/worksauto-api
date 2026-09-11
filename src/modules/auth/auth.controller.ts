@@ -10,7 +10,12 @@ import {
   UseGuards,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
@@ -37,8 +42,14 @@ export class AuthController {
   @Public()
   @Post('otp/send')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Kullanıcı telefonuna 6 haneli SMS doğrulama kodu gönderir (Redis 3 dk)' })
-  @ApiResponse({ status: 200, description: 'SMS OTP kodu başarıyla gönderildi.' })
+  @ApiOperation({
+    summary:
+      'Kullanıcı telefonuna 6 haneli SMS doğrulama kodu gönderir (Redis 3 dk)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'SMS OTP kodu başarıyla gönderildi.',
+  })
   sendOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendOtp(dto);
   }
@@ -46,30 +57,49 @@ export class AuthController {
   @Public()
   @Post('otp/verify')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'SMS kodunu doğrular ve 30 Günlük (1 Ay) kalıcı oturum başlatır' })
-  @ApiResponse({ status: 200, description: 'Giriş başarılı. 30 günlük Refresh Token ve Access Token üretildi.' })
+  @ApiOperation({
+    summary: 'SMS kodunu doğrular ve 30 Günlük (1 Ay) kalıcı oturum başlatır',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Giriş başarılı. 30 günlük Refresh Token ve Access Token üretildi.',
+  })
   async verifyOtp(
     @Body() dto: VerifyOtpDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.verifyOtp(dto);
     if (result.refreshToken) {
-      res.cookie('refreshToken', result.refreshToken, getRefreshTokenCookieOptions());
+      res.cookie(
+        'refreshToken',
+        result.refreshToken,
+        getRefreshTokenCookieOptions(),
+      );
     }
     return result;
   }
 
   @Public()
   @Post('register')
-  @ApiOperation({ summary: 'Yeni bir servis işletmesi (tenant) ve yönetici hesabı oluşturur' })
-  @ApiResponse({ status: 201, description: 'Servis ve yönetici başarıyla oluşturuldu.' })
+  @ApiOperation({
+    summary: 'Yeni bir servis işletmesi (tenant) ve yönetici hesabı oluşturur',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Servis ve yönetici başarıyla oluşturuldu.',
+  })
   async register(
     @Body() dto: RegisterTenantDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.registerTenant(dto);
     if (result.refreshToken) {
-      res.cookie('refreshToken', result.refreshToken, getRefreshTokenCookieOptions());
+      res.cookie(
+        'refreshToken',
+        result.refreshToken,
+        getRefreshTokenCookieOptions(),
+      );
     }
     return result;
   }
@@ -86,11 +116,17 @@ export class AuthController {
   ) {
     const token = req.cookies?.refreshToken || dto?.refreshToken;
     if (!token) {
-      throw new UnauthorizedException('Yenileme belirteci (refresh token) bulunamadı.');
+      throw new UnauthorizedException(
+        'Yenileme belirteci (refresh token) bulunamadı.',
+      );
     }
     const result = await this.authService.refreshToken({ refreshToken: token });
     if (result.refreshToken) {
-      res.cookie('refreshToken', result.refreshToken, getRefreshTokenCookieOptions());
+      res.cookie(
+        'refreshToken',
+        result.refreshToken,
+        getRefreshTokenCookieOptions(),
+      );
     }
     return result;
   }
@@ -98,12 +134,11 @@ export class AuthController {
   @Public()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Kullanıcı oturumunu ve httpOnly cookie belirtecini sonlandırır' })
+  @ApiOperation({
+    summary: 'Kullanıcı oturumunu ve httpOnly cookie belirtecini sonlandırır',
+  })
   @ApiResponse({ status: 200, description: 'Oturum kapatıldı.' })
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const token = req.cookies?.refreshToken;
     if (token) {
       await this.authService.revokeRefreshToken(token);
@@ -118,9 +153,10 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Giriş yapan personelin oturum ve tenant bilgilerini döner' })
+  @ApiOperation({
+    summary: 'Giriş yapan personelin oturum ve tenant bilgilerini döner',
+  })
   getProfile(@CurrentUser() user: any) {
     return this.authService.getProfile(user.id || user.sub);
   }
 }
-

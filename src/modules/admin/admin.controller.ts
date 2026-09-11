@@ -12,7 +12,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AdminAuthService } from './services/admin-auth.service';
 import { AdminTenantService } from './services/admin-tenant.service';
@@ -21,7 +26,10 @@ import { AdminUsersService } from './services/admin-users.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { UpdateTenantStatusDto } from './dto/update-tenant-status.dto';
 import { CreateTenantDto } from './dto/create-tenant.dto';
-import { CreateSuperAdminDto, UpdateSuperAdminStatusDto } from './dto/create-superadmin.dto';
+import {
+  CreateSuperAdminDto,
+  UpdateSuperAdminStatusDto,
+} from './dto/create-superadmin.dto';
 import { Public } from '../../shared/decorators/public.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
@@ -42,14 +50,23 @@ export class AdminController {
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('auth/login')
-  @ApiOperation({ summary: 'Super Admin E-Posta & Şifre ile platform girişi (IP & UserAgent loglu)' })
+  @ApiOperation({
+    summary:
+      'Super Admin E-Posta & Şifre ile platform girişi (IP & UserAgent loglu)',
+  })
   async login(
     @Body() dto: AdminLoginDto,
     @Req() req: any,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const rawIp = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() || req.ip || req.socket?.remoteAddress || '127.0.0.1';
-    const clientIp = rawIp.startsWith('::ffff:') ? rawIp.replace('::ffff:', '') : rawIp;
+    const rawIp =
+      req.headers['x-forwarded-for']?.toString().split(',')[0].trim() ||
+      req.ip ||
+      req.socket?.remoteAddress ||
+      '127.0.0.1';
+    const clientIp = rawIp.startsWith('::ffff:')
+      ? rawIp.replace('::ffff:', '')
+      : rawIp;
     const userAgent = req.headers['user-agent'] || 'Unknown Browser';
     const result = await this.adminAuthService.login(dto, clientIp, userAgent);
 
@@ -71,7 +88,9 @@ export class AdminController {
 
   @Public()
   @Post('auth/logout')
-  @ApiOperation({ summary: 'Super Admin oturumunu güvenle kapatır ve cookie temizler' })
+  @ApiOperation({
+    summary: 'Super Admin oturumunu güvenle kapatır ve cookie temizler',
+  })
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('adminAccessToken', { path: '/api/v1/admin' });
     return { success: true, message: 'Yönetici oturumu başarıyla kapatıldı.' };
@@ -91,7 +110,11 @@ export class AdminController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Tüm servis kiracılarını filtreli listeler' })
-  @ApiQuery({ name: 'status', required: false, enum: ['ALL', 'ACTIVE', 'INACTIVE'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['ALL', 'ACTIVE', 'INACTIVE'],
+  })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'city', required: false })
   getTenants(
@@ -106,11 +129,10 @@ export class AdminController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Yeni bir servis kiracısı (Tenant) ve kurucu yetkili hesabı açar' })
-  createTenant(
-    @Body() dto: CreateTenantDto,
-    @CurrentUser() user: any,
-  ) {
+  @ApiOperation({
+    summary: 'Yeni bir servis kiracısı (Tenant) ve kurucu yetkili hesabı açar',
+  })
+  createTenant(@Body() dto: CreateTenantDto, @CurrentUser() user: any) {
     return this.adminTenantService.createTenant(dto, user?.id);
   }
 
@@ -118,11 +140,11 @@ export class AdminController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Bir servisi ve bağlı tüm operasyonel verilerini kalıcı olarak siler' })
-  deleteTenant(
-    @Param('id') id: string,
-    @CurrentUser() user: any,
-  ) {
+  @ApiOperation({
+    summary:
+      'Bir servisi ve bağlı tüm operasyonel verilerini kalıcı olarak siler',
+  })
+  deleteTenant(@Param('id') id: string, @CurrentUser() user: any) {
     return this.adminTenantService.deleteTenant(id, user?.id);
   }
 
@@ -139,7 +161,9 @@ export class AdminController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Servis lisans durumunu günceller (Onayla / Dondur)' })
+  @ApiOperation({
+    summary: 'Servis lisans durumunu günceller (Onayla / Dondur)',
+  })
   updateTenantStatus(
     @Param('id') id: string,
     @Body() dto: UpdateTenantStatusDto,
@@ -152,7 +176,10 @@ export class AdminController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Platform geneli güvenlik ve kritik işlem logları (sayfalama destekli)' })
+  @ApiOperation({
+    summary:
+      'Platform geneli güvenlik ve kritik işlem logları (sayfalama destekli)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'action', required: false, type: String })
@@ -201,10 +228,7 @@ export class AdminController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Yeni Super Admin hesabı açar' })
-  createSuperAdmin(
-    @Body() dto: CreateSuperAdminDto,
-    @CurrentUser() user: any,
-  ) {
+  createSuperAdmin(@Body() dto: CreateSuperAdminDto, @CurrentUser() user: any) {
     return this.adminUsersService.create(dto, user);
   }
 
@@ -212,7 +236,10 @@ export class AdminController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Super Admin aktiflik durumunu günceller (Askıya Alma/Aktifleştirme)' })
+  @ApiOperation({
+    summary:
+      'Super Admin aktiflik durumunu günceller (Askıya Alma/Aktifleştirme)',
+  })
   updateSuperAdminStatus(
     @Param('id') id: string,
     @Body() dto: UpdateSuperAdminStatusDto,
@@ -226,10 +253,7 @@ export class AdminController {
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Super Admin hesabını kalıcı olarak siler' })
-  deleteSuperAdmin(
-    @Param('id') id: string,
-    @CurrentUser() user: any,
-  ) {
+  deleteSuperAdmin(@Param('id') id: string, @CurrentUser() user: any) {
     return this.adminUsersService.remove(id, user?.id);
   }
 }

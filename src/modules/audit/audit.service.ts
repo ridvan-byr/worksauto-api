@@ -26,7 +26,8 @@ export class AuditService {
     try {
       const tenantId = params.tenantId || this.cls.get('tenantId') || undefined;
       const userId = params.userId || this.cls.get('userId') || undefined;
-      const correlationId = params.correlationId || this.cls.getId() || undefined;
+      const correlationId =
+        params.correlationId || this.cls.getId() || undefined;
 
       return await this.prisma.auditLog.create({
         data: {
@@ -72,7 +73,8 @@ export class AuditService {
       },
     ];
 
-    if (filters?.entityName) andConditions.push({ entityName: filters.entityName });
+    if (filters?.entityName)
+      andConditions.push({ entityName: filters.entityName });
 
     if (filters?.action) {
       if (filters.action === 'finance') {
@@ -83,7 +85,9 @@ export class AuditService {
           ],
         });
       } else {
-        andConditions.push({ action: { contains: filters.action, mode: 'insensitive' } });
+        andConditions.push({
+          action: { contains: filters.action, mode: 'insensitive' },
+        });
       }
     }
 
@@ -93,13 +97,23 @@ export class AuditService {
       const actionKeywords: string[] = [search];
       if (searchLower.includes('fatura')) actionKeywords.push('invoice');
       if (searchLower.includes('randevu')) actionKeywords.push('appointment');
-      if (searchLower.includes('iş emri') || searchLower.includes('is emri')) actionKeywords.push('work_order');
+      if (searchLower.includes('iş emri') || searchLower.includes('is emri'))
+        actionKeywords.push('work_order');
       if (searchLower.includes('hizmet')) actionKeywords.push('service');
-      if (searchLower.includes('personel') || searchLower.includes('usta')) actionKeywords.push('staff', 'user');
-      if (searchLower.includes('araç') || searchLower.includes('arac')) actionKeywords.push('vehicle');
-      if (searchLower.includes('müşteri') || searchLower.includes('musteri')) actionKeywords.push('customer');
-      if (searchLower.includes('ödeme') || searchLower.includes('tahsilat')) actionKeywords.push('payment');
-      if (searchLower.includes('stok') || searchLower.includes('parça') || searchLower.includes('parca')) actionKeywords.push('inventory', 'product');
+      if (searchLower.includes('personel') || searchLower.includes('usta'))
+        actionKeywords.push('staff', 'user');
+      if (searchLower.includes('araç') || searchLower.includes('arac'))
+        actionKeywords.push('vehicle');
+      if (searchLower.includes('müşteri') || searchLower.includes('musteri'))
+        actionKeywords.push('customer');
+      if (searchLower.includes('ödeme') || searchLower.includes('tahsilat'))
+        actionKeywords.push('payment');
+      if (
+        searchLower.includes('stok') ||
+        searchLower.includes('parça') ||
+        searchLower.includes('parca')
+      )
+        actionKeywords.push('inventory', 'product');
 
       // 1. Aktör / Personel eşleşmesi (tenant scoped, tekil ve çok kelimeli)
       const userOrFilters: any[] = [
@@ -112,7 +126,12 @@ export class AuditService {
         userOrFilters.push({
           AND: [
             { name: { contains: nameParts[0], mode: 'insensitive' } },
-            { surname: { contains: nameParts.slice(1).join(' '), mode: 'insensitive' } },
+            {
+              surname: {
+                contains: nameParts.slice(1).join(' '),
+                mode: 'insensitive',
+              },
+            },
           ],
         });
       }
@@ -169,7 +188,9 @@ export class AuditService {
       }
 
       const orConditions: any[] = [
-        ...actionKeywords.map((kw) => ({ action: { contains: kw, mode: 'insensitive' } })),
+        ...actionKeywords.map((kw) => ({
+          action: { contains: kw, mode: 'insensitive' },
+        })),
         { entityName: { contains: search, mode: 'insensitive' } },
         { entityId: { contains: search, mode: 'insensitive' } },
         { ipAddress: { contains: search } },
@@ -203,12 +224,13 @@ export class AuditService {
     ]);
 
     const userIds = items.map((l) => l.userId).filter(Boolean) as string[];
-    const users = userIds.length > 0
-      ? await this.prisma.user.findMany({
-          where: { id: { in: userIds } },
-          select: { id: true, name: true, surname: true, role: true },
-        })
-      : [];
+    const users =
+      userIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, name: true, surname: true, role: true },
+          })
+        : [];
     const userMap = new Map(users.map((u) => [u.id, u]));
 
     const data = items.map((log) => ({

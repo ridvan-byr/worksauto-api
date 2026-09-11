@@ -27,7 +27,10 @@ describe('ManageShelvesUseCase', () => {
 
   describe('createShelf', () => {
     it('should throw BadRequestException if shelf code already exists', async () => {
-      vi.mocked(mockShelfRepo.findByCode).mockResolvedValue({ id: 'shelf-1', code: 'RAF-A01' });
+      vi.mocked(mockShelfRepo.findByCode).mockResolvedValue({
+        id: 'shelf-1',
+        code: 'RAF-A01',
+      });
 
       await expect(
         useCase.createShelf('t-1', {
@@ -83,7 +86,9 @@ describe('ManageShelvesUseCase', () => {
     it('should throw NotFoundException if shelf does not exist', async () => {
       vi.mocked(mockShelfRepo.findByIdWithMatrix).mockResolvedValue(null);
 
-      await expect(useCase.getShelfWithMatrix('t-1', 'invalid-id')).rejects.toThrow(NotFoundException);
+      await expect(
+        useCase.getShelfWithMatrix('t-1', 'invalid-id'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should return shelf with matrix if found', async () => {
@@ -99,24 +104,35 @@ describe('ManageShelvesUseCase', () => {
     it('should throw NotFoundException if product is not found', async () => {
       vi.mocked(mockShelfRepo.findProduct).mockResolvedValue(null);
 
-      await expect(useCase.assignProductToCell('t-1', 'prod-1', 'cell-1')).rejects.toThrow(NotFoundException);
+      await expect(
+        useCase.assignProductToCell('t-1', 'prod-1', 'cell-1'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should unassign product if shelfCellId is null', async () => {
-      vi.mocked(mockShelfRepo.findProduct).mockResolvedValue({ id: 'prod-1', tenantId: 't-1' });
-      vi.mocked(mockShelfRepo.updateProductLocation).mockResolvedValue({ id: 'prod-1', shelfCellId: null });
+      vi.mocked(mockShelfRepo.findProduct).mockResolvedValue({
+        id: 'prod-1',
+        tenantId: 't-1',
+      });
+      vi.mocked(mockShelfRepo.updateProductLocation).mockResolvedValue({
+        id: 'prod-1',
+        shelfCellId: null,
+      });
 
       const result = await useCase.assignProductToCell('t-1', 'prod-1', null);
       expect(result.success).toBe(true);
-      expect(mockShelfRepo.updateProductLocation).toHaveBeenCalledWith('prod-1', {
-        shelfCellId: null,
-        shelfId: null,
-        shelfLocation: '',
-        aisle: null,
-        rack: null,
-        tier: null,
-        bin: null,
-      });
+      expect(mockShelfRepo.updateProductLocation).toHaveBeenCalledWith(
+        'prod-1',
+        {
+          shelfCellId: null,
+          shelfId: null,
+          shelfLocation: '',
+          aisle: null,
+          rack: null,
+          tier: null,
+          bin: null,
+        },
+      );
     });
   });
 
@@ -124,7 +140,9 @@ describe('ManageShelvesUseCase', () => {
     it('should throw NotFoundException if shelf is not found', async () => {
       vi.mocked(mockShelfRepo.findShelfById).mockResolvedValue(null);
 
-      await expect(useCase.deleteShelf('t-1', 'shelf-1')).rejects.toThrow(NotFoundException);
+      await expect(useCase.deleteShelf('t-1', 'shelf-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException if shelf has assigned products', async () => {
@@ -133,7 +151,9 @@ describe('ManageShelvesUseCase', () => {
         cells: [{ _count: { products: 3 } }],
       });
 
-      await expect(useCase.deleteShelf('t-1', 'shelf-1')).rejects.toThrow(BadRequestException);
+      await expect(useCase.deleteShelf('t-1', 'shelf-1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should delete shelf if empty', async () => {

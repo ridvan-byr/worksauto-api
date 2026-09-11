@@ -26,7 +26,9 @@ describe('ManageConsentUseCase', () => {
     it('should throw NotFoundException if customer not found', async () => {
       vi.mocked(mockConsentRepo.findCustomerWithTenant).mockResolvedValue(null);
 
-      await expect(useCase.getConsents('t-1', 'cust-1')).rejects.toThrow(NotFoundException);
+      await expect(useCase.getConsents('t-1', 'cust-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should return consent status and history when customer exists', async () => {
@@ -58,7 +60,9 @@ describe('ManageConsentUseCase', () => {
     it('should throw NotFoundException if customer not found', async () => {
       vi.mocked(mockConsentRepo.findCustomerWithTenant).mockResolvedValue(null);
 
-      await expect(useCase.sendConsentSms('t-1', 'cust-1')).rejects.toThrow(NotFoundException);
+      await expect(useCase.sendConsentSms('t-1', 'cust-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should create pending consent token and return verification URL', async () => {
@@ -90,28 +94,43 @@ describe('ManageConsentUseCase', () => {
 
   describe('verifyToken', () => {
     it('should throw NotFoundException if token is invalid', async () => {
-      vi.mocked(mockConsentRepo.findConsentByTokenWithRelations).mockResolvedValue(null);
+      vi.mocked(
+        mockConsentRepo.findConsentByTokenWithRelations,
+      ).mockResolvedValue(null);
 
-      await expect(useCase.verifyToken('invalid-token')).rejects.toThrow(NotFoundException);
+      await expect(useCase.verifyToken('invalid-token')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException if token has expired', async () => {
-      vi.mocked(mockConsentRepo.findConsentByTokenWithRelations).mockResolvedValue({
+      vi.mocked(
+        mockConsentRepo.findConsentByTokenWithRelations,
+      ).mockResolvedValue({
         id: 'c-1',
         expiresAt: new Date(Date.now() - 10000), // expired
       });
 
-      await expect(useCase.verifyToken('expired-token')).rejects.toThrow(BadRequestException);
+      await expect(useCase.verifyToken('expired-token')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should return token details if valid', async () => {
-      vi.mocked(mockConsentRepo.findConsentByTokenWithRelations).mockResolvedValue({
+      vi.mocked(
+        mockConsentRepo.findConsentByTokenWithRelations,
+      ).mockResolvedValue({
         id: 'c-1',
         isGranted: false,
         grantedAt: null,
         policyVersion: '1.0',
         expiresAt: new Date(Date.now() + 100000),
-        customer: { id: 'cust-1', firstName: 'Ali', lastName: 'Yılmaz', phone: '05551234567' },
+        customer: {
+          id: 'cust-1',
+          firstName: 'Ali',
+          lastName: 'Yılmaz',
+          phone: '05551234567',
+        },
         tenant: { id: 't-1', title: 'Auto Servis' },
       });
 
@@ -125,21 +144,31 @@ describe('ManageConsentUseCase', () => {
 
   describe('confirmConsent', () => {
     it('should throw NotFoundException if token is not found', async () => {
-      vi.mocked(mockConsentRepo.findConsentByTokenWithRelations).mockResolvedValue(null);
+      vi.mocked(
+        mockConsentRepo.findConsentByTokenWithRelations,
+      ).mockResolvedValue(null);
 
-      await expect(useCase.confirmConsent('invalid', { commercialSms: true })).rejects.toThrow(NotFoundException);
+      await expect(
+        useCase.confirmConsent('invalid', { commercialSms: true }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should confirm consent and return success', async () => {
       const grantedAt = new Date();
-      vi.mocked(mockConsentRepo.findConsentByTokenWithRelations).mockResolvedValue({
+      vi.mocked(
+        mockConsentRepo.findConsentByTokenWithRelations,
+      ).mockResolvedValue({
         id: 'c-1',
         customer: { firstName: 'Ali', lastName: 'Yılmaz' },
         expiresAt: new Date(Date.now() + 100000),
       });
-      vi.mocked(mockConsentRepo.confirmConsentWithAudit).mockResolvedValue({ grantedAt });
+      vi.mocked(mockConsentRepo.confirmConsentWithAudit).mockResolvedValue({
+        grantedAt,
+      });
 
-      const result = await useCase.confirmConsent('valid', { commercialSms: true });
+      const result = await useCase.confirmConsent('valid', {
+        commercialSms: true,
+      });
 
       expect(result.success).toBe(true);
       expect(result.grantedAt).toBe(grantedAt);
@@ -158,13 +187,20 @@ describe('ManageConsentUseCase', () => {
       vi.mocked(mockConsentRepo.findCustomerWithTenant).mockResolvedValue(null);
 
       await expect(
-        useCase.recordDirectConsent('t-1', 'cust-1', { channel: 'TABLET_SIGN', commercialSms: false }),
+        useCase.recordDirectConsent('t-1', 'cust-1', {
+          channel: 'TABLET_SIGN',
+          commercialSms: false,
+        }),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('should record direct consent', async () => {
-      vi.mocked(mockConsentRepo.findCustomerWithTenant).mockResolvedValue({ id: 'cust-1' });
-      vi.mocked(mockConsentRepo.recordDirectConsent).mockResolvedValue({ id: 'consent-1' });
+      vi.mocked(mockConsentRepo.findCustomerWithTenant).mockResolvedValue({
+        id: 'cust-1',
+      });
+      vi.mocked(mockConsentRepo.recordDirectConsent).mockResolvedValue({
+        id: 'consent-1',
+      });
 
       const result = await useCase.recordDirectConsent('t-1', 'cust-1', {
         channel: 'TABLET_SIGN',

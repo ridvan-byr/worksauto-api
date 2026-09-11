@@ -27,6 +27,8 @@ describe('GetWorkOrdersUseCase', () => {
   it('should throw NotFoundException if work order does not exist', async () => {
     mockRepo.findById = vi.fn().mockResolvedValue(null);
 
-    await expect(useCase.findOne('t-1', 'nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(useCase.findOne('t-1', 'nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

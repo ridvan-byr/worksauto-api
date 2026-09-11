@@ -1,6 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
-import { ICustomerRepository, QuickLeadInput, CustomerStatsResult, BatchImportResult } from '../domain/customer.repository.interface';
+import {
+  ICustomerRepository,
+  QuickLeadInput,
+  CustomerStatsResult,
+  BatchImportResult,
+} from '../domain/customer.repository.interface';
 import { CustomerEntity, CustomerTypeVo } from '../domain/customer.entity';
 import { CustomerType } from '@prisma/client';
 
@@ -39,7 +48,9 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       where: { id, tenantId, deletedAt: null },
       include: {
         vehicles: { where: { deletedAt: null } },
-        currentAccount: { include: { movements: { orderBy: { date: 'desc' }, take: 20 } } },
+        currentAccount: {
+          include: { movements: { orderBy: { date: 'desc' }, take: 20 } },
+        },
         workOrders: { orderBy: { createdAt: 'desc' }, take: 10 },
         invoices: { orderBy: { issueDate: 'desc' }, take: 10 },
       },
@@ -48,7 +59,10 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     return customer ? this.mapToEntity(customer) : null;
   }
 
-  async findByPhone(tenantId: string, phone: string): Promise<CustomerEntity | null> {
+  async findByPhone(
+    tenantId: string,
+    phone: string,
+  ): Promise<CustomerEntity | null> {
     const customer = await this.prisma.customer.findFirst({
       where: { tenantId, phone, deletedAt: null },
     });
@@ -119,7 +133,10 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       const created = await tx.customer.create({
         data: {
           tenantId: customer.tenantId,
-          type: customer.type === 'CORPORATE' ? CustomerType.CORPORATE : CustomerType.INDIVIDUAL,
+          type:
+            customer.type === 'CORPORATE'
+              ? CustomerType.CORPORATE
+              : CustomerType.INDIVIDUAL,
           firstName: customer.firstName,
           lastName: customer.lastName,
           companyTitle: customer.companyTitle,
@@ -150,13 +167,18 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       where: { id: customer.id, tenantId: customer.tenantId, deletedAt: null },
     });
     if (!existing) {
-      throw new NotFoundException('Müşteri bulunamadı veya bu işletmeye ait değil.');
+      throw new NotFoundException(
+        'Müşteri bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
     const updated = await this.prisma.customer.update({
       where: { id: customer.id },
       data: {
-        type: customer.type === 'CORPORATE' ? CustomerType.CORPORATE : CustomerType.INDIVIDUAL,
+        type:
+          customer.type === 'CORPORATE'
+            ? CustomerType.CORPORATE
+            : CustomerType.INDIVIDUAL,
         firstName: customer.firstName,
         lastName: customer.lastName,
         companyTitle: customer.companyTitle,
@@ -177,9 +199,34 @@ export class PrismaCustomerRepository implements ICustomerRepository {
   async softDelete(tenantId: string, id: string): Promise<CustomerEntity> {
     const existing = await this.prisma.customer.findFirst({
       where: { id, tenantId, deletedAt: null },
+      include: {
+        currentAccount: true,
+        workOrders: {
+          where: { status: { in: ['QUEUE', 'IN_PROGRESS'] } },
+          select: { id: true, workOrderNumber: true },
+        },
+      },
     });
     if (!existing) {
-      throw new NotFoundException('Müşteri bulunamadı veya bu işletmeye ait değil.');
+      throw new NotFoundException(
+        'Müşteri bulunamadı veya bu işletmeye ait değil.',
+      );
+    }
+
+    if (existing.workOrders && existing.workOrders.length > 0) {
+      const activeNumbers = existing.workOrders
+        .map((w) => w.workOrderNumber)
+        .join(', ');
+      throw new BadRequestException(
+        `Bu müşteriye ait aktif/devam eden iş emirleri bulunmaktadır (${activeNumbers}). İş emirleri tamamlanmadan veya iptal edilmeden müşteri kaydı silinemez.`,
+      );
+    }
+
+    const openBalance = Number(existing.currentAccount?.balance || 0);
+    if (openBalance > 0) {
+      throw new BadRequestException(
+        `Bu müşterinin ${openBalance.toLocaleString('tr-TR')} ₺ açık cari hesap borcu bulunmaktadır. Bakiye tahsil edilmeden müşteri kaydı silinemez.`,
+      );
     }
 
     const updated = await this.prisma.customer.update({
@@ -189,7 +236,10 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     return this.mapToEntity(updated);
   }
 
-  async getCustomerStats(tenantId: string, id: string): Promise<CustomerStatsResult> {
+  async getCustomerStats(
+    tenantId: string,
+    id: string,
+  ): Promise<CustomerStatsResult> {
     const customer = await this.prisma.customer.findFirst({
       where: { id, tenantId, deletedAt: null },
       include: { currentAccount: true },
@@ -205,14 +255,22 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     });
 
     const total = appointments.length;
-    const completed = appointments.filter((a) => a.status === 'COMPLETED').length;
-    const cancelled = appointments.filter((a) => a.status === 'CANCELLED').length;
+    const completed = appointments.filter(
+      (a) => a.status === 'COMPLETED',
+    ).length;
+    const cancelled = appointments.filter(
+      (a) => a.status === 'CANCELLED',
+    ).length;
     const noShow = appointments.filter((a) => a.status === 'NO_SHOW').length;
-    const active = appointments.filter((a) => ['PENDING', 'CONFIRMED', 'IN_SERVICE'].includes(a.status)).length;
+    const active = appointments.filter((a) =>
+      ['PENDING', 'CONFIRMED', 'IN_SERVICE'].includes(a.status),
+    ).length;
 
     const evaluated = total - active;
-    const attendanceScore = evaluated > 0 ? Math.round((completed / evaluated) * 100) : 100;
-    const noShowRate = evaluated > 0 ? Math.round((noShow / evaluated) * 100) : 0;
+    const attendanceScore =
+      evaluated > 0 ? Math.round((completed / evaluated) * 100) : 100;
+    const noShowRate =
+      evaluated > 0 ? Math.round((noShow / evaluated) * 100) : 0;
 
     let riskCategory = 'LOW';
     if (noShow >= 2 || attendanceScore < 70) {
@@ -221,7 +279,9 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       riskCategory = 'MEDIUM';
     }
 
-    const balance = customer.currentAccount?.balance ? Number(customer.currentAccount.balance) : 0;
+    const balance = customer.currentAccount?.balance
+      ? Number(customer.currentAccount.balance)
+      : 0;
     const creditLimit = customer.creditLimit ? Number(customer.creditLimit) : 0;
 
     return {
@@ -240,7 +300,10 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     };
   }
 
-  async quickLead(tenantId: string, dto: QuickLeadInput): Promise<{ customer: any; vehicle: any }> {
+  async quickLead(
+    tenantId: string,
+    dto: QuickLeadInput,
+  ): Promise<{ customer: any; vehicle: any }> {
     return this.prisma.$transaction(async (tx) => {
       const cleanPlate = dto.plate.toUpperCase().replace(/\s+/g, '');
 
@@ -293,7 +356,11 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     });
   }
 
-  async batchImport(tenantId: string, rows: any[], options?: { updateExisting?: boolean }): Promise<BatchImportResult> {
+  async batchImport(
+    tenantId: string,
+    rows: any[],
+    options?: { updateExisting?: boolean },
+  ): Promise<BatchImportResult> {
     let importedCustomersCount = 0;
     let existingCustomersCount = 0;
     let updatedCustomersCount = 0;
@@ -324,8 +391,12 @@ export class PrismaCustomerRepository implements ICustomerRepository {
             const phoneCandidates = [
               standardPhone,
               rawPhone,
-              standardPhone.startsWith('0') ? standardPhone.slice(1) : '0' + standardPhone,
-              standardPhone.startsWith('0') ? '+9' + standardPhone : '+90' + standardPhone,
+              standardPhone.startsWith('0')
+                ? standardPhone.slice(1)
+                : '0' + standardPhone,
+              standardPhone.startsWith('0')
+                ? '+9' + standardPhone
+                : '+90' + standardPhone,
             ].filter(Boolean);
 
             customer = await tx.customer.findFirst({
@@ -337,14 +408,21 @@ export class PrismaCustomerRepository implements ICustomerRepository {
             });
           }
 
-          const cName = (row.firstName || '').trim() || (row.companyTitle || '').trim() || 'İsimsiz Müşteri';
+          const cName =
+            (row.firstName || '').trim() ||
+            (row.companyTitle || '').trim() ||
+            'İsimsiz Müşteri';
           const cSurname = (row.lastName || '').trim();
 
           if (!customer) {
             customer = await tx.customer.create({
               data: {
                 tenantId,
-                type: row.type || (row.companyTitle ? CustomerType.CORPORATE : CustomerType.INDIVIDUAL),
+                type:
+                  row.type ||
+                  (row.companyTitle
+                    ? CustomerType.CORPORATE
+                    : CustomerType.INDIVIDUAL),
                 firstName: cName,
                 lastName: cSurname,
                 companyTitle: row.companyTitle || undefined,
@@ -369,13 +447,23 @@ export class PrismaCustomerRepository implements ICustomerRepository {
             existingCustomersCount++;
             if (updateExisting) {
               const customerUpdate: any = {};
-              if (row.companyTitle && row.companyTitle.trim()) customerUpdate.companyTitle = row.companyTitle.trim();
-              if (row.email && row.email.trim()) customerUpdate.email = row.email.trim();
-              if (row.taxNumber && row.taxNumber.trim()) customerUpdate.taxNumber = row.taxNumber.trim();
-              if (row.taxOffice && row.taxOffice.trim()) customerUpdate.taxOffice = row.taxOffice.trim();
-              if (row.notes && row.notes.trim()) customerUpdate.notes = row.notes.trim();
+              if (row.companyTitle && row.companyTitle.trim())
+                customerUpdate.companyTitle = row.companyTitle.trim();
+              if (row.email && row.email.trim())
+                customerUpdate.email = row.email.trim();
+              if (row.taxNumber && row.taxNumber.trim())
+                customerUpdate.taxNumber = row.taxNumber.trim();
+              if (row.taxOffice && row.taxOffice.trim())
+                customerUpdate.taxOffice = row.taxOffice.trim();
+              if (row.notes && row.notes.trim())
+                customerUpdate.notes = row.notes.trim();
               if (row.type) customerUpdate.type = row.type;
-              if (cName && cName !== 'İsimsiz Müşteri' && (!customer.firstName || customer.firstName === 'İsimsiz Müşteri')) {
+              if (
+                cName &&
+                cName !== 'İsimsiz Müşteri' &&
+                (!customer.firstName ||
+                  customer.firstName === 'İsimsiz Müşteri')
+              ) {
                 customerUpdate.firstName = cName;
               }
               if (cSurname && !customer.lastName) {
@@ -392,7 +480,9 @@ export class PrismaCustomerRepository implements ICustomerRepository {
             }
           }
 
-          const cleanPlate = row.plate ? row.plate.trim().toUpperCase().replace(/\s+/g, '') : '';
+          const cleanPlate = row.plate
+            ? row.plate.trim().toUpperCase().replace(/\s+/g, '')
+            : '';
           if (cleanPlate && customer) {
             const vehicle = await tx.vehicle.findFirst({
               where: { tenantId, plate: cleanPlate, deletedAt: null },
@@ -402,7 +492,8 @@ export class PrismaCustomerRepository implements ICustomerRepository {
             const ft = (row.fuelType || '').toUpperCase();
             if (ft.includes('BENZ')) fuelType = 'GASOLINE';
             else if (ft.includes('LPG')) fuelType = 'LPG';
-            else if (ft.includes('HİB') || ft.includes('HIB')) fuelType = 'HYBRID';
+            else if (ft.includes('HİB') || ft.includes('HIB'))
+              fuelType = 'HYBRID';
             else if (ft.includes('ELEK')) fuelType = 'ELECTRIC';
 
             let transmission: any = 'MANUAL';
@@ -435,14 +526,26 @@ export class PrismaCustomerRepository implements ICustomerRepository {
                 if (!isNaN(parsedKm) && parsedKm > 0) {
                   vehicleUpdate.currentKm = parsedKm;
                 }
-                if (row.brand && row.brand.trim() && row.brand.trim() !== 'Belirtilmedi') {
+                if (
+                  row.brand &&
+                  row.brand.trim() &&
+                  row.brand.trim() !== 'Belirtilmedi'
+                ) {
                   vehicleUpdate.brand = row.brand.trim();
                 }
-                if (row.model && row.model.trim() && row.model.trim() !== 'Model Belirtilmedi') {
+                if (
+                  row.model &&
+                  row.model.trim() &&
+                  row.model.trim() !== 'Model Belirtilmedi'
+                ) {
                   vehicleUpdate.model = row.model.trim();
                 }
                 const parsedYear = Number(row.year);
-                if (!isNaN(parsedYear) && parsedYear >= 1900 && parsedYear <= new Date().getFullYear() + 1) {
+                if (
+                  !isNaN(parsedYear) &&
+                  parsedYear >= 1900 &&
+                  parsedYear <= new Date().getFullYear() + 1
+                ) {
                   vehicleUpdate.year = parsedYear;
                 }
                 if (row.vin && row.vin.trim()) {
@@ -486,7 +589,12 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     };
   }
 
-  async anonymizeCustomer(tenantId: string, id: string, authorizedByUserId: string, legalRef: string): Promise<CustomerEntity> {
+  async anonymizeCustomer(
+    tenantId: string,
+    id: string,
+    authorizedByUserId: string,
+    legalRef: string,
+  ): Promise<CustomerEntity> {
     const customer = await this.prisma.customer.findFirst({
       where: { id, tenantId, deletedAt: null },
     });
@@ -520,8 +628,16 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       await tx.auditLog.updateMany({
         where: { tenantId, entityName: 'Customer', entityId: id },
         data: {
-          changesBefore: { firstName: '[MASKED_BY_KVKK]', lastName: '[MASKED_BY_KVKK]', phone: '[MASKED_BY_KVKK]' },
-          changesAfter: { firstName: '[MASKED_BY_KVKK]', lastName: '[MASKED_BY_KVKK]', phone: '[MASKED_BY_KVKK]' },
+          changesBefore: {
+            firstName: '[MASKED_BY_KVKK]',
+            lastName: '[MASKED_BY_KVKK]',
+            phone: '[MASKED_BY_KVKK]',
+          },
+          changesAfter: {
+            firstName: '[MASKED_BY_KVKK]',
+            lastName: '[MASKED_BY_KVKK]',
+            phone: '[MASKED_BY_KVKK]',
+          },
         },
       });
 
@@ -529,8 +645,12 @@ export class PrismaCustomerRepository implements ICustomerRepository {
         orderBy: { createdAt: 'desc' },
       });
 
-      const previousHash = lastRedaction ? lastRedaction.currentHash : 'GENESIS_HASH_WORKSAUTO_KVKK_2026';
-      const currentHash = Buffer.from(`${previousHash}-${id}-${authorizedByUserId}-${new Date().toISOString()}`).toString('base64');
+      const previousHash = lastRedaction
+        ? lastRedaction.currentHash
+        : 'GENESIS_HASH_WORKSAUTO_KVKK_2026';
+      const currentHash = Buffer.from(
+        `${previousHash}-${id}-${authorizedByUserId}-${new Date().toISOString()}`,
+      ).toString('base64');
 
       await tx.complianceRedactionLog.create({
         data: {

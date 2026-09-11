@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -21,7 +26,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         maxRetriesPerRequest: 1,
         retryStrategy: (times: number) => {
           if (times > 3) {
-            this.logger.warn('Redis connection retry limit reached. Operating in degraded mode.');
+            this.logger.warn(
+              'Redis connection retry limit reached. Operating in degraded mode.',
+            );
             return null;
           }
           return Math.min(times * 100, 2000);
@@ -39,7 +46,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       });
 
       this.client.connect().catch((e: any) => {
-        this.logger.warn(`Initial Redis connection failed: ${e.message}. System continues in fail-open mode.`);
+        this.logger.warn(
+          `Initial Redis connection failed: ${e.message}. System continues in fail-open mode.`,
+        );
       });
     } catch (e: any) {
       this.logger.warn(`Failed to initialize Redis client: ${e.message}`);
@@ -88,7 +97,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async setnx(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+  async setnx(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
     if (!this.client || !this.isConnected) return true; // Fail-open for general, handled strictly for finance
     try {
       const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');

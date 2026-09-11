@@ -1,5 +1,13 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
-import { IInvoiceRepository, INVOICE_REPOSITORY } from '../../domain/invoice.repository.interface';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  IInvoiceRepository,
+  INVOICE_REPOSITORY,
+} from '../../domain/invoice.repository.interface';
 import { InvoiceEntity } from '../../domain/invoice.entity';
 import { AuditService } from '../../../audit/audit.service';
 
@@ -11,7 +19,12 @@ export class CancelInvoiceUseCase {
     private readonly auditService: AuditService,
   ) {}
 
-  async execute(tenantId: string, id: string, reason: string, userId?: string): Promise<InvoiceEntity> {
+  async execute(
+    tenantId: string,
+    id: string,
+    reason: string,
+    userId?: string,
+  ): Promise<InvoiceEntity> {
     const inv = await this.invoiceRepository.findById(tenantId, id);
     if (!inv) {
       throw new NotFoundException('Fatura bulunamadı.');
@@ -23,7 +36,11 @@ export class CancelInvoiceUseCase {
       );
     }
 
-    const cancelled = await this.invoiceRepository.cancelWithCariReversal(tenantId, id, reason);
+    const cancelled = await this.invoiceRepository.cancelWithCariReversal(
+      tenantId,
+      id,
+      reason,
+    );
 
     try {
       await this.auditService.log({

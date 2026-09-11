@@ -1,8 +1,18 @@
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsBoolean, Min } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateServiceDto {
-  @ApiProperty({ example: 'Periyodik Bakım (Yağ & Filtreler)', description: 'Hizmet / işçilik adı' })
+  @ApiProperty({
+    example: 'Periyodik Bakım (Yağ & Filtreler)',
+    description: 'Hizmet / işçilik adı',
+  })
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -12,12 +22,18 @@ export class CreateServiceDto {
   @IsNotEmpty()
   code: string;
 
-  @ApiProperty({ example: 'PERIYODIK_BAKIM', description: 'Hizmet kategorisi (MEKANIK, ELEKTRIK, KAPORTA, vb.)' })
+  @ApiProperty({
+    example: 'PERIYODIK_BAKIM',
+    description: 'Hizmet kategorisi (MEKANIK, ELEKTRIK, KAPORTA, vb.)',
+  })
   @IsString()
   @IsNotEmpty()
   category: string;
 
-  @ApiPropertyOptional({ example: 45, description: 'Tahmini işlem süresi (dakika)' })
+  @ApiPropertyOptional({
+    example: 45,
+    description: 'Tahmini işlem süresi (dakika)',
+  })
   @IsNumber()
   @IsOptional()
   @Min(5)

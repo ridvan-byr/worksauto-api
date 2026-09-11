@@ -1,4 +1,5 @@
-export type InvoiceStatusType = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+export type InvoiceStatusType =
+  'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 
 export interface InvoiceProps {
   id?: string;
@@ -72,12 +73,18 @@ export class InvoiceEntity {
   }
 
   public canCancel(): boolean {
-    return this.status !== 'PAID' && this.paidAmount === 0 && this.status !== 'CANCELLED';
+    return (
+      this.status !== 'PAID' &&
+      this.paidAmount === 0 &&
+      this.status !== 'CANCELLED'
+    );
   }
 
   public cancel(): void {
     if (!this.canCancel()) {
-      throw new Error('Ödemesi tamamlanmış veya tahsilat yapılmış bir fatura doğrudan iptal edilemez.');
+      throw new Error(
+        'Ödemesi tamamlanmış veya tahsilat yapılmış bir fatura doğrudan iptal edilemez.',
+      );
     }
     this.status = 'CANCELLED';
   }
@@ -87,11 +94,15 @@ export class InvoiceEntity {
       throw new Error('Ödeme miktarı 0 dan büyük olmalıdır.');
     }
     if (amount > this.remainingAmount) {
-      throw new Error(`Ödeme tutarı (${amount}) kalan bakiyeden (${this.remainingAmount}) fazla olamaz.`);
+      throw new Error(
+        `Ödeme tutarı (${amount}) kalan bakiyeden (${this.remainingAmount}) fazla olamaz.`,
+      );
     }
 
     this.paidAmount += amount;
-    this.remainingAmount = Number((this.grandTotal - this.paidAmount).toFixed(2));
+    this.remainingAmount = Number(
+      (this.grandTotal - this.paidAmount).toFixed(2),
+    );
     this.status = this.remainingAmount <= 0 ? 'PAID' : 'PARTIALLY_PAID';
   }
 

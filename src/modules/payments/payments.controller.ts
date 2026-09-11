@@ -1,5 +1,18 @@
-import { Controller, Get, Post, Body, Query, UseGuards, UseInterceptors } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PaymentsService, CreatePaymentDto } from './payments.service';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
@@ -31,20 +44,34 @@ export class PaymentsController {
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
   @RequirePermission(Permission.PAYMENT_CREATE)
   @ApiOperation({ summary: 'Yeni tahsilat alır ve faturayı/cariyi günceller' })
-  @ApiHeader({ name: 'X-Idempotency-Key', required: false, description: 'Tekrarlanan istek koruması için benzersiz anahtar' })
+  @ApiHeader({
+    name: 'X-Idempotency-Key',
+    required: false,
+    description: 'Tekrarlanan istek koruması için benzersiz anahtar',
+  })
   create(
     @CurrentTenant() tenantId: string,
     @Body() dto: CreatePaymentDto,
     @CurrentUser() user: any,
   ) {
-    return this.paymentsService.create(tenantId, dto, user?.name || 'Kasa Görevlisi', user?.id);
+    return this.paymentsService.create(
+      tenantId,
+      dto,
+      user?.name || 'Kasa Görevlisi',
+      user?.id,
+    );
   }
 
   @Get('daily-summary')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
   @RequirePermission(Permission.PAYMENT_VIEW)
-  @ApiOperation({ summary: 'Günlük kasa kapanış ve ödeme yöntemi dağılımını döner' })
-  getDailySummary(@CurrentTenant() tenantId: string, @Query('date') date?: string) {
+  @ApiOperation({
+    summary: 'Günlük kasa kapanış ve ödeme yöntemi dağılımını döner',
+  })
+  getDailySummary(
+    @CurrentTenant() tenantId: string,
+    @Query('date') date?: string,
+  ) {
     return this.paymentsService.getDailySummary(tenantId, date);
   }
 }

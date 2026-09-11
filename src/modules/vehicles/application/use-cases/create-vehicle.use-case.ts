@@ -1,6 +1,18 @@
-import { Injectable, Inject, ConflictException, BadRequestException } from '@nestjs/common';
-import { IVehicleRepository, VEHICLE_REPOSITORY } from '../../domain/vehicle.repository.interface';
-import { VehicleEntity, VehicleFuelType, VehicleTransmissionType } from '../../domain/vehicle.entity';
+import {
+  Injectable,
+  Inject,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  IVehicleRepository,
+  VEHICLE_REPOSITORY,
+} from '../../domain/vehicle.repository.interface';
+import {
+  VehicleEntity,
+  VehicleFuelType,
+  VehicleTransmissionType,
+} from '../../domain/vehicle.entity';
 
 export interface CreateVehicleInput {
   customerId: string;
@@ -26,15 +38,23 @@ export class CreateVehicleUseCase {
     private readonly vehicleRepository: IVehicleRepository,
   ) {}
 
-  async execute(tenantId: string, dto: CreateVehicleInput): Promise<VehicleEntity> {
+  async execute(
+    tenantId: string,
+    dto: CreateVehicleInput,
+  ): Promise<VehicleEntity> {
     const normalizedPlate = VehicleEntity.normalizePlate(dto.plate);
     if (!normalizedPlate) {
       throw new BadRequestException('Araç plakası zorunludur.');
     }
 
-    const existing = await this.vehicleRepository.findByPlate(tenantId, normalizedPlate);
+    const existing = await this.vehicleRepository.findByPlate(
+      tenantId,
+      normalizedPlate,
+    );
     if (existing) {
-      throw new ConflictException('Bu plaka ile kayıtlı bir araç zaten mevcut.');
+      throw new ConflictException(
+        'Bu plaka ile kayıtlı bir araç zaten mevcut.',
+      );
     }
 
     try {

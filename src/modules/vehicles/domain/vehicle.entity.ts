@@ -1,4 +1,5 @@
-export type VehicleFuelType = 'GASOLINE' | 'DIESEL' | 'LPG' | 'HYBRID' | 'ELECTRIC';
+export type VehicleFuelType =
+  'GASOLINE' | 'DIESEL' | 'LPG' | 'HYBRID' | 'ELECTRIC';
 export type VehicleTransmissionType = 'MANUAL' | 'AUTOMATIC' | 'SEMI_AUTOMATIC';
 
 export interface VehicleProps {
@@ -59,7 +60,9 @@ export class VehicleEntity {
     this.model = props.model;
     this.year = props.year;
     this.vin = props.vin ? props.vin.trim().toUpperCase() : undefined;
-    this.engineNo = props.engineNo ? props.engineNo.trim().toUpperCase() : undefined;
+    this.engineNo = props.engineNo
+      ? props.engineNo.trim().toUpperCase()
+      : undefined;
     this.color = props.color;
     this.fuelType = props.fuelType || 'DIESEL';
     this.transmission = props.transmission || 'MANUAL';
@@ -87,7 +90,9 @@ export class VehicleEntity {
     const maxYear = currentYear + 1;
 
     if (this.year < 1950 || this.year > maxYear) {
-      throw new Error(`Araç model yılı 1950 ile ${maxYear} arasında olmalıdır.`);
+      throw new Error(
+        `Araç model yılı 1950 ile ${maxYear} arasında olmalıdır.`,
+      );
     }
 
     if (this.currentKm < 0) {
@@ -111,15 +116,22 @@ export class VehicleEntity {
     if (props.brand) this.brand = props.brand;
     if (props.model) this.model = props.model;
     if (props.year !== undefined) this.year = props.year;
-    if (props.vin !== undefined) this.vin = props.vin ? props.vin.trim().toUpperCase() : undefined;
-    if (props.engineNo !== undefined) this.engineNo = props.engineNo ? props.engineNo.trim().toUpperCase() : undefined;
+    if (props.vin !== undefined)
+      this.vin = props.vin ? props.vin.trim().toUpperCase() : undefined;
+    if (props.engineNo !== undefined)
+      this.engineNo = props.engineNo
+        ? props.engineNo.trim().toUpperCase()
+        : undefined;
     if (props.color !== undefined) this.color = props.color;
     if (props.fuelType) this.fuelType = props.fuelType;
     if (props.transmission) this.transmission = props.transmission;
     if (props.currentKm !== undefined) this.updateKilometer(props.currentKm);
-    if (props.inspectionValidUntil !== undefined) this.inspectionValidUntil = props.inspectionValidUntil;
-    if (props.insuranceValidUntil !== undefined) this.insuranceValidUntil = props.insuranceValidUntil;
-    if (props.kaskoValidUntil !== undefined) this.kaskoValidUntil = props.kaskoValidUntil;
+    if (props.inspectionValidUntil !== undefined)
+      this.inspectionValidUntil = props.inspectionValidUntil;
+    if (props.insuranceValidUntil !== undefined)
+      this.insuranceValidUntil = props.insuranceValidUntil;
+    if (props.kaskoValidUntil !== undefined)
+      this.kaskoValidUntil = props.kaskoValidUntil;
 
     this.validateDomainRules();
   }

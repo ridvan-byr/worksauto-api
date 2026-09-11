@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { AuditService } from '../../../audit/audit.service';
 import { EventsGateway } from '../../../events/events.gateway';
@@ -25,10 +30,15 @@ export class UpdateWorkOrderNoteUseCase {
       throw new NotFoundException('Not bulunamadı.');
     }
 
-    const fullName = `${authorUser.name || ''} ${authorUser.surname || ''}`.trim();
-    const isOwner = note.authorId ? note.authorId === authorUser.id : note.authorName === fullName;
+    const fullName =
+      `${authorUser.name || ''} ${authorUser.surname || ''}`.trim();
+    const isOwner = note.authorId
+      ? note.authorId === authorUser.id
+      : note.authorName === fullName;
     if (!isOwner) {
-      throw new ForbiddenException('Yalnızca kendi mesajlarınızı düzenleyebilirsiniz.');
+      throw new ForbiddenException(
+        'Yalnızca kendi mesajlarınızı düzenleyebilirsiniz.',
+      );
     }
 
     const updatedNote = await this.workOrderRepository.updateNote(

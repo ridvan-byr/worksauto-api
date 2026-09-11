@@ -1,5 +1,11 @@
-import { WorkOrderStatusEnum, WorkOrderStatusVO } from '../value-objects/work-order-status.vo';
-import { WorkOrderClosedError, InvalidStatusTransitionError } from '../errors/work-order.errors';
+import {
+  WorkOrderStatusEnum,
+  WorkOrderStatusVO,
+} from '../value-objects/work-order-status.vo';
+import {
+  WorkOrderClosedError,
+  InvalidStatusTransitionError,
+} from '../errors/work-order.errors';
 
 export interface WorkOrderItemProps {
   id?: string;
@@ -43,18 +49,42 @@ export class WorkOrderEntity {
     };
   }
 
-  public get id(): string { return this.props.id; }
-  public get tenantId(): string { return this.props.tenantId; }
-  public get workOrderNumber(): string { return this.props.workOrderNumber; }
-  public get customerId(): string { return this.props.customerId; }
-  public get vehicleId(): string { return this.props.vehicleId; }
-  public get initialKm(): number { return this.props.initialKm; }
-  public get subtotal(): number { return this.props.subtotal; }
-  public get kdvAmount(): number { return this.props.kdvAmount; }
-  public get grandTotal(): number { return this.props.grandTotal; }
-  public get status(): WorkOrderStatusEnum { return this.props.status; }
-  public get completedAt(): Date | null | undefined { return this.props.completedAt; }
-  public get items(): WorkOrderItemProps[] { return [...(this.props.items || [])]; }
+  public get id(): string {
+    return this.props.id;
+  }
+  public get tenantId(): string {
+    return this.props.tenantId;
+  }
+  public get workOrderNumber(): string {
+    return this.props.workOrderNumber;
+  }
+  public get customerId(): string {
+    return this.props.customerId;
+  }
+  public get vehicleId(): string {
+    return this.props.vehicleId;
+  }
+  public get initialKm(): number {
+    return this.props.initialKm;
+  }
+  public get subtotal(): number {
+    return this.props.subtotal;
+  }
+  public get kdvAmount(): number {
+    return this.props.kdvAmount;
+  }
+  public get grandTotal(): number {
+    return this.props.grandTotal;
+  }
+  public get status(): WorkOrderStatusEnum {
+    return this.props.status;
+  }
+  public get completedAt(): Date | null | undefined {
+    return this.props.completedAt;
+  }
+  public get items(): WorkOrderItemProps[] {
+    return [...(this.props.items || [])];
+  }
 
   public getStatusVO(): WorkOrderStatusVO {
     return new WorkOrderStatusVO(this.props.status);
@@ -92,7 +122,11 @@ export class WorkOrderEntity {
     return prevStatus;
   }
 
-  public recalculateTotals(): { subtotal: number; kdvAmount: number; grandTotal: number } {
+  public recalculateTotals(): {
+    subtotal: number;
+    kdvAmount: number;
+    grandTotal: number;
+  } {
     let subtotal = 0;
     let kdvAmount = 0;
 

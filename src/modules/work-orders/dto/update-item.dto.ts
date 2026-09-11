@@ -2,7 +2,10 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateWorkOrderItemDto {
-  @ApiPropertyOptional({ example: 'Ön Fren Balata Değişimi & Disk Taşlama', description: 'İşçilik veya parça adı' })
+  @ApiPropertyOptional({
+    example: 'Ön Fren Balata Değişimi & Disk Taşlama',
+    description: 'İşçilik veya parça adı',
+  })
   @IsOptional()
   @IsString({ message: 'Kalem adı metin olmalıdır.' })
   name?: string;

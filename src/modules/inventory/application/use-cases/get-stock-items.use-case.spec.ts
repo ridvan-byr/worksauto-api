@@ -41,6 +41,8 @@ describe('GetStockItemsUseCase', () => {
   it('should throw NotFoundException if stock item not found by id', async () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(null);
 
-    await expect(useCase.getById('t-1', 'nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(useCase.getById('t-1', 'nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

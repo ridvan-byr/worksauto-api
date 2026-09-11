@@ -24,7 +24,9 @@ describe('DeleteVehicleUseCase', () => {
   it('should throw NotFoundException if vehicle to delete does not exist', async () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(null);
 
-    await expect(useCase.execute('t-1', 'v-missing')).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('t-1', 'v-missing')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should soft delete vehicle when found', async () => {

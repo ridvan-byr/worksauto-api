@@ -1,5 +1,8 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { IInvoiceRepository, INVOICE_REPOSITORY } from '../../domain/invoice.repository.interface';
+import {
+  IInvoiceRepository,
+  INVOICE_REPOSITORY,
+} from '../../domain/invoice.repository.interface';
 import { InvoiceEntity } from '../../domain/invoice.entity';
 
 @Injectable()

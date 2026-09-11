@@ -8,10 +8,24 @@ export class AddWorkOrderPhotoUseCase {
     private readonly workOrderRepository: IWorkOrderRepository,
   ) {}
 
-  async execute(tenantId: string, id: string, url: string, caption: string, photoType: string, uploadedBy: string) {
+  async execute(
+    tenantId: string,
+    id: string,
+    url: string,
+    caption: string,
+    photoType: string,
+    uploadedBy: string,
+  ) {
     const wo = await this.workOrderRepository.findById(tenantId, id);
     if (!wo) throw new NotFoundException('İş emri bulunamadı.');
 
-    return this.workOrderRepository.addPhoto(tenantId, id, url, caption, photoType, uploadedBy);
+    return this.workOrderRepository.addPhoto(
+      tenantId,
+      id,
+      url,
+      caption,
+      photoType,
+      uploadedBy,
+    );
   }
 }

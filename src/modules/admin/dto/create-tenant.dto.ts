@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsEmail, IsOptional, IsBoolean } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateTenantDto {
   @ApiProperty({ example: 'Acar Oto Mekanik Servis' })

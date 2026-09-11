@@ -20,6 +20,7 @@ describe('IncrementStockUseCase', () => {
       incrementAtomic: vi.fn(),
       addStockMovement: vi.fn(),
       getMovements: vi.fn(),
+      delete: vi.fn(),
     };
 
     mockEvents = {
@@ -63,10 +64,22 @@ describe('IncrementStockUseCase', () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(existing);
     vi.mocked(mockRepo.incrementAtomic).mockResolvedValue(updated);
 
-    const result = await useCase.execute('tenant-1', 'prod-1', 5, 'ref-1', 'author');
+    const result = await useCase.execute(
+      'tenant-1',
+      'prod-1',
+      5,
+      'ref-1',
+      'author',
+    );
 
     expect(result.stockQuantity).toBe(15);
-    expect(mockRepo.incrementAtomic).toHaveBeenCalledWith('tenant-1', 'prod-1', 5, 'ref-1', 'author');
+    expect(mockRepo.incrementAtomic).toHaveBeenCalledWith(
+      'tenant-1',
+      'prod-1',
+      5,
+      'ref-1',
+      'author',
+    );
     expect(mockEvents.emitToTenant).toHaveBeenCalledWith(
       'tenant-1',
       'inventory:stock_changed',

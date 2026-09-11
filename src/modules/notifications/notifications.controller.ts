@@ -9,7 +9,12 @@ import {
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
@@ -23,7 +28,9 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Kullanıcı ve kiracı bildirimlerini sayfalamalı olarak listeler' })
+  @ApiOperation({
+    summary: 'Kullanıcı ve kiracı bildirimlerini sayfalamalı olarak listeler',
+  })
   @ApiQuery({ name: 'unreadOnly', required: false, type: Boolean })
   @ApiQuery({ name: 'category', required: false, type: String })
   @ApiQuery({ name: 'page', required: false, type: Number })
@@ -49,11 +56,17 @@ export class NotificationsController {
   @Get('unread-count')
   @ApiOperation({ summary: 'Okunmamış bildirim rozet sayısını döner' })
   getUnreadCount(@CurrentUser() user: any) {
-    return this.notificationsService.getUnreadCount(user?.tenantId, user?.id, user?.role);
+    return this.notificationsService.getUnreadCount(
+      user?.tenantId,
+      user?.id,
+      user?.role,
+    );
   }
 
   @Post('test')
-  @ApiOperation({ summary: 'Canlı test bildirimi oluşturur ve WebSocket ile iletir' })
+  @ApiOperation({
+    summary: 'Canlı test bildirimi oluşturur ve WebSocket ile iletir',
+  })
   createTestNotification(@CurrentUser() user: any) {
     const roleMap: Record<string, string> = {
       OWNER: 'Servis Yöneticisi',
@@ -73,7 +86,11 @@ export class NotificationsController {
       title: `🔔 Kişisel Test Bildirimi (${recipientName})`,
       message: `Harika! Bu bildirim yalnızca sizin (${recipientName} - ${roleLabel}) oturumunuza özeldir ve diğer personellerin bildirim kutusuna gitmez.`,
       link: '/work-orders',
-      metadata: { isTest: true, recipientId: user?.id, recipientRole: user?.role },
+      metadata: {
+        isTest: true,
+        recipientId: user?.id,
+        recipientRole: user?.role,
+      },
     });
   }
 
@@ -84,7 +101,9 @@ export class NotificationsController {
   }
 
   @Patch('read-all')
-  @ApiOperation({ summary: 'Kullanıcının tüm bildirimlerini okundu olarak işaretler' })
+  @ApiOperation({
+    summary: 'Kullanıcının tüm bildirimlerini okundu olarak işaretler',
+  })
   markAllAsRead(@CurrentUser() user: any) {
     return this.notificationsService.markAllAsRead(user?.tenantId, user?.id);
   }

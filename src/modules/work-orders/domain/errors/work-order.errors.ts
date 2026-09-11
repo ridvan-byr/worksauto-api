@@ -21,14 +21,18 @@ export class WorkOrderClosedError extends WorkOrderDomainError {
 
 export class InvalidStatusTransitionError extends WorkOrderDomainError {
   constructor(from: string, to: string) {
-    super(`Geçersiz aşama geçişi: "${from}" durumundan "${to}" durumuna geçilemez.`);
+    super(
+      `Geçersiz aşama geçişi: "${from}" durumundan "${to}" durumuna geçilemez.`,
+    );
     this.name = 'InvalidStatusTransitionError';
   }
 }
 
 export class InsufficientStockError extends WorkOrderDomainError {
   constructor(productName: string, available: number, requested: number) {
-    super(`Yetersiz stok! "${productName}" için mevcut stok: ${available}, talep edilen: ${requested}`);
+    super(
+      `Yetersiz stok! "${productName}" için mevcut stok: ${available}, talep edilen: ${requested}`,
+    );
     this.name = 'InsufficientStockError';
   }
 }

@@ -126,6 +126,15 @@ model Tenant {
   logoUrl     String?
   isActive    Boolean  @default(true)
   autoInvoiceOnComplete Boolean @default(false) @map("auto_invoice_on_complete")
+  workingDays String[] @default(["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"]) @map("working_days")
+  workStartTime String @default("08:30") @map("work_start_time")
+  workEndTime String @default("18:30") @map("work_end_time")
+  breakStartTime String? @default("12:30") @map("break_start_time")
+  breakEndTime String? @default("13:30") @map("break_end_time")
+  appointmentSlotDuration Int @default(45) @map("appointment_slot_duration")
+  activeLiftCount Int @default(3) @map("active_lift_count")
+  criticalStockThreshold Int @default(5) @map("critical_stock_threshold")
+  onboardingCompleted Boolean @default(false) @map("onboarding_completed")
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @db.Timestamptz(6)
 
@@ -372,8 +381,8 @@ model WorkOrder {
 
   tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   appointment      Appointment?     @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
-  customer         Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  vehicle          Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  customer         Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  vehicle          Vehicle          @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   assignedMechanic Mechanic?        @relation(fields: [assignedMechanicId], references: [id], onDelete: SetNull)
   items            WorkOrderItem[]
   photos           WorkOrderPhoto[]
@@ -558,7 +567,7 @@ model Invoice {
 
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   workOrder WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
-  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Restrict)
   payments  Payment[]
 
   @@unique([tenantId, invoiceNumber])
@@ -582,7 +591,7 @@ model Payment {
 
   tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   invoice  Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
   @@index([tenantId, paymentDate])
   @@map("payments")
@@ -605,7 +614,7 @@ model CurrentAccount {
   updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
   tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer  Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
   movements CariMovement[]
 
   @@map("current_accounts")

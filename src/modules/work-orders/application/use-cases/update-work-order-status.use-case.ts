@@ -1,6 +1,9 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
-import { WorkOrderStatusVO, WorkOrderStatusEnum } from '../../domain/value-objects/work-order-status.vo';
+import {
+  WorkOrderStatusVO,
+  WorkOrderStatusEnum,
+} from '../../domain/value-objects/work-order-status.vo';
 import { CreateInvoiceUseCase } from '../../../invoices/application/use-cases/create-invoice.use-case';
 import { AuditService } from '../../../audit/audit.service';
 import { EventsGateway } from '../../../events/events.gateway';
@@ -18,7 +21,12 @@ export class UpdateWorkOrderStatusUseCase {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async execute(tenantId: string, id: string, newStatus: string, userId?: string) {
+  async execute(
+    tenantId: string,
+    id: string,
+    newStatus: string,
+    userId?: string,
+  ) {
     const statusVO = new WorkOrderStatusVO(newStatus);
     const targetStatus = statusVO.getValue();
 
@@ -30,8 +38,14 @@ export class UpdateWorkOrderStatusUseCase {
       // allow idempotent same-status update or throw
     }
 
-    const completedAt = targetStatus === WorkOrderStatusEnum.COMPLETED ? new Date() : null;
-    const updated = await this.workOrderRepository.updateStatus(tenantId, id, targetStatus, completedAt);
+    const completedAt =
+      targetStatus === WorkOrderStatusEnum.COMPLETED ? new Date() : null;
+    const updated = await this.workOrderRepository.updateStatus(
+      tenantId,
+      id,
+      targetStatus,
+      completedAt,
+    );
 
     await this.auditService.log({
       tenantId,
@@ -43,38 +57,72 @@ export class UpdateWorkOrderStatusUseCase {
         workOrderNumber: wo.workOrderNumber,
         status: wo.status,
         plate: wo.vehicle?.plate || 'Plaka Belirtilmedi',
-        customerName: `${wo.customer?.firstName || ''} ${wo.customer?.lastName || ''}`.trim() || 'Müşteri Belirtilmedi',
+        customerName:
+          `${wo.customer?.firstName || ''} ${wo.customer?.lastName || ''}`.trim() ||
+          'Müşteri Belirtilmedi',
       },
       changesAfter: {
         workOrderNumber: wo.workOrderNumber,
         status: targetStatus,
         plate: wo.vehicle?.plate || 'Plaka Belirtilmedi',
-        customerName: `${wo.customer?.firstName || ''} ${wo.customer?.lastName || ''}`.trim() || 'Müşteri Belirtilmedi',
+        customerName:
+          `${wo.customer?.firstName || ''} ${wo.customer?.lastName || ''}`.trim() ||
+          'Müşteri Belirtilmedi',
       },
     });
 
     // STOCK ROLLBACK RULE: If cancelled, restore stock
-    if (targetStatus === WorkOrderStatusEnum.CANCELLED && wo.status !== WorkOrderStatusEnum.CANCELLED) {
-      await this.workOrderRepository.restoreCancelledStock(tenantId, id, userId);
+    if (
+      targetStatus === WorkOrderStatusEnum.CANCELLED &&
+      wo.status !== WorkOrderStatusEnum.CANCELLED
+    ) {
+      await this.workOrderRepository.restoreCancelledStock(
+        tenantId,
+        id,
+        userId,
+      );
+    }
+
+    // APPOINTMENT LIFECYCLE SYNC: If linked to an appointment, keep its status synchronized
+    if (wo.appointmentId) {
+      if (targetStatus === WorkOrderStatusEnum.COMPLETED) {
+        await this.workOrderRepository.syncAppointmentStatus(
+          tenantId,
+          wo.appointmentId,
+          'COMPLETED',
+        );
+      } else if (targetStatus === WorkOrderStatusEnum.IN_PROGRESS) {
+        await this.workOrderRepository.syncAppointmentStatus(
+          tenantId,
+          wo.appointmentId,
+          'IN_SERVICE',
+        );
+      }
     }
 
     // AUTO-INVOICE RULE: If completed, check autoInvoiceOnComplete
     if (targetStatus === WorkOrderStatusEnum.COMPLETED) {
-      const isAutoInvoice = await this.workOrderRepository.getTenantAutoInvoiceConfig(tenantId);
+      const isAutoInvoice =
+        await this.workOrderRepository.getTenantAutoInvoiceConfig(tenantId);
       if (isAutoInvoice) {
-        const existingInv = await this.workOrderRepository.findInvoiceByWorkOrder(tenantId, id);
+        const existingInv =
+          await this.workOrderRepository.findInvoiceByWorkOrder(tenantId, id);
         if (!existingInv && Number(wo.grandTotal) > 0) {
           const dueDate = new Date();
           dueDate.setDate(dueDate.getDate() + 7);
 
-          const invoice = await this.createInvoiceUseCase.execute(tenantId, {
-            workOrderId: id,
-            customerId: wo.customerId,
-            dueDate: dueDate.toISOString().split('T')[0],
-            subtotal: Number(wo.subtotal),
-            kdvAmount: Number(wo.kdvAmount),
-            grandTotal: Number(wo.grandTotal),
-          }, userId);
+          const invoice = await this.createInvoiceUseCase.execute(
+            tenantId,
+            {
+              workOrderId: id,
+              customerId: wo.customerId,
+              dueDate: dueDate.toISOString().split('T')[0],
+              subtotal: Number(wo.subtotal),
+              kdvAmount: Number(wo.kdvAmount),
+              grandTotal: Number(wo.grandTotal),
+            },
+            userId,
+          );
 
           await this.auditService.log({
             tenantId,
@@ -129,7 +177,11 @@ export class UpdateWorkOrderStatusUseCase {
         title: 'İş Emri Durumu Değişti',
         message: `${wo.workOrderNumber} (${wo.vehicle?.plate || ''}) durumu "${targetStatus}" yapıldı.`,
         link: `/work-orders/${id}`,
-        metadata: { workOrderId: id, workOrderNumber: wo.workOrderNumber, status: targetStatus },
+        metadata: {
+          workOrderId: id,
+          workOrderNumber: wo.workOrderNumber,
+          status: targetStatus,
+        },
       });
     }
 

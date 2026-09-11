@@ -1,4 +1,10 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+  Inject,
+} from '@nestjs/common';
 import { Worker, Job } from 'bullmq';
 import { QUEUE_NOTIFICATIONS } from '../../queues/queue.service';
 import {
@@ -41,7 +47,7 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
         {
           connection,
           concurrency: 5,
-        }
+        },
       );
 
       this.worker.on('completed', (job: Job) => {
@@ -49,7 +55,9 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
       });
 
       this.worker.on('failed', (job: Job | undefined, err: Error) => {
-        this.logger.warn(`Job ${job?.id} (${job?.name}) failed: ${err.message}`);
+        this.logger.warn(
+          `Job ${job?.id} (${job?.name}) failed: ${err.message}`,
+        );
       });
 
       this.logger.log('👷 BullMQ NotificationWorker started processing jobs');
@@ -66,7 +74,9 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
 
   private async processJob(job: Job) {
     const { name, data } = job;
-    this.logger.log(`Processing background notification job [${name}] (ID: ${job.id})`);
+    this.logger.log(
+      `Processing background notification job [${name}] (ID: ${job.id})`,
+    );
 
     switch (name) {
       case 'send-sms':
@@ -104,14 +114,23 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
       include: { customer: true, vehicle: true, tenant: true },
     });
 
-    if (!appt || appt.status === 'CANCELLED' || appt.status === 'COMPLETED' || appt.status === 'NO_SHOW') {
-      this.logger.log(`Appointment ${data.appointmentId} is ${appt?.status || 'NOT_FOUND'}, skipping reminder.`);
+    if (
+      !appt ||
+      appt.status === 'CANCELLED' ||
+      appt.status === 'COMPLETED' ||
+      appt.status === 'NO_SHOW'
+    ) {
+      this.logger.log(
+        `Appointment ${data.appointmentId} is ${appt?.status || 'NOT_FOUND'}, skipping reminder.`,
+      );
       return;
     }
 
     const tenantTitle = appt.tenant?.title || 'Oto Servisiniz';
     const plate = appt.vehicle?.plate || data.plate || '';
-    const dateStr = appt.slotDate ? new Date(appt.slotDate).toLocaleDateString('tr-TR') : data.slotDate || '';
+    const dateStr = appt.slotDate
+      ? new Date(appt.slotDate).toLocaleDateString('tr-TR')
+      : data.slotDate || '';
     const phone = appt.customer?.phone || data.customerPhone;
 
     if (phone) {

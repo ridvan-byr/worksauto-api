@@ -39,7 +39,11 @@ describe('BatchImportCustomersUseCase', () => {
     const result = await useCase.execute('tenant-1', items);
 
     expect(result.importedCustomersCount).toBe(1);
-    expect(mockRepo.batchImport).toHaveBeenCalledWith('tenant-1', items, undefined);
+    expect(mockRepo.batchImport).toHaveBeenCalledWith(
+      'tenant-1',
+      items,
+      undefined,
+    );
   });
 
   it('should pass updateExisting option to customer repository', async () => {
@@ -57,10 +61,14 @@ describe('BatchImportCustomersUseCase', () => {
       errors: [],
     });
 
-    const result = await useCase.execute('tenant-1', items, { updateExisting: true });
+    const result = await useCase.execute('tenant-1', items, {
+      updateExisting: true,
+    });
 
     expect(result.updatedCustomersCount).toBe(1);
     expect(result.updatedVehiclesCount).toBe(1);
-    expect(mockRepo.batchImport).toHaveBeenCalledWith('tenant-1', items, { updateExisting: true });
+    expect(mockRepo.batchImport).toHaveBeenCalledWith('tenant-1', items, {
+      updateExisting: true,
+    });
   });
 });

@@ -1,6 +1,11 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
-import { PaymentMethod, InvoiceStatus, CariReferenceType, NotificationType } from '@prisma/client';
+import {
+  PaymentMethod,
+  InvoiceStatus,
+  CariReferenceType,
+  NotificationType,
+} from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { EventsGateway } from '../events/events.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -34,9 +39,16 @@ export class PaymentsService {
     });
   }
 
-  async create(tenantId: string, dto: CreatePaymentDto, cashierName: string, actorUserId?: string) {
+  async create(
+    tenantId: string,
+    dto: CreatePaymentDto,
+    cashierName: string,
+    actorUserId?: string,
+  ) {
     if (!dto.amount || dto.amount <= 0) {
-      throw new BadRequestException('Tahsilat tutarı 0 dan büyük bir değer olmalıdır.');
+      throw new BadRequestException(
+        'Tahsilat tutarı 0 dan büyük bir değer olmalıdır.',
+      );
     }
 
     let customerId = dto.customerId;
@@ -45,16 +57,30 @@ export class PaymentsService {
     if (dto.invoiceId) {
       const inv = await this.prisma.invoice.findFirst({
         where: { id: dto.invoiceId, tenantId },
-        select: { customerId: true, status: true, remainingAmount: true, paidAmount: true },
+        select: {
+          customerId: true,
+          status: true,
+          remainingAmount: true,
+          paidAmount: true,
+        },
       });
       if (!inv) {
-        throw new BadRequestException('Belirtilen fatura bulunamadı veya bu işletmeye ait değil.');
+        throw new BadRequestException(
+          'Belirtilen fatura bulunamadı veya bu işletmeye ait değil.',
+        );
       }
       if (inv.status === InvoiceStatus.CANCELLED) {
-        throw new BadRequestException('İptal edilmiş bir faturaya tahsilat eklenemez.');
+        throw new BadRequestException(
+          'İptal edilmiş bir faturaya tahsilat eklenemez.',
+        );
       }
-      if (inv.status === InvoiceStatus.PAID || Number(inv.remainingAmount) <= 0) {
-        throw new BadRequestException('Bu faturanın ödemesi zaten tamamlanmıştır.');
+      if (
+        inv.status === InvoiceStatus.PAID ||
+        Number(inv.remainingAmount) <= 0
+      ) {
+        throw new BadRequestException(
+          'Bu faturanın ödemesi zaten tamamlanmıştır.',
+        );
       }
       if (dto.amount > Number(inv.remainingAmount)) {
         throw new BadRequestException(
@@ -64,7 +90,9 @@ export class PaymentsService {
       if (!customerId) {
         customerId = inv.customerId;
       } else if (customerId !== inv.customerId) {
-        throw new BadRequestException('Faturanın ait olduğu müşteri ile ödeme yapılan müşteri uyuşmuyor.');
+        throw new BadRequestException(
+          'Faturanın ait olduğu müşteri ile ödeme yapılan müşteri uyuşmuyor.',
+        );
       }
     }
 
@@ -77,7 +105,9 @@ export class PaymentsService {
       where: { id: customerId, tenantId, deletedAt: null },
     });
     if (!customer) {
-      throw new BadRequestException('Belirtilen müşteri bulunamadı veya bu işletmeye ait değil.');
+      throw new BadRequestException(
+        'Belirtilen müşteri bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
     const createdPayment = await this.prisma.$transaction(async (tx) => {
@@ -96,11 +126,16 @@ export class PaymentsService {
 
       // Update Invoice Remaining Amount if attached (tenantId scoped)
       if (dto.invoiceId) {
-        const invoice = await tx.invoice.findFirst({ where: { id: dto.invoiceId, tenantId } });
+        const invoice = await tx.invoice.findFirst({
+          where: { id: dto.invoiceId, tenantId },
+        });
         if (invoice) {
           const newPaid = Number(invoice.paidAmount) + dto.amount;
           const newRemaining = Number(invoice.grandTotal) - newPaid;
-          const newStatus = newRemaining <= 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID;
+          const newStatus =
+            newRemaining <= 0
+              ? InvoiceStatus.PAID
+              : InvoiceStatus.PARTIALLY_PAID;
 
           await tx.invoice.update({
             where: { id: dto.invoiceId },
@@ -176,7 +211,9 @@ export class PaymentsService {
     });
 
     // Real-time WebSocket emission & in-app notification
-    const customerName = customer ? `${customer.firstName} ${customer.lastName}`.trim() : 'Müşteri';
+    const customerName = customer
+      ? `${customer.firstName} ${customer.lastName}`.trim()
+      : 'Müşteri';
 
     this.eventsGateway.emitToTenant(tenantId, 'payment:received', {
       ...createdPayment,
@@ -192,7 +229,11 @@ export class PaymentsService {
       title: 'Yeni Tahsilat Alındı',
       message: `${Number(dto.amount).toLocaleString('tr-TR')} ₺ tahsilat kaydedildi (${paymentMethod}). Müşteri: ${customerName}`,
       link: '/billing/payments',
-      metadata: { paymentId: createdPayment.id, amount: dto.amount, method: paymentMethod },
+      metadata: {
+        paymentId: createdPayment.id,
+        amount: dto.amount,
+        method: paymentMethod,
+      },
     });
 
     return createdPayment;
@@ -222,7 +263,8 @@ export class PaymentsService {
       const amt = Number(p.amount);
       if (p.paymentMethod === PaymentMethod.CASH) totalCash += amt;
       else if (p.paymentMethod === PaymentMethod.POS) totalPos += amt;
-      else if (p.paymentMethod === PaymentMethod.BANK_TRANSFER) totalTransfer += amt;
+      else if (p.paymentMethod === PaymentMethod.BANK_TRANSFER)
+        totalTransfer += amt;
       else if (p.paymentMethod === PaymentMethod.ONLINE) totalOnline += amt;
     }
 

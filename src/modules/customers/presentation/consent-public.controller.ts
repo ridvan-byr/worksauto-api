@@ -11,23 +11,39 @@ export class ConsentPublicController {
 
   @Public()
   @Get('verify/:token')
-  @ApiOperation({ summary: 'Müşteriye SMS ile giden onay tokenını doğrular ve servis metnini getirir' })
+  @ApiOperation({
+    summary:
+      'Müşteriye SMS ile giden onay tokenını doğrular ve servis metnini getirir',
+  })
   verifyToken(@Param('token') token: string) {
     return this.manageConsentUseCase.verifyToken(token);
   }
 
   @Public()
   @Post('confirm/:token')
-  @ApiOperation({ summary: 'Müşteri açık rıza ve KVKK onayını IP/cihaz bilgisiyle kaydeder' })
+  @ApiOperation({
+    summary: 'Müşteri açık rıza ve KVKK onayını IP/cihaz bilgisiyle kaydeder',
+  })
   confirm(
     @Param('token') token: string,
     @Body() dto: ConfirmConsentDto,
     @Req() req: any,
   ) {
-    const rawIp = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() || req.ip || req.socket?.remoteAddress || '127.0.0.1';
-    const clientIp = rawIp.startsWith('::ffff:') ? rawIp.replace('::ffff:', '') : rawIp;
+    const rawIp =
+      req.headers['x-forwarded-for']?.toString().split(',')[0].trim() ||
+      req.ip ||
+      req.socket?.remoteAddress ||
+      '127.0.0.1';
+    const clientIp = rawIp.startsWith('::ffff:')
+      ? rawIp.replace('::ffff:', '')
+      : rawIp;
     const userAgent = req.headers['user-agent'] || 'Unknown Browser';
 
-    return this.manageConsentUseCase.confirmConsent(token, dto, clientIp, userAgent);
+    return this.manageConsentUseCase.confirmConsent(
+      token,
+      dto,
+      clientIp,
+      userAgent,
+    );
   }
 }

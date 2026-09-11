@@ -22,4 +22,3 @@ export interface IShelfRepository {
   findShelfById(tenantId: string, shelfId: string): Promise<any | null>;
   deleteShelf(shelfId: string): Promise<void>;
 }
-

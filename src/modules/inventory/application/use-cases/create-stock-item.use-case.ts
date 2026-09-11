@@ -1,5 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { IInventoryRepository, INVENTORY_REPOSITORY } from '../../domain/inventory.repository.interface';
+import {
+  IInventoryRepository,
+  INVENTORY_REPOSITORY,
+} from '../../domain/inventory.repository.interface';
 import { StockItemEntity } from '../../domain/stock-item.entity';
 
 export interface CreateStockItemInput {

@@ -40,7 +40,9 @@ describe('UpdateAppointmentStatusUseCase', () => {
   it('should throw NotFoundException if appointment does not exist', async () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(null);
 
-    await expect(useCase.approve('t-1', 'app-1')).rejects.toThrow(NotFoundException);
+    await expect(useCase.approve('t-1', 'app-1')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should approve appointment and emit event', async () => {
@@ -59,7 +61,11 @@ describe('UpdateAppointmentStatusUseCase', () => {
 
     const result = await useCase.approve('t-1', 'app-1', 'u-1');
     expect(result.status).toBe('CONFIRMED');
-    expect(mockEvents.emitToTenant).toHaveBeenCalledWith('t-1', 'appointment:approved', expect.anything());
+    expect(mockEvents.emitToTenant).toHaveBeenCalledWith(
+      't-1',
+      'appointment:approved',
+      expect.anything(),
+    );
     expect(mockAudit.log).toHaveBeenCalled();
   });
 
@@ -79,6 +85,10 @@ describe('UpdateAppointmentStatusUseCase', () => {
 
     const result = await useCase.markNoShow('t-1', 'app-1', 'u-1');
     expect(result.status).toBe('NO_SHOW');
-    expect(mockEvents.emitToTenant).toHaveBeenCalledWith('t-1', 'appointment:no_show', expect.anything());
+    expect(mockEvents.emitToTenant).toHaveBeenCalledWith(
+      't-1',
+      'appointment:no_show',
+      expect.anything(),
+    );
   });
 });

@@ -41,7 +41,9 @@ describe('GetCustomerCurrentAccountUseCase', () => {
     vi.mocked(mockRepo.findByCustomerId).mockResolvedValue(null);
     vi.mocked(mockRepo.customerExists).mockResolvedValue(false);
 
-    await expect(useCase.execute('t-1', 'c-non-existent')).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('t-1', 'c-non-existent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should initialize and create new current account if customer exists but has no account yet', async () => {

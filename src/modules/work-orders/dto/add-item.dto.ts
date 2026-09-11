@@ -1,13 +1,25 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 import { WorkOrderItemType } from '@prisma/client';
 
 export class AddWorkOrderItemDto {
   @ApiProperty({ enum: WorkOrderItemType, example: WorkOrderItemType.PART })
-  @IsEnum(WorkOrderItemType, { message: 'Geçerli bir kalem tipi seçiniz (SERVICE veya PART).' })
+  @IsEnum(WorkOrderItemType, {
+    message: 'Geçerli bir kalem tipi seçiniz (SERVICE veya PART).',
+  })
   itemType: WorkOrderItemType;
 
-  @ApiProperty({ required: false, description: 'Yedek parça ID (stoktan düşülecekse)' })
+  @ApiProperty({
+    required: false,
+    description: 'Yedek parça ID (stoktan düşülecekse)',
+  })
   @IsOptional()
   @IsString()
   itemId?: string;

@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import * as crypto from 'crypto';
 import {
   CUSTOMER_CONSENT_REPOSITORY,
@@ -19,13 +24,19 @@ export class ManageConsentUseCase {
   }
 
   async getConsents(tenantId: string, customerId: string) {
-    const customer = await this.consentRepository.findCustomerWithTenant(tenantId, customerId);
+    const customer = await this.consentRepository.findCustomerWithTenant(
+      tenantId,
+      customerId,
+    );
 
     if (!customer) {
       throw new NotFoundException('Müşteri bulunamadı.');
     }
 
-    const records = await this.consentRepository.findCustomerConsents(tenantId, customerId);
+    const records = await this.consentRepository.findCustomerConsents(
+      tenantId,
+      customerId,
+    );
 
     const activeKvkk = records.find(
       (r) => r.consentType === 'KVKK_AYDINLATMA' && r.isGranted && !r.revokedAt,
@@ -45,7 +56,10 @@ export class ManageConsentUseCase {
   }
 
   async sendConsentSms(tenantId: string, customerId: string) {
-    const customer = await this.consentRepository.findCustomerWithTenant(tenantId, customerId);
+    const customer = await this.consentRepository.findCustomerWithTenant(
+      tenantId,
+      customerId,
+    );
 
     if (!customer) {
       throw new NotFoundException('Müşteri bulunamadı.');
@@ -90,14 +104,19 @@ export class ManageConsentUseCase {
   }
 
   async verifyToken(token: string) {
-    const consent = await this.consentRepository.findConsentByTokenWithRelations(token);
+    const consent =
+      await this.consentRepository.findConsentByTokenWithRelations(token);
 
     if (!consent) {
-      throw new NotFoundException('Geçersiz veya süresi dolmuş onay bağlantısı.');
+      throw new NotFoundException(
+        'Geçersiz veya süresi dolmuş onay bağlantısı.',
+      );
     }
 
     if (consent.expiresAt && consent.expiresAt < new Date()) {
-      throw new BadRequestException('Bu onay bağlantısının süresi dolmuştur. Lütfen servisten yeni link talep ediniz.');
+      throw new BadRequestException(
+        'Bu onay bağlantısının süresi dolmuştur. Lütfen servisten yeni link talep ediniz.',
+      );
     }
 
     return {
@@ -114,19 +133,28 @@ export class ManageConsentUseCase {
     };
   }
 
-  async confirmConsent(token: string, dto: ConfirmConsentDto, ipAddress?: string, userAgent?: string) {
-    const consent = await this.consentRepository.findConsentByTokenWithRelations(token);
+  async confirmConsent(
+    token: string,
+    dto: ConfirmConsentDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const consent =
+      await this.consentRepository.findConsentByTokenWithRelations(token);
 
     if (!consent) {
       throw new NotFoundException('Geçersiz onay bağlantısı.');
     }
 
     if (consent.expiresAt && consent.expiresAt < new Date()) {
-      throw new BadRequestException('Bu onay bağlantısının geçerlilik süresi dolmuştur.');
+      throw new BadRequestException(
+        'Bu onay bağlantısının geçerlilik süresi dolmuştur.',
+      );
     }
 
     const auditData = {
-      customerName: `${consent.customer.firstName} ${consent.customer.lastName || ''}`.trim(),
+      customerName:
+        `${consent.customer.firstName} ${consent.customer.lastName || ''}`.trim(),
       channel: 'SMS_LINK',
       commercialSms: Boolean(dto.commercialSms),
     };
@@ -153,7 +181,10 @@ export class ManageConsentUseCase {
     ipAddress?: string,
     userAgent?: string,
   ) {
-    const customer = await this.consentRepository.findCustomerWithTenant(tenantId, customerId);
+    const customer = await this.consentRepository.findCustomerWithTenant(
+      tenantId,
+      customerId,
+    );
 
     if (!customer) {
       throw new NotFoundException('Müşteri bulunamadı.');

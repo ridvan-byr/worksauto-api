@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
-import { CreateShelfInput, IShelfRepository } from '../domain/shelf.repository.interface';
+import {
+  CreateShelfInput,
+  IShelfRepository,
+} from '../domain/shelf.repository.interface';
 
 @Injectable()
 export class PrismaShelfRepository implements IShelfRepository {
@@ -12,7 +15,10 @@ export class PrismaShelfRepository implements IShelfRepository {
     });
   }
 
-  async createShelfWithCells(tenantId: string, input: CreateShelfInput): Promise<any> {
+  async createShelfWithCells(
+    tenantId: string,
+    input: CreateShelfInput,
+  ): Promise<any> {
     return this.prisma.$transaction(async (tx) => {
       const shelf = await tx.warehouseShelf.create({
         data: {
@@ -75,8 +81,13 @@ export class PrismaShelfRepository implements IShelfRepository {
     });
 
     return shelves.map((s) => {
-      const occupiedCellsCount = s.cells.filter((c) => c._count.products > 0).length;
-      const totalProductsCount = s.cells.reduce((acc, c) => acc + c._count.products, 0);
+      const occupiedCellsCount = s.cells.filter(
+        (c) => c._count.products > 0,
+      ).length;
+      const totalProductsCount = s.cells.reduce(
+        (acc, c) => acc + c._count.products,
+        0,
+      );
 
       return {
         id: s.id,
@@ -90,12 +101,18 @@ export class PrismaShelfRepository implements IShelfRepository {
         totalCells: s._count.cells,
         occupiedCells: occupiedCellsCount,
         totalProducts: totalProductsCount,
-        occupancyRate: s._count.cells > 0 ? Math.round((occupiedCellsCount / s._count.cells) * 100) : 0,
+        occupancyRate:
+          s._count.cells > 0
+            ? Math.round((occupiedCellsCount / s._count.cells) * 100)
+            : 0,
       };
     });
   }
 
-  async findByIdWithMatrix(tenantId: string, shelfId: string): Promise<any | null> {
+  async findByIdWithMatrix(
+    tenantId: string,
+    shelfId: string,
+  ): Promise<any | null> {
     return this.prisma.warehouseShelf.findFirst({
       where: { id: shelfId, tenantId },
       include: {
@@ -142,7 +159,10 @@ export class PrismaShelfRepository implements IShelfRepository {
     });
   }
 
-  async updateManyProductLocations(productIds: string[], data: any): Promise<number> {
+  async updateManyProductLocations(
+    productIds: string[],
+    data: any,
+  ): Promise<number> {
     const res = await this.prisma.product.updateMany({
       where: { id: { in: productIds } },
       data,

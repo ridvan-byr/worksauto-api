@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
@@ -25,8 +35,15 @@ export class VehiclesController {
   ) {}
 
   @Get()
-  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN, UserRole.CASHIER)
-  @ApiOperation({ summary: 'Araçları listeler veya plakaya/müşteriye göre arar' })
+  @Roles(
+    UserRole.OWNER,
+    UserRole.SERVICE_MANAGER,
+    UserRole.TECHNICIAN,
+    UserRole.CASHIER,
+  )
+  @ApiOperation({
+    summary: 'Araçları listeler veya plakaya/müşteriye göre arar',
+  })
   findAll(
     @CurrentTenant() tenantId: string,
     @Query('search') search?: string,

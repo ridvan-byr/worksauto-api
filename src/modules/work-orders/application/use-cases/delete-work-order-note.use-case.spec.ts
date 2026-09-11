@@ -46,7 +46,11 @@ describe('DeleteWorkOrderNoteUseCase', () => {
     });
 
     await expect(
-      useCase.execute('t-1', 'wo-1', 'n-1', { id: 'u-1', name: 'Ali', role: UserRole.TECHNICIAN }),
+      useCase.execute('t-1', 'wo-1', 'n-1', {
+        id: 'u-1',
+        name: 'Ali',
+        role: UserRole.TECHNICIAN,
+      }),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -68,10 +72,14 @@ describe('DeleteWorkOrderNoteUseCase', () => {
 
     expect(result).toEqual({ success: true, id: 'n-1' });
     expect(mockRepo.deleteNote).toHaveBeenCalledWith('t-1', 'wo-1', 'n-1');
-    expect(mockEvents.emitToTenant).toHaveBeenCalledWith('t-1', 'workOrderNoteDeleted', {
-      workOrderId: 'wo-1',
-      noteId: 'n-1',
-    });
+    expect(mockEvents.emitToTenant).toHaveBeenCalledWith(
+      't-1',
+      'workOrderNoteDeleted',
+      {
+        workOrderId: 'wo-1',
+        noteId: 'n-1',
+      },
+    );
   });
 
   it('should allow manager (OWNER) to delete any note', async () => {

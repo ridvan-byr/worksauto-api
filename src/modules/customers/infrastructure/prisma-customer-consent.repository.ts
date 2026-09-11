@@ -11,14 +11,20 @@ export class PrismaCustomerConsentRepository implements ICustomerConsentReposito
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async findCustomerWithTenant(tenantId: string, customerId: string): Promise<any | null> {
+  async findCustomerWithTenant(
+    tenantId: string,
+    customerId: string,
+  ): Promise<any | null> {
     return this.prisma.customer.findFirst({
       where: { id: customerId, tenantId, deletedAt: null },
       include: { tenant: { select: { title: true } } },
     });
   }
 
-  async findCustomerConsents(tenantId: string, customerId: string): Promise<any[]> {
+  async findCustomerConsents(
+    tenantId: string,
+    customerId: string,
+  ): Promise<any[]> {
     return this.prisma.customerConsent.findMany({
       where: { tenantId, customerId },
       orderBy: { grantedAt: 'desc' },
@@ -53,8 +59,19 @@ export class PrismaCustomerConsentRepository implements ICustomerConsentReposito
     return this.prisma.customerConsent.findUnique({
       where: { verificationToken: token },
       include: {
-        customer: { select: { id: true, firstName: true, lastName: true, phone: true } },
-        tenant: { select: { id: true, title: true, phone: true, email: true, address: true, city: true } },
+        customer: {
+          select: { id: true, firstName: true, lastName: true, phone: true },
+        },
+        tenant: {
+          select: {
+            id: true,
+            title: true,
+            phone: true,
+            email: true,
+            address: true,
+            city: true,
+          },
+        },
       },
     });
   }

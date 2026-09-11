@@ -31,7 +31,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = res;
       }
     } else if (exception instanceof Error) {
-      this.logger.error(`Unhandled Exception: ${exception.message}`, exception.stack);
+      this.logger.error(
+        `Unhandled Exception: ${exception.message}`,
+        exception.stack,
+      );
     }
 
     response.status(status).json({

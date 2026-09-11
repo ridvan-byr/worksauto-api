@@ -1,5 +1,9 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { ICustomerRepository, CUSTOMER_REPOSITORY, CustomerStatsResult } from '../../domain/customer.repository.interface';
+import {
+  ICustomerRepository,
+  CUSTOMER_REPOSITORY,
+  CustomerStatsResult,
+} from '../../domain/customer.repository.interface';
 import { CustomerEntity } from '../../domain/customer.entity';
 
 @Injectable()

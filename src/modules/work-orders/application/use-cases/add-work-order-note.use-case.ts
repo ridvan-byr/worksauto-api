@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { WorkOrderStatusVO } from '../../domain/value-objects/work-order-status.vo';
 import { AuditService } from '../../../audit/audit.service';
@@ -28,7 +33,8 @@ export class AddWorkOrderNoteUseCase {
       throw new BadRequestException('İptal edilmiş iş emrine not eklenemez.');
     }
 
-    const fullName = `${authorUser.name || 'Personel'} ${authorUser.surname || ''}`.trim();
+    const fullName =
+      `${authorUser.name || 'Personel'} ${authorUser.surname || ''}`.trim();
     const note = await this.workOrderRepository.addNote(
       tenantId,
       workOrderId,

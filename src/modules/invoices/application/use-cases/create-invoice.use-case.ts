@@ -1,5 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { IInvoiceRepository, INVOICE_REPOSITORY } from '../../domain/invoice.repository.interface';
+import {
+  IInvoiceRepository,
+  INVOICE_REPOSITORY,
+} from '../../domain/invoice.repository.interface';
 import { InvoiceEntity } from '../../domain/invoice.entity';
 import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
@@ -23,8 +26,13 @@ export class CreateInvoiceUseCase {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async execute(tenantId: string, dto: CreateInvoiceInput, userId?: string): Promise<InvoiceEntity> {
-    const { invoiceNumber, gibInvoiceNumber } = await this.invoiceRepository.getNextInvoiceNumber(tenantId);
+  async execute(
+    tenantId: string,
+    dto: CreateInvoiceInput,
+    userId?: string,
+  ): Promise<InvoiceEntity> {
+    const { invoiceNumber, gibInvoiceNumber } =
+      await this.invoiceRepository.getNextInvoiceNumber(tenantId);
 
     const entity = new InvoiceEntity({
       tenantId,

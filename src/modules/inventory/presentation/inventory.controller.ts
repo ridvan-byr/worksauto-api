@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentTenant } from '../../../shared/decorators/current-tenant.decorator';
@@ -9,7 +20,11 @@ import { UserRole, ProductCategory } from '@prisma/client';
 import { CreateProductDto } from '../dto/create-product.dto';
 import { UpdateProductDto } from '../dto/update-product.dto';
 import { CreateStockMovementDto } from '../dto/create-stock-movement.dto';
-import { CreateShelfDto, AssignProductCellDto, BulkAssignProductCellDto } from '../dto/create-shelf.dto';
+import {
+  CreateShelfDto,
+  AssignProductCellDto,
+  BulkAssignProductCellDto,
+} from '../dto/create-shelf.dto';
 import { GetStockItemsUseCase } from '../application/use-cases/get-stock-items.use-case';
 import { CreateStockItemUseCase } from '../application/use-cases/create-stock-item.use-case';
 import { UpdateStockItemUseCase } from '../application/use-cases/update-stock-item.use-case';
@@ -32,7 +47,13 @@ export class InventoryController {
   ) {}
 
   @Get()
-  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.WAREHOUSE_KEEPER, UserRole.TECHNICIAN, UserRole.CASHIER)
+  @Roles(
+    UserRole.OWNER,
+    UserRole.SERVICE_MANAGER,
+    UserRole.WAREHOUSE_KEEPER,
+    UserRole.TECHNICIAN,
+    UserRole.CASHIER,
+  )
   @ApiOperation({ summary: 'Stok listesini ve kritik seviyeleri döner' })
   findAll(
     @CurrentTenant() tenantId: string,
@@ -47,39 +68,66 @@ export class InventoryController {
   // -------------------------------------------------------------
 
   @Get('shelves')
-  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.WAREHOUSE_KEEPER, UserRole.TECHNICIAN)
-  @ApiOperation({ summary: 'Tüm depo raflarını ve doluluk oranlarını listeler' })
+  @Roles(
+    UserRole.OWNER,
+    UserRole.SERVICE_MANAGER,
+    UserRole.WAREHOUSE_KEEPER,
+    UserRole.TECHNICIAN,
+  )
+  @ApiOperation({
+    summary: 'Tüm depo raflarını ve doluluk oranlarını listeler',
+  })
   getShelves(@CurrentTenant() tenantId: string) {
     return this.manageShelvesUseCase.getShelves(tenantId);
   }
 
   @Post('shelves')
   @Roles(UserRole.OWNER, UserRole.WAREHOUSE_KEEPER)
-  @ApiOperation({ summary: 'Yeni raf ünitesi tanımlar ve hücreleri otomatik oluşturur' })
+  @ApiOperation({
+    summary: 'Yeni raf ünitesi tanımlar ve hücreleri otomatik oluşturur',
+  })
   createShelf(@CurrentTenant() tenantId: string, @Body() dto: CreateShelfDto) {
     return this.manageShelvesUseCase.createShelf(tenantId, dto);
   }
 
   @Get('shelves/:shelfId')
-  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.WAREHOUSE_KEEPER, UserRole.TECHNICIAN)
-  @ApiOperation({ summary: 'Seçili rafın hücre matrisini ve içindeki parçaları döner' })
-  getShelfMatrix(@CurrentTenant() tenantId: string, @Param('shelfId') shelfId: string) {
+  @Roles(
+    UserRole.OWNER,
+    UserRole.SERVICE_MANAGER,
+    UserRole.WAREHOUSE_KEEPER,
+    UserRole.TECHNICIAN,
+  )
+  @ApiOperation({
+    summary: 'Seçili rafın hücre matrisini ve içindeki parçaları döner',
+  })
+  getShelfMatrix(
+    @CurrentTenant() tenantId: string,
+    @Param('shelfId') shelfId: string,
+  ) {
     return this.manageShelvesUseCase.getShelfWithMatrix(tenantId, shelfId);
   }
 
   @Post('shelves/assign-cell')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.WAREHOUSE_KEEPER)
-  @ApiOperation({ summary: 'Bir parçayı raf hücresine atar veya atamasını kaldırır' })
+  @ApiOperation({
+    summary: 'Bir parçayı raf hücresine atar veya atamasını kaldırır',
+  })
   assignProductToCell(
     @CurrentTenant() tenantId: string,
     @Body() dto: AssignProductCellDto,
   ) {
-    return this.manageShelvesUseCase.assignProductToCell(tenantId, dto.productId, dto.shelfCellId);
+    return this.manageShelvesUseCase.assignProductToCell(
+      tenantId,
+      dto.productId,
+      dto.shelfCellId,
+    );
   }
 
   @Post('shelves/bulk-assign-cell')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.WAREHOUSE_KEEPER)
-  @ApiOperation({ summary: 'Birden fazla parçayı topluca bir rafa veya hücreye taşır' })
+  @ApiOperation({
+    summary: 'Birden fazla parçayı topluca bir rafa veya hücreye taşır',
+  })
   bulkAssignProductsToCell(
     @CurrentTenant() tenantId: string,
     @Body() dto: BulkAssignProductCellDto,
@@ -95,7 +143,10 @@ export class InventoryController {
   @Delete('shelves/:shelfId')
   @Roles(UserRole.OWNER, UserRole.WAREHOUSE_KEEPER)
   @ApiOperation({ summary: 'Raf ünitesini siler (İçinde parça yoksa)' })
-  deleteShelf(@CurrentTenant() tenantId: string, @Param('shelfId') shelfId: string) {
+  deleteShelf(
+    @CurrentTenant() tenantId: string,
+    @Param('shelfId') shelfId: string,
+  ) {
     return this.manageShelvesUseCase.deleteShelf(tenantId, shelfId);
   }
 
@@ -121,7 +172,11 @@ export class InventoryController {
     @Body() dto: CreateProductDto,
     @CurrentUser('name') userName: string,
   ) {
-    return this.createStockItemUseCase.execute(tenantId, dto, userName || 'Depo Sorumlusu');
+    return this.createStockItemUseCase.execute(
+      tenantId,
+      dto,
+      userName || 'Depo Sorumlusu',
+    );
   }
 
   @Patch(':id')
@@ -147,7 +202,9 @@ export class InventoryController {
 
   @Post(':id/stock-movement')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.WAREHOUSE_KEEPER)
-  @ApiOperation({ summary: 'Stok hareketi (Mal Kabul / İrsaliye / Sayım Düzeltmesi) kaydeder' })
+  @ApiOperation({
+    summary: 'Stok hareketi (Mal Kabul / İrsaliye / Sayım Düzeltmesi) kaydeder',
+  })
   addStockMovement(
     @CurrentTenant() tenantId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -164,7 +221,9 @@ export class InventoryController {
 
   @Get(':id/movements')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.WAREHOUSE_KEEPER)
-  @ApiOperation({ summary: 'Bir parçanın geçmiş stok hareket dökümünü getirir' })
+  @ApiOperation({
+    summary: 'Bir parçanın geçmiş stok hareket dökümünü getirir',
+  })
   getMovements(
     @CurrentTenant() tenantId: string,
     @Param('id', new ParseUUIDPipe()) id: string,

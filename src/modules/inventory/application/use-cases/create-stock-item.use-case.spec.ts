@@ -44,6 +44,9 @@ describe('CreateStockItemUseCase', () => {
     );
 
     expect(result.id).toBe('prod-1');
-    expect(mockRepo.create).toHaveBeenCalledWith(expect.any(StockItemEntity), 'admin-user');
+    expect(mockRepo.create).toHaveBeenCalledWith(
+      expect.any(StockItemEntity),
+      'admin-user',
+    );
   });
 });

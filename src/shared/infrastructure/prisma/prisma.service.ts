@@ -1,4 +1,10 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
 
@@ -21,12 +27,16 @@ const TENANT_SCOPED_MODELS = new Set([
 ]);
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PrismaService.name);
 
   constructor(private readonly cls: ClsService) {
     super({
-      log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+      log:
+        process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
     });
 
     const extendedClient = this.$extends({
@@ -49,7 +59,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
               // Only enforce when a tenant request context is active and not super admin
               if (userRole !== 'SUPER_ADMIN' && tenantId) {
-                if (['findMany', 'findFirst', 'count', 'aggregate', 'groupBy'].includes(operation)) {
+                if (
+                  [
+                    'findMany',
+                    'findFirst',
+                    'count',
+                    'aggregate',
+                    'groupBy',
+                  ].includes(operation)
+                ) {
                   args = args || {};
                   args.where = args.where || {};
                   if (args.where.tenantId && args.where.tenantId !== tenantId) {
@@ -74,20 +92,32 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                 if (['update', 'delete'].includes(operation)) {
                   args = args || {};
                   if (args.where) {
-                    if (args.where.tenantId && args.where.tenantId !== tenantId) {
+                    if (
+                      args.where.tenantId &&
+                      args.where.tenantId !== tenantId
+                    ) {
                       throw new ForbiddenException(
                         `Çapraz kiracı işlem ihlali engellendi: ${model} modeli için yetkisiz tenantId tespiti.`,
                       );
                     }
 
                     // Defense-in-depth: Verify record ownership before mutation if where has only primary key
-                    const modelDelegate = (this as any)[model.charAt(0).toLowerCase() + model.slice(1)];
-                    if (modelDelegate && typeof modelDelegate.findUnique === 'function') {
+                    const modelDelegate = (this as any)[
+                      model.charAt(0).toLowerCase() + model.slice(1)
+                    ];
+                    if (
+                      modelDelegate &&
+                      typeof modelDelegate.findUnique === 'function'
+                    ) {
                       const existing = await modelDelegate.findUnique({
                         where: args.where,
                         select: { tenantId: true },
                       });
-                      if (existing && existing.tenantId && existing.tenantId !== tenantId) {
+                      if (
+                        existing &&
+                        existing.tenantId &&
+                        existing.tenantId !== tenantId
+                      ) {
                         throw new ForbiddenException(
                           `Çapraz kiracı manipülasyon engellendi: ${model} kaydı başka bir işletmeye ait.`,
                         );
@@ -95,7 +125,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
                     }
                   }
 
-                  if (operation === 'update' && args.data && args.data.tenantId && args.data.tenantId !== tenantId) {
+                  if (
+                    operation === 'update' &&
+                    args.data &&
+                    args.data.tenantId &&
+                    args.data.tenantId !== tenantId
+                  ) {
                     throw new ForbiddenException(
                       `Çapraz kiracı veri taşıma ihlali: ${model} modeli için yetkisiz tenantId tespiti.`,
                     );
@@ -115,7 +150,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
                 if (operation === 'findUnique') {
                   const result = await query(args);
-                  if (result && typeof result === 'object' && 'tenantId' in result && result.tenantId && result.tenantId !== tenantId) {
+                  if (
+                    result &&
+                    typeof result === 'object' &&
+                    'tenantId' in result &&
+                    result.tenantId &&
+                    result.tenantId !== tenantId
+                  ) {
                     return null;
                   }
                   return result;
@@ -133,7 +174,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     await this.$connect();
-    this.logger.log('PostgreSQL Prisma connection established with Multi-Tenant AST Guard.');
+    this.logger.log(
+      'PostgreSQL Prisma connection established with Multi-Tenant AST Guard.',
+    );
   }
 
   async onModuleDestroy() {

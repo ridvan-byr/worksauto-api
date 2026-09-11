@@ -1,5 +1,8 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { IAppointmentRepository, APPOINTMENT_REPOSITORY } from '../../domain/appointment.repository.interface';
+import {
+  IAppointmentRepository,
+  APPOINTMENT_REPOSITORY,
+} from '../../domain/appointment.repository.interface';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 
 @Injectable()
@@ -14,7 +17,8 @@ export class GetAppointmentsUseCase {
   }
 
   async getById(tenantId: string, id: string): Promise<AppointmentEntity> {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
       throw new NotFoundException('Geçersiz veya bulunamayan randevu.');
     }

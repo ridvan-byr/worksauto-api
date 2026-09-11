@@ -1,5 +1,13 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
-import { IAppointmentRepository, APPOINTMENT_REPOSITORY } from '../../domain/appointment.repository.interface';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import {
+  IAppointmentRepository,
+  APPOINTMENT_REPOSITORY,
+} from '../../domain/appointment.repository.interface';
 import { AppointmentEntity } from '../../domain/appointment.entity';
 import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
@@ -16,17 +24,29 @@ export class CancelAppointmentUseCase {
     private readonly eventsGateway: EventsGateway,
   ) {}
 
-  async execute(tenantId: string, id: string, reason: string, userId?: string): Promise<AppointmentEntity> {
+  async execute(
+    tenantId: string,
+    id: string,
+    reason: string,
+    userId?: string,
+  ): Promise<AppointmentEntity> {
     const app = await this.appointmentRepository.findById(tenantId, id);
     if (!app) {
       throw new NotFoundException('Randevu bulunamadı.');
     }
 
     if (!app.canCancel()) {
-      throw new BadRequestException('Tamamlanmış veya zaten iptal edilmiş randevular iptal edilemez.');
+      throw new BadRequestException(
+        'Tamamlanmış veya zaten iptal edilmiş randevular iptal edilemez.',
+      );
     }
 
-    const cancelled = await this.appointmentRepository.cancelAppointmentAndWorkOrder(tenantId, id, reason);
+    const cancelled =
+      await this.appointmentRepository.cancelAppointmentAndWorkOrder(
+        tenantId,
+        id,
+        reason,
+      );
 
     this.eventsGateway.emitToTenant(tenantId, 'appointment:cancelled', {
       id,

@@ -25,14 +25,23 @@ describe('AddStockMovementUseCase', () => {
       createNotification: vi.fn().mockResolvedValue({}),
     };
 
-    useCase = new AddStockMovementUseCase(mockRepo, mockEvents, mockNotifications);
+    useCase = new AddStockMovementUseCase(
+      mockRepo,
+      mockEvents,
+      mockNotifications,
+    );
   });
 
   it('should throw NotFoundException if item does not exist', async () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(null);
 
     await expect(
-      useCase.execute('t-1', 'p-1', { movementType: 'IN_PURCHASE', quantity: 5 }, 'user-1'),
+      useCase.execute(
+        't-1',
+        'p-1',
+        { movementType: 'IN_PURCHASE', quantity: 5 },
+        'user-1',
+      ),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -50,7 +59,12 @@ describe('AddStockMovementUseCase', () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(item);
 
     await expect(
-      useCase.execute('t-1', 'p-1', { movementType: 'OUT_WORK_ORDER', quantity: 5 }, 'user-1'),
+      useCase.execute(
+        't-1',
+        'p-1',
+        { movementType: 'OUT_WORK_ORDER', quantity: 5 },
+        'user-1',
+      ),
     ).rejects.toThrow(BadRequestException);
   });
 

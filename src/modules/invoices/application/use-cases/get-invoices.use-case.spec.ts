@@ -41,6 +41,8 @@ describe('GetInvoicesUseCase', () => {
   it('should throw NotFoundException if invoice is not found', async () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(null);
 
-    await expect(useCase.getById('t-1', 'nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(useCase.getById('t-1', 'nonexistent')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

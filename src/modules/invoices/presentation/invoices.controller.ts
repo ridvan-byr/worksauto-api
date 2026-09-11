@@ -1,5 +1,20 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards, UseInterceptors } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentTenant } from '../../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
@@ -31,7 +46,10 @@ export class InvoicesController {
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
   @RequirePermission(Permission.INVOICE_VIEW)
   @ApiOperation({ summary: 'Faturaları listeler veya duruma göre filtreler' })
-  findAll(@CurrentTenant() tenantId: string, @Query('status') status?: InvoiceStatus) {
+  findAll(
+    @CurrentTenant() tenantId: string,
+    @Query('status') status?: InvoiceStatus,
+  ) {
     return this.getInvoicesUseCase.execute(tenantId, status);
   }
 
@@ -47,7 +65,11 @@ export class InvoicesController {
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
   @RequirePermission(Permission.INVOICE_CREATE)
   @ApiOperation({ summary: 'Yeni fatura keser ve cari hesaba borç işler' })
-  @ApiHeader({ name: 'X-Idempotency-Key', required: false, description: 'Tekrarlanan istek koruması için benzersiz anahtar' })
+  @ApiHeader({
+    name: 'X-Idempotency-Key',
+    required: false,
+    description: 'Tekrarlanan istek koruması için benzersiz anahtar',
+  })
   create(
     @CurrentTenant() tenantId: string,
     @Body() dto: CreateInvoiceDto,
@@ -59,7 +81,9 @@ export class InvoicesController {
   @Patch(':id/cancel')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
   @RequirePermission(Permission.INVOICE_CANCEL)
-  @ApiOperation({ summary: 'Faturayı yasal olarak iptal eder (VUK İptal Kaydı)' })
+  @ApiOperation({
+    summary: 'Faturayı yasal olarak iptal eder (VUK İptal Kaydı)',
+  })
   cancel(
     @CurrentTenant() tenantId: string,
     @Param('id') id: string,

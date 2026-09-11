@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { WorkOrderStatusVO } from '../../domain/value-objects/work-order-status.vo';
 import { AuditService } from '../../../audit/audit.service';
@@ -14,13 +19,20 @@ export class AddWorkOrderItemUseCase {
     private readonly eventsGateway: EventsGateway,
   ) {}
 
-  async execute(tenantId: string, workOrderId: string, dto: AddWorkOrderItemDto, author: string) {
+  async execute(
+    tenantId: string,
+    workOrderId: string,
+    dto: AddWorkOrderItemDto,
+    author: string,
+  ) {
     const wo = await this.workOrderRepository.findById(tenantId, workOrderId);
     if (!wo) throw new NotFoundException('İş emri bulunamadı.');
 
     const statusVO = new WorkOrderStatusVO(wo.status);
     if (statusVO.isCompleted() || statusVO.isCancelled()) {
-      throw new BadRequestException('Tamamlanmış veya iptal edilmiş iş emrine yeni kalem eklenemez.');
+      throw new BadRequestException(
+        'Tamamlanmış veya iptal edilmiş iş emrine yeni kalem eklenemez.',
+      );
     }
 
     const kdvRate = dto.kdvRate ?? 20;

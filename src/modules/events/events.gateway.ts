@@ -28,7 +28,9 @@ export class EventsGateway
   constructor(private readonly jwtService: JwtService) {}
 
   afterInit(_server: Server) {
-    this.logger.log('⚡ WebSocket EventsGateway initialized on namespace /events');
+    this.logger.log(
+      '⚡ WebSocket EventsGateway initialized on namespace /events',
+    );
   }
 
   async handleConnection(client: Socket) {
@@ -44,13 +46,17 @@ export class EventsGateway
         rawToken === 'undefined' ||
         !rawToken.trim()
       ) {
-        this.logger.debug(`Socket connection without token (${client.id}), joining anonymous public room.`);
+        this.logger.debug(
+          `Socket connection without token (${client.id}), joining anonymous public room.`,
+        );
         client.join('public');
         return;
       }
 
       const jwtSecret = process.env.JWT_SECRET;
-      const payload: any = this.jwtService.verify(rawToken, { secret: jwtSecret });
+      const payload: any = this.jwtService.verify(rawToken, {
+        secret: jwtSecret,
+      });
 
       const userId = payload.sub || payload.id;
       const tenantId = payload.tenantId;
@@ -70,7 +76,9 @@ export class EventsGateway
 
       if (role === 'SUPER_ADMIN') {
         client.join('admin:control-plane');
-        this.logger.log(`Super Admin ${client.id} joined room admin:control-plane`);
+        this.logger.log(
+          `Super Admin ${client.id} joined room admin:control-plane`,
+        );
       }
 
       client.emit('connection:ready', {
@@ -80,7 +88,9 @@ export class EventsGateway
         serverTime: new Date().toISOString(),
       });
     } catch (err: any) {
-      this.logger.debug(`WebSocket handshake token verification failed for client ${client.id}: ${err.message}`);
+      this.logger.debug(
+        `WebSocket handshake token verification failed for client ${client.id}: ${err.message}`,
+      );
       client.join('public');
     }
   }

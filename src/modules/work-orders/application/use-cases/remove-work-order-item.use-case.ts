@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { WorkOrderStatusVO } from '../../domain/value-objects/work-order-status.vo';
 import { AuditService } from '../../../audit/audit.service';
@@ -13,13 +18,20 @@ export class RemoveWorkOrderItemUseCase {
     private readonly eventsGateway: EventsGateway,
   ) {}
 
-  async execute(tenantId: string, workOrderId: string, itemId: string, author: string) {
+  async execute(
+    tenantId: string,
+    workOrderId: string,
+    itemId: string,
+    author: string,
+  ) {
     const wo = await this.workOrderRepository.findById(tenantId, workOrderId);
     if (!wo) throw new NotFoundException('İş emri bulunamadı.');
 
     const statusVO = new WorkOrderStatusVO(wo.status);
     if (statusVO.isCompleted() || statusVO.isCancelled()) {
-      throw new BadRequestException('Tamamlanmış veya iptal edilmiş iş emrinden kalem silinemez.');
+      throw new BadRequestException(
+        'Tamamlanmış veya iptal edilmiş iş emrinden kalem silinemez.',
+      );
     }
 
     const item = (wo.items || []).find((it: any) => it.id === itemId);
@@ -27,7 +39,12 @@ export class RemoveWorkOrderItemUseCase {
       throw new NotFoundException('İş emri kalemi bulunamadı.');
     }
 
-    const updated = await this.workOrderRepository.removeItem(tenantId, workOrderId, itemId, author);
+    const updated = await this.workOrderRepository.removeItem(
+      tenantId,
+      workOrderId,
+      itemId,
+      author,
+    );
 
     try {
       await this.auditService.log({

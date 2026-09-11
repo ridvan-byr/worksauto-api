@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsBoolean, IsInt, IsNotEmpty } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsInt,
+  IsNotEmpty,
+} from 'class-validator';
 
 export class CreateWorkshopBayDto {
   @ApiProperty({ example: 'Lift 1', description: 'İstasyon veya Lift Adı' })
@@ -7,7 +13,11 @@ export class CreateWorkshopBayDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ required: false, example: 'L-01', description: 'İstasyon Kodu / Kısaltması' })
+  @ApiProperty({
+    required: false,
+    example: 'L-01',
+    description: 'İstasyon Kodu / Kısaltması',
+  })
   @IsOptional()
   @IsString()
   code?: string;
@@ -15,13 +25,18 @@ export class CreateWorkshopBayDto {
   @ApiProperty({
     required: false,
     example: 'TWO_POST_LIFT',
-    description: 'Kategori: TWO_POST_LIFT, FOUR_POST_LIFT, SCISSOR_LIFT, ALIGNMENT, DIAGNOSTIC, WASH, GENERAL',
+    description:
+      'Kategori: TWO_POST_LIFT, FOUR_POST_LIFT, SCISSOR_LIFT, ALIGNMENT, DIAGNOSTIC, WASH, GENERAL',
   })
   @IsOptional()
   @IsString()
   category?: string;
 
-  @ApiProperty({ required: false, default: true, description: 'Online randevu portalında otomatik atanabilir mi?' })
+  @ApiProperty({
+    required: false,
+    default: true,
+    description: 'Online randevu portalında otomatik atanabilir mi?',
+  })
   @IsOptional()
   @IsBoolean()
   isAvailableForOnline?: boolean;

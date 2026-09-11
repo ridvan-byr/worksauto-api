@@ -87,9 +87,15 @@ describe('CancelAppointmentUseCase', () => {
     });
 
     vi.mocked(mockRepo.findById).mockResolvedValue(existing);
-    vi.mocked(mockRepo.cancelAppointmentAndWorkOrder).mockResolvedValue(cancelled);
+    vi.mocked(mockRepo.cancelAppointmentAndWorkOrder).mockResolvedValue(
+      cancelled,
+    );
 
-    const result = await useCase.execute('tenant-1', 'app-1', 'Müşteri vazgeçti');
+    const result = await useCase.execute(
+      'tenant-1',
+      'app-1',
+      'Müşteri vazgeçti',
+    );
 
     expect(result.status).toBe('CANCELLED');
     expect(mockRepo.cancelAppointmentAndWorkOrder).toHaveBeenCalledWith(

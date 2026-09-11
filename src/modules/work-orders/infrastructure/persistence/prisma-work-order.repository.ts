@@ -1,7 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
-import { IWorkOrderRepository, CreateWorkOrderData } from '../../domain/repositories/work-order.repository.interface';
-import { WorkOrderStatus, WorkOrderItemType, WorkOrderPhotoType, StockMovementType } from '@prisma/client';
+import {
+  IWorkOrderRepository,
+  CreateWorkOrderData,
+} from '../../domain/repositories/work-order.repository.interface';
+import {
+  WorkOrderStatus,
+  WorkOrderItemType,
+  WorkOrderPhotoType,
+  StockMovementType,
+} from '@prisma/client';
 
 @Injectable()
 export class PrismaWorkOrderRepository implements IWorkOrderRepository {
@@ -67,10 +79,16 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     return this.prisma.$transaction(async (tx) => {
       // 1. Verify customer strictly belongs to this tenant
       const customer = await tx.customer.findFirst({
-        where: { id: data.customerId, tenantId: data.tenantId, deletedAt: null },
+        where: {
+          id: data.customerId,
+          tenantId: data.tenantId,
+          deletedAt: null,
+        },
       });
       if (!customer) {
-        throw new BadRequestException('Seçilen müşteri bulunamadı veya bu işletmeye ait değil.');
+        throw new BadRequestException(
+          'Seçilen müşteri bulunamadı veya bu işletmeye ait değil.',
+        );
       }
 
       // 2. Verify vehicle strictly belongs to this tenant and customer
@@ -78,7 +96,9 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
         where: { id: data.vehicleId, tenantId: data.tenantId, deletedAt: null },
       });
       if (!vehicle) {
-        throw new BadRequestException('Seçilen araç bulunamadı veya bu işletmeye ait değil.');
+        throw new BadRequestException(
+          'Seçilen araç bulunamadı veya bu işletmeye ait değil.',
+        );
       }
       if (vehicle.customerId !== data.customerId) {
         throw new BadRequestException('Seçilen araç ile müşteri eşleşmiyor.');
@@ -90,7 +110,9 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
           where: { id: data.assignedMechanicId, tenantId: data.tenantId },
         });
         if (!mechanic) {
-          throw new BadRequestException('Seçilen teknisyen bulunamadı veya bu işletmeye ait değil.');
+          throw new BadRequestException(
+            'Seçilen teknisyen bulunamadı veya bu işletmeye ait değil.',
+          );
         }
       }
 
@@ -100,11 +122,13 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
           where: { id: data.appointmentId, tenantId: data.tenantId },
         });
         if (!appt) {
-          throw new BadRequestException('Seçilen randevu bulunamadı veya bu işletmeye ait değil.');
+          throw new BadRequestException(
+            'Seçilen randevu bulunamadı veya bu işletmeye ait değil.',
+          );
         }
         await tx.appointment.update({
           where: { id: data.appointmentId },
-          data: { status: 'CONFIRMED' },
+          data: { status: 'IN_SERVICE' },
         });
       }
 
@@ -150,7 +174,9 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
               });
 
               if (!product) {
-                throw new NotFoundException('Belirtilen yedek parça depoda bulunamadı.');
+                throw new NotFoundException(
+                  'Belirtilen yedek parça depoda bulunamadı.',
+                );
               }
 
               throw new BadRequestException(
@@ -199,12 +225,19 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     });
   }
 
-  async updateStatus(tenantId: string, id: string, status: string, completedAt?: Date | null): Promise<any> {
+  async updateStatus(
+    tenantId: string,
+    id: string,
+    status: string,
+    completedAt?: Date | null,
+  ): Promise<any> {
     const existing = await this.prisma.workOrder.findFirst({
       where: { id, tenantId },
     });
     if (!existing) {
-      throw new NotFoundException('İş emri bulunamadı veya bu işletmeye ait değil.');
+      throw new NotFoundException(
+        'İş emri bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
     return this.prisma.workOrder.update({
@@ -217,12 +250,18 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     });
   }
 
-  async rollbackStatus(tenantId: string, id: string, prevStatus: string): Promise<any> {
+  async rollbackStatus(
+    tenantId: string,
+    id: string,
+    prevStatus: string,
+  ): Promise<any> {
     const existing = await this.prisma.workOrder.findFirst({
       where: { id, tenantId },
     });
     if (!existing) {
-      throw new NotFoundException('İş emri bulunamadı veya bu işletmeye ait değil.');
+      throw new NotFoundException(
+        'İş emri bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
     return this.prisma.workOrder.update({
@@ -271,7 +310,9 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
           });
 
           if (!product) {
-            throw new NotFoundException('Belirtilen yedek parça depoda bulunamadı.');
+            throw new NotFoundException(
+              'Belirtilen yedek parça depoda bulunamadı.',
+            );
           }
 
           throw new BadRequestException(
@@ -373,7 +414,11 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
 
       const diff = newQuantity - item.quantity;
 
-      if (diff !== 0 && item.itemType === WorkOrderItemType.PART && item.itemId) {
+      if (
+        diff !== 0 &&
+        item.itemType === WorkOrderItemType.PART &&
+        item.itemId
+      ) {
         if (diff > 0) {
           // Need more stock: atomic decrement
           const updatedCount = await tx.$executeRaw`
@@ -427,7 +472,10 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
       }
 
       const newName = data.name !== undefined ? data.name.trim() : item.name;
-      const newUnitPrice = data.unitPrice !== undefined ? Number(data.unitPrice) : Number(item.unitPrice);
+      const newUnitPrice =
+        data.unitPrice !== undefined
+          ? Number(data.unitPrice)
+          : Number(item.unitPrice);
       const itemKdvRate = Number(item.kdvRate) || 0;
       const baseItemPrice = newUnitPrice * newQuantity;
       const itemKdvAmount = (baseItemPrice * itemKdvRate) / 100;
@@ -492,7 +540,12 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     return this.updateItem(tenantId, workOrderId, itemId, { quantity }, author);
   }
 
-  async removeItem(tenantId: string, workOrderId: string, itemId: string, author: string): Promise<any> {
+  async removeItem(
+    tenantId: string,
+    workOrderId: string,
+    itemId: string,
+    author: string,
+  ): Promise<any> {
     return this.prisma.$transaction(async (tx) => {
       const wo = await tx.workOrder.findFirst({
         where: { id: workOrderId, tenantId },
@@ -565,7 +618,14 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     });
   }
 
-  async addPhoto(tenantId: string, id: string, url: string, caption: string, photoType: string, uploadedBy: string): Promise<any> {
+  async addPhoto(
+    tenantId: string,
+    id: string,
+    url: string,
+    caption: string,
+    photoType: string,
+    uploadedBy: string,
+  ): Promise<any> {
     return this.prisma.workOrderPhoto.create({
       data: {
         workOrderId: id,
@@ -613,7 +673,12 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     });
   }
 
-  async updateNote(tenantId: string, workOrderId: string, noteId: string, text: string): Promise<any> {
+  async updateNote(
+    tenantId: string,
+    workOrderId: string,
+    noteId: string,
+    text: string,
+  ): Promise<any> {
     const note = await this.findNoteById(tenantId, noteId);
     if (!note || note.workOrderId !== workOrderId) {
       throw new NotFoundException('Not bulunamadı.');
@@ -625,7 +690,11 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     });
   }
 
-  async deleteNote(tenantId: string, workOrderId: string, noteId: string): Promise<any> {
+  async deleteNote(
+    tenantId: string,
+    workOrderId: string,
+    noteId: string,
+  ): Promise<any> {
     const note = await this.findNoteById(tenantId, noteId);
     if (!note || note.workOrderId !== workOrderId) {
       throw new NotFoundException('Not bulunamadı.');
@@ -636,7 +705,11 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     });
   }
 
-  async restoreCancelledStock(tenantId: string, workOrderId: string, userId?: string): Promise<void> {
+  async restoreCancelledStock(
+    tenantId: string,
+    workOrderId: string,
+    userId?: string,
+  ): Promise<void> {
     const wo = await this.prisma.workOrder.findFirst({
       where: { id: workOrderId, tenantId },
       include: { items: true },
@@ -675,9 +748,27 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     return !!tenant?.autoInvoiceOnComplete;
   }
 
-  async findInvoiceByWorkOrder(tenantId: string, workOrderId: string): Promise<any | null> {
+  async findInvoiceByWorkOrder(
+    tenantId: string,
+    workOrderId: string,
+  ): Promise<any | null> {
     return this.prisma.invoice.findFirst({
       where: { tenantId, workOrderId },
     });
+  }
+
+  async syncAppointmentStatus(
+    tenantId: string,
+    appointmentId: string,
+    status: string,
+  ): Promise<void> {
+    try {
+      await this.prisma.appointment.updateMany({
+        where: { id: appointmentId, tenantId },
+        data: { status: status as any },
+      });
+    } catch {
+      // ignore
+    }
   }
 }

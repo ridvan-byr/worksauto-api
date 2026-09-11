@@ -1,7 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
-import { IVehicleRepository, FindVehiclesOptions } from '../domain/vehicle.repository.interface';
-import { VehicleEntity, VehicleFuelType, VehicleTransmissionType } from '../domain/vehicle.entity';
+import {
+  IVehicleRepository,
+  FindVehiclesOptions,
+} from '../domain/vehicle.repository.interface';
+import {
+  VehicleEntity,
+  VehicleFuelType,
+  VehicleTransmissionType,
+} from '../domain/vehicle.entity';
 import { FuelType, TransmissionType } from '@prisma/client';
 
 @Injectable()
@@ -48,7 +55,10 @@ export class PrismaVehicleRepository implements IVehicleRepository {
     return record ? this.mapToEntity(record) : null;
   }
 
-  async findByPlate(tenantId: string, plate: string): Promise<VehicleEntity | null> {
+  async findByPlate(
+    tenantId: string,
+    plate: string,
+  ): Promise<VehicleEntity | null> {
     const cleanPlate = VehicleEntity.normalizePlate(plate);
     const record = await this.prisma.vehicle.findFirst({
       where: {
@@ -62,7 +72,10 @@ export class PrismaVehicleRepository implements IVehicleRepository {
     return record ? this.mapToEntity(record) : null;
   }
 
-  async findAll(tenantId: string, options?: FindVehiclesOptions): Promise<VehicleEntity[]> {
+  async findAll(
+    tenantId: string,
+    options?: FindVehiclesOptions,
+  ): Promise<VehicleEntity[]> {
     let searchCondition: any = undefined;
 
     if (options?.search && options.search.trim()) {
@@ -127,10 +140,16 @@ export class PrismaVehicleRepository implements IVehicleRepository {
 
   async save(vehicle: VehicleEntity): Promise<VehicleEntity> {
     const customer = await this.prisma.customer.findFirst({
-      where: { id: vehicle.customerId, tenantId: vehicle.tenantId, deletedAt: null },
+      where: {
+        id: vehicle.customerId,
+        tenantId: vehicle.tenantId,
+        deletedAt: null,
+      },
     });
     if (!customer) {
-      throw new BadRequestException('Müşteri bulunamadı veya bu işletmeye ait değil.');
+      throw new BadRequestException(
+        'Müşteri bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
     const created = await this.prisma.vehicle.create({
@@ -166,15 +185,23 @@ export class PrismaVehicleRepository implements IVehicleRepository {
       where: { id: vehicle.id, tenantId: vehicle.tenantId, deletedAt: null },
     });
     if (!existing) {
-      throw new BadRequestException('Araç bulunamadı veya bu işletmeye ait değil.');
+      throw new BadRequestException(
+        'Araç bulunamadı veya bu işletmeye ait değil.',
+      );
     }
 
     if (vehicle.customerId && vehicle.customerId !== existing.customerId) {
       const customer = await this.prisma.customer.findFirst({
-        where: { id: vehicle.customerId, tenantId: vehicle.tenantId, deletedAt: null },
+        where: {
+          id: vehicle.customerId,
+          tenantId: vehicle.tenantId,
+          deletedAt: null,
+        },
       });
       if (!customer) {
-        throw new BadRequestException('Müşteri bulunamadı veya bu işletmeye ait değil.');
+        throw new BadRequestException(
+          'Müşteri bulunamadı veya bu işletmeye ait değil.',
+        );
       }
     }
 

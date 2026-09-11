@@ -105,9 +105,13 @@ export class DashboardService {
         take: 5,
         orderBy: { updatedAt: 'desc' },
         include: {
-          customer: { select: { firstName: true, lastName: true, phone: true } },
+          customer: {
+            select: { firstName: true, lastName: true, phone: true },
+          },
           vehicle: { select: { plate: true, brand: true, model: true } },
-          assignedMechanic: { include: { user: { select: { name: true, surname: true } } } },
+          assignedMechanic: {
+            include: { user: { select: { name: true, surname: true } } },
+          },
         },
       }),
     ]);
@@ -146,15 +150,47 @@ export class DashboardService {
 
     switch (period) {
       case ReportPeriod.TODAY: {
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        startDate = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          0,
+          0,
+          0,
+          0,
+        );
+        endDate = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          23,
+          59,
+          59,
+          999,
+        );
         break;
       }
       case ReportPeriod.YESTERDAY: {
         const y = new Date(now);
         y.setDate(y.getDate() - 1);
-        startDate = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0, 0);
-        endDate = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999);
+        startDate = new Date(
+          y.getFullYear(),
+          y.getMonth(),
+          y.getDate(),
+          0,
+          0,
+          0,
+          0,
+        );
+        endDate = new Date(
+          y.getFullYear(),
+          y.getMonth(),
+          y.getDate(),
+          23,
+          59,
+          59,
+          999,
+        );
         break;
       }
       case ReportPeriod.THIS_WEEK: {
@@ -163,23 +199,67 @@ export class DashboardService {
         const diff = d.getDate() - day + (day === 0 ? -6 : 1);
         startDate = new Date(d.setDate(diff));
         startDate.setHours(0, 0, 0, 0);
-        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        endDate = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          23,
+          59,
+          59,
+          999,
+        );
         break;
       }
       case ReportPeriod.LAST_MONTH: {
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
-        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+        startDate = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          1,
+          0,
+          0,
+          0,
+          0,
+        );
+        endDate = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          0,
+          23,
+          59,
+          59,
+          999,
+        );
         break;
       }
       case ReportPeriod.CUSTOM: {
-        startDate = query.startDate ? new Date(query.startDate) : new Date(now.getFullYear(), now.getMonth(), 1);
-        endDate = query.endDate ? new Date(query.endDate) : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        startDate = query.startDate
+          ? new Date(query.startDate)
+          : new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = query.endDate
+          ? new Date(query.endDate)
+          : new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate(),
+              23,
+              59,
+              59,
+              999,
+            );
         break;
       }
       case ReportPeriod.THIS_MONTH:
       default: {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        endDate = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          23,
+          59,
+          59,
+          999,
+        );
         break;
       }
     }
@@ -195,10 +275,34 @@ export class DashboardService {
         ],
       },
       include: {
-        customer: { select: { id: true, firstName: true, lastName: true, companyTitle: true, phone: true } },
-        vehicle: { select: { id: true, plate: true, brand: true, model: true, year: true } },
+        customer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            companyTitle: true,
+            phone: true,
+          },
+        },
+        vehicle: {
+          select: {
+            id: true,
+            plate: true,
+            brand: true,
+            model: true,
+            year: true,
+          },
+        },
         items: true,
-        invoice: { select: { id: true, invoiceNumber: true, status: true, grandTotal: true, paidAmount: true } },
+        invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            status: true,
+            grandTotal: true,
+            paidAmount: true,
+          },
+        },
       },
       orderBy: { completedAt: 'desc' },
     });
@@ -207,7 +311,11 @@ export class DashboardService {
     const linkedProductIds = Array.from(
       new Set(
         completedOrders
-          .flatMap((o) => o.items.filter((i) => i.itemType === 'PART' && i.itemId).map((i) => i.itemId as string))
+          .flatMap((o) =>
+            o.items
+              .filter((i) => i.itemType === 'PART' && i.itemId)
+              .map((i) => i.itemId as string),
+          )
           .filter(Boolean),
       ),
     );
@@ -218,7 +326,9 @@ export class DashboardService {
         where: { tenantId, id: { in: linkedProductIds } },
         select: { id: true, purchasePrice: true },
       });
-      productCostMap = new Map(products.map((p) => [p.id, Number(p.purchasePrice)]));
+      productCostMap = new Map(
+        products.map((p) => [p.id, Number(p.purchasePrice)]),
+      );
     }
 
     // 3. Process completed orders metrics
@@ -239,7 +349,9 @@ export class DashboardService {
           orderLabour += itemTotal;
         } else {
           orderParts += itemTotal;
-          const knownCost = item.itemId ? productCostMap.get(item.itemId) : undefined;
+          const knownCost = item.itemId
+            ? productCostMap.get(item.itemId)
+            : undefined;
           if (knownCost !== undefined) {
             orderPartsCost += knownCost * item.quantity;
           } else {
@@ -249,9 +361,13 @@ export class DashboardService {
         }
       }
 
-      const orderGrandTotal = Number(order.grandTotal) || (orderLabour + orderParts);
+      const orderGrandTotal =
+        Number(order.grandTotal) || orderLabour + orderParts;
       const estimatedProfit = orderLabour + (orderParts - orderPartsCost);
-      const profitMargin = orderGrandTotal > 0 ? Math.round((estimatedProfit / orderGrandTotal) * 100) : 0;
+      const profitMargin =
+        orderGrandTotal > 0
+          ? Math.round((estimatedProfit / orderGrandTotal) * 100)
+          : 0;
 
       totalLabourRevenue += orderLabour;
       totalPartsRevenue += orderParts;
@@ -263,7 +379,8 @@ export class DashboardService {
       }
 
       const cName = order.customer
-        ? (order.customer.companyTitle || `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim())
+        ? order.customer.companyTitle ||
+          `${order.customer.firstName || ''} ${order.customer.lastName || ''}`.trim()
         : 'Müşteri';
 
       return {
@@ -271,7 +388,9 @@ export class DashboardService {
         workOrderNumber: order.workOrderNumber,
         completedAt: (order.completedAt || order.updatedAt).toISOString(),
         plate: order.vehicle?.plate || 'Plaka Yok',
-        vehicle: `${order.vehicle?.brand || ''} ${order.vehicle?.model || ''}`.trim() || 'Araç',
+        vehicle:
+          `${order.vehicle?.brand || ''} ${order.vehicle?.model || ''}`.trim() ||
+          'Araç',
         customerName: cName,
         labourTotal: Math.round(orderLabour),
         partsTotal: Math.round(orderParts),
@@ -284,7 +403,8 @@ export class DashboardService {
     });
 
     const netProfit = totalLabourRevenue + (totalPartsRevenue - totalPartsCost);
-    const overallProfitMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
+    const overallProfitMargin =
+      totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
 
     // 4. Payments breakdown
     const payments = await this.prisma.payment.findMany({
@@ -299,12 +419,13 @@ export class DashboardService {
       },
     });
 
-    const paymentMethodMap: Record<string, { label: string; amount: number }> = {
-      CASH: { label: 'Nakit Kasa', amount: 0 },
-      POS: { label: 'Kredi Kartı / POS', amount: 0 },
-      BANK_TRANSFER: { label: 'Havale / EFT', amount: 0 },
-      ONLINE: { label: 'Online Tahsilat', amount: 0 },
-    };
+    const paymentMethodMap: Record<string, { label: string; amount: number }> =
+      {
+        CASH: { label: 'Nakit Kasa', amount: 0 },
+        POS: { label: 'Kredi Kartı / POS', amount: 0 },
+        BANK_TRANSFER: { label: 'Havale / EFT', amount: 0 },
+        ONLINE: { label: 'Online Tahsilat', amount: 0 },
+      };
 
     let totalPaymentsAmount = 0;
     for (const p of payments) {
@@ -318,12 +439,17 @@ export class DashboardService {
       }
     }
 
-    const paymentBreakdown = Object.entries(paymentMethodMap).map(([method, info]) => ({
-      method,
-      label: info.label,
-      amount: Math.round(info.amount),
-      percentage: totalPaymentsAmount > 0 ? Math.round((info.amount / totalPaymentsAmount) * 100) : 0,
-    }));
+    const paymentBreakdown = Object.entries(paymentMethodMap).map(
+      ([method, info]) => ({
+        method,
+        label: info.label,
+        amount: Math.round(info.amount),
+        percentage:
+          totalPaymentsAmount > 0
+            ? Math.round((info.amount / totalPaymentsAmount) * 100)
+            : 0,
+      }),
+    );
 
     // 5. Unpaid invoices in range
     const periodInvoices = await this.prisma.invoice.findMany({
@@ -337,14 +463,32 @@ export class DashboardService {
 
     let unpaidReceivables = 0;
     for (const inv of periodInvoices) {
-      unpaidReceivables += Math.max(0, Number(inv.grandTotal) - Number(inv.paidAmount));
+      unpaidReceivables += Math.max(
+        0,
+        Number(inv.grandTotal) - Number(inv.paidAmount),
+      );
     }
 
     // 6. Daily trend (group by YYYY-MM-DD)
-    const dailyMap = new Map<string, { revenue: number; labour: number; parts: number; profit: number; orderCount: number }>();
+    const dailyMap = new Map<
+      string,
+      {
+        revenue: number;
+        labour: number;
+        parts: number;
+        profit: number;
+        orderCount: number;
+      }
+    >();
     for (const ord of recentCompletedOrders) {
       const dayStr = ord.completedAt.split('T')[0];
-      const entry = dailyMap.get(dayStr) || { revenue: 0, labour: 0, parts: 0, profit: 0, orderCount: 0 };
+      const entry = dailyMap.get(dayStr) || {
+        revenue: 0,
+        labour: 0,
+        parts: 0,
+        profit: 0,
+        orderCount: 0,
+      };
       entry.revenue += ord.grandTotal;
       entry.labour += ord.labourTotal;
       entry.parts += ord.partsTotal;
@@ -382,7 +526,10 @@ export class DashboardService {
         cashCollected: Math.round(totalPaymentsAmount),
         unpaidReceivables: Math.round(unpaidReceivables),
         completedWorkOrdersCount: completedOrders.length,
-        averageOrderValue: completedOrders.length > 0 ? Math.round(totalRevenue / completedOrders.length) : 0,
+        averageOrderValue:
+          completedOrders.length > 0
+            ? Math.round(totalRevenue / completedOrders.length)
+            : 0,
         totalVehiclesServiced: uniqueVehicles.size,
       },
       paymentBreakdown,

@@ -1,4 +1,8 @@
-import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
@@ -24,7 +28,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
   handleRequest(err: any, user: any, _info: any) {
     if (err || !user) {
-      throw err || new UnauthorizedException('Geçersiz veya süresi dolmuş oturum belirteci.');
+      throw (
+        err ||
+        new UnauthorizedException(
+          'Geçersiz veya süresi dolmuş oturum belirteci.',
+        )
+      );
     }
     return user;
   }

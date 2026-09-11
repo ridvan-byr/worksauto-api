@@ -24,7 +24,9 @@ describe('GetVehicleByIdUseCase', () => {
   it('should throw NotFoundException if vehicle does not exist', async () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(null);
 
-    await expect(useCase.execute('t-1', 'v-missing')).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('t-1', 'v-missing')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should return vehicle when found', async () => {

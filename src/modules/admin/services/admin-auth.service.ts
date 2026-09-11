@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
@@ -52,14 +48,19 @@ export class AdminAuthService {
       } catch (e) {
         this.logger.warn(`Security audit log failure: ${e}`);
       }
-      throw new UnauthorizedException('Geçersiz yönetici kimlik bilgileri veya yetkisiz hesap.');
+      throw new UnauthorizedException(
+        'Geçersiz yönetici kimlik bilgileri veya yetkisiz hesap.',
+      );
     }
 
     if (!user.passwordHash) {
       throw new UnauthorizedException('Bu hesap için parola tanımlanmamıştır.');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
     if (!isPasswordValid) {
       try {
         await this.prisma.auditLog.create({
@@ -114,7 +115,9 @@ export class AdminAuthService {
       this.logger.warn(`Security audit log failure: ${e}`);
     }
 
-    this.logger.log(`👑 Super Admin console access granted: ${user.email} (IP: ${ipAddress})`);
+    this.logger.log(
+      `👑 Super Admin console access granted: ${user.email} (IP: ${ipAddress})`,
+    );
 
     return {
       success: true,

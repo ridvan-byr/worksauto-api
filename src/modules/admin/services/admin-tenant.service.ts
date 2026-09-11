@@ -18,12 +18,19 @@ export class AdminTenantService {
   /**
    * Tüm Servis Kiracılarını Listeleme & Filtreleme
    */
-  async getTenants(filters?: { status?: string; search?: string; city?: string }) {
+  async getTenants(filters?: {
+    status?: string;
+    search?: string;
+    city?: string;
+  }) {
     const where: any = {};
 
     if (filters?.status === 'ACTIVE') {
       where.isActive = true;
-    } else if (filters?.status === 'INACTIVE' || filters?.status === 'SUSPENDED') {
+    } else if (
+      filters?.status === 'INACTIVE' ||
+      filters?.status === 'SUSPENDED'
+    ) {
       where.isActive = false;
     }
 
@@ -87,7 +94,9 @@ export class AdminTenantService {
       district: t.district || '',
       isActive: t.isActive,
       createdAt: t.createdAt,
-      owner: t.users[0] ? `${t.users[0].name} ${t.users[0].surname}` : 'Tanımsız',
+      owner: t.users[0]
+        ? `${t.users[0].name} ${t.users[0].surname}`
+        : 'Tanımsız',
       ownerPhone: t.users[0]?.phone || t.phone,
       stats: {
         totalStaff: t._count.users,
@@ -138,8 +147,14 @@ export class AdminTenantService {
   /**
    * Servis Lisans Durumunu Güncelleme (Aktive Et / Askıya Al)
    */
-  async updateTenantStatus(tenantId: string, dto: UpdateTenantStatusDto, adminUserId?: string) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { id: tenantId } });
+  async updateTenantStatus(
+    tenantId: string,
+    dto: UpdateTenantStatusDto,
+    adminUserId?: string,
+  ) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+    });
     if (!tenant) {
       throw new NotFoundException('Servis kaydı bulunamadı.');
     }
@@ -169,12 +184,14 @@ export class AdminTenantService {
     }
 
     this.logger.log(
-      `🔔 Servis Durumu Güncellendi -> ${tenant.title}: ${dto.isActive ? 'LİSANSLANDI/AKTİF' : 'ASKIYA ALINDI'}`
+      `🔔 Servis Durumu Güncellendi -> ${tenant.title}: ${dto.isActive ? 'LİSANSLANDI/AKTİF' : 'ASKIYA ALINDI'}`,
     );
 
     return {
       success: true,
-      message: dto.isActive ? 'Servis lisansı onaylandı ve aktif edildi.' : 'Servis hesabı donduruldu.',
+      message: dto.isActive
+        ? 'Servis lisansı onaylandı ve aktif edildi.'
+        : 'Servis hesabı donduruldu.',
       tenant: updated,
     };
   }
@@ -191,7 +208,9 @@ export class AdminTenantService {
       where: { phone: formattedPhone },
     });
     if (existingUser) {
-      throw new BadRequestException(`Bu telefon numarası (${formattedPhone}) ile kayıtlı bir kullanıcı zaten mevcut.`);
+      throw new BadRequestException(
+        `Bu telefon numarası (${formattedPhone}) ile kayıtlı bir kullanıcı zaten mevcut.`,
+      );
     }
 
     let baseSlug = dto.title
@@ -284,7 +303,9 @@ export class AdminTenantService {
       return { tenant, branch: centralBranch, owner: ownerUser };
     });
 
-    this.logger.log(`🏢 Yeni Servis Kaydedildi -> ${result.tenant.title} (${result.tenant.slug}) - Yetkili: ${result.owner.name} ${result.owner.surname}`);
+    this.logger.log(
+      `🏢 Yeni Servis Kaydedildi -> ${result.tenant.title} (${result.tenant.slug}) - Yetkili: ${result.owner.name} ${result.owner.surname}`,
+    );
 
     return {
       success: true,
@@ -318,7 +339,9 @@ export class AdminTenantService {
       where: { id: tenantId },
     });
 
-    this.logger.warn(`🗑️ Servis ve ilişkili tüm verileri silindi: ${tenant.title} (${tenant.id}) - İşlemi yapan: ${adminUserId || 'Super Admin'}`);
+    this.logger.warn(
+      `🗑️ Servis ve ilişkili tüm verileri silindi: ${tenant.title} (${tenant.id}) - İşlemi yapan: ${adminUserId || 'Super Admin'}`,
+    );
 
     return {
       success: true,

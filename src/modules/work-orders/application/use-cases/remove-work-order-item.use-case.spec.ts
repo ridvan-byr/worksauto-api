@@ -30,13 +30,19 @@ describe('RemoveWorkOrderItemUseCase', () => {
   it('should throw NotFoundException if work order not found', async () => {
     mockRepo.findById = vi.fn().mockResolvedValue(null);
 
-    await expect(useCase.execute('t-1', 'wo-1', 'it-1', 'Ali')).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('t-1', 'wo-1', 'it-1', 'Ali')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should throw BadRequestException if work order is cancelled', async () => {
-    mockRepo.findById = vi.fn().mockResolvedValue({ id: 'wo-1', status: WorkOrderStatusEnum.CANCELLED });
+    mockRepo.findById = vi
+      .fn()
+      .mockResolvedValue({ id: 'wo-1', status: WorkOrderStatusEnum.CANCELLED });
 
-    await expect(useCase.execute('t-1', 'wo-1', 'it-1', 'Ali')).rejects.toThrow(BadRequestException);
+    await expect(useCase.execute('t-1', 'wo-1', 'it-1', 'Ali')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('should throw NotFoundException if item is not found in work order', async () => {
@@ -46,20 +52,35 @@ describe('RemoveWorkOrderItemUseCase', () => {
       items: [],
     });
 
-    await expect(useCase.execute('t-1', 'wo-1', 'it-1', 'Ali')).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('t-1', 'wo-1', 'it-1', 'Ali')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should remove item successfully', async () => {
     mockRepo.findById = vi.fn().mockResolvedValue({
       id: 'wo-1',
       status: WorkOrderStatusEnum.IN_PROGRESS,
-      items: [{ id: 'it-1', name: 'Balata', quantity: 1, unitPrice: 100, totalPrice: 120 }],
+      items: [
+        {
+          id: 'it-1',
+          name: 'Balata',
+          quantity: 1,
+          unitPrice: 100,
+          totalPrice: 120,
+        },
+      ],
     });
     mockRepo.removeItem = vi.fn().mockResolvedValue({ id: 'wo-1', items: [] });
 
     const result = await useCase.execute('t-1', 'wo-1', 'it-1', 'Ali');
     expect(result.items).toHaveLength(0);
-    expect(mockRepo.removeItem).toHaveBeenCalledWith('t-1', 'wo-1', 'it-1', 'Ali');
+    expect(mockRepo.removeItem).toHaveBeenCalledWith(
+      't-1',
+      'wo-1',
+      'it-1',
+      'Ali',
+    );
     expect(mockEvents.emitToTenant).toHaveBeenCalled();
   });
 });

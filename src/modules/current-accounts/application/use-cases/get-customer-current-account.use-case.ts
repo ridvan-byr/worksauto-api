@@ -1,5 +1,8 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { ICurrentAccountRepository, CURRENT_ACCOUNT_REPOSITORY } from '../../domain/current-account.repository.interface';
+import {
+  ICurrentAccountRepository,
+  CURRENT_ACCOUNT_REPOSITORY,
+} from '../../domain/current-account.repository.interface';
 import { CurrentAccountEntity } from '../../domain/current-account.entity';
 
 @Injectable()
@@ -9,11 +12,20 @@ export class GetCustomerCurrentAccountUseCase {
     private readonly currentAccountRepository: ICurrentAccountRepository,
   ) {}
 
-  async execute(tenantId: string, customerId: string): Promise<CurrentAccountEntity> {
-    let account = await this.currentAccountRepository.findByCustomerId(tenantId, customerId);
+  async execute(
+    tenantId: string,
+    customerId: string,
+  ): Promise<CurrentAccountEntity> {
+    let account = await this.currentAccountRepository.findByCustomerId(
+      tenantId,
+      customerId,
+    );
 
     if (!account) {
-      const exists = await this.currentAccountRepository.customerExists(tenantId, customerId);
+      const exists = await this.currentAccountRepository.customerExists(
+        tenantId,
+        customerId,
+      );
       if (!exists) {
         throw new NotFoundException('Müşteri bulunamadı.');
       }

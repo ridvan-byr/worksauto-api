@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsEmail, IsEnum, IsNumber, IsBoolean, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEmail,
+  IsEnum,
+  IsNumber,
+  IsBoolean,
+  IsArray,
+} from 'class-validator';
 import { CustomerType } from '@prisma/client';
 
 export class CreateCustomerDto {
@@ -153,7 +162,11 @@ export class BatchImportRequestDto {
   @IsArray()
   items: BatchImportRowDto[];
 
-  @ApiPropertyOptional({ default: false, description: 'Mevcut plaka veya telefon eşleştiğinde sistemdeki verileri günceller' })
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'Mevcut plaka veya telefon eşleştiğinde sistemdeki verileri günceller',
+  })
   @IsOptional()
   @IsBoolean()
   updateExisting?: boolean;
