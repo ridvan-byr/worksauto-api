@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsBoolean,
   ValidateNested,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -50,6 +51,9 @@ export class OnboardingStaffItemDto {
 
   @ApiProperty({ example: '0532 123 45 67' })
   @IsString()
+  @Matches(/^(?:\+90\s?|0\s?)?(?:\(5\d{2}\)|5\d{2})[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$/, {
+    message: 'Usta cep telefonu geçerli bir Türkiye GSM formatında olmalıdır (Örn: 0532 123 45 67)',
+  })
   phone: string;
 
   @ApiPropertyOptional({ example: 'Motor & Mekanik' })

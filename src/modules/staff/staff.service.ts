@@ -18,8 +18,12 @@ export class StaffService {
 
   normalizePhone(phone: string): string {
     const digits = phone.replace(/\D/g, '');
-    if (digits.length === 10 && digits.startsWith('5')) return '90' + digits;
-    if (digits.length === 11 && digits.startsWith('05')) return '9' + digits;
+    let clean10 = digits;
+    if (clean10.startsWith('90')) clean10 = clean10.slice(2);
+    if (clean10.startsWith('0')) clean10 = clean10.slice(1);
+    if (clean10.startsWith('5') && clean10.length === 10) {
+      return '+90' + clean10;
+    }
     return digits;
   }
 

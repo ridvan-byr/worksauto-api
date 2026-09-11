@@ -300,11 +300,13 @@ export class TenantsService {
         for (const st of dto.staff) {
           if (!st.name || !st.name.trim() || !st.phone) continue;
           const rawDigits = st.phone.replace(/\D/g, '');
-          const normalizedPhone = rawDigits.startsWith('90')
-            ? '+' + rawDigits
-            : rawDigits.startsWith('0')
-              ? '+9' + rawDigits
-              : '+90' + rawDigits;
+          let clean10 = rawDigits;
+          if (clean10.startsWith('90')) clean10 = clean10.slice(2);
+          if (clean10.startsWith('0')) clean10 = clean10.slice(1);
+          if (!clean10.startsWith('5') || clean10.length !== 10) {
+            continue;
+          }
+          const normalizedPhone = '+90' + clean10;
 
           const existingUser = await tx.user.findFirst({
             where: {
