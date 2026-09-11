@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Req,
   HttpCode,
@@ -41,6 +42,20 @@ export class LegalController {
   })
   getStatus(@CurrentTenant() tenantId: string) {
     return this.legalService.getTenantConsentStatus(tenantId);
+  }
+
+  @Patch('marketing-consent')
+  @ApiBearerAuth('JWT-auth')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({
+    summary:
+      'İşletmenin 6563 sayılı Kanun kapsamındaki ticari elektronik ileti iznini günceller veya iptal eder (Ret hakkı)',
+  })
+  updateMarketingConsent(
+    @CurrentTenant() tenantId: string,
+    @Body('marketingAccepted') marketingAccepted: boolean,
+  ) {
+    return this.legalService.updateMarketingConsent(tenantId, !!marketingAccepted);
   }
 
   @BypassB2bConsent()

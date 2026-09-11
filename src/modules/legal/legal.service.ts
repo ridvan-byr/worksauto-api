@@ -107,6 +107,35 @@ export class LegalService {
   }
 
   /**
+   * İşletmenin 6563 sayılı Kanun kapsamındaki ticari elektronik ileti iznini günceller (ret / kabul)
+   */
+  async updateMarketingConsent(tenantId: string, marketingAccepted: boolean) {
+    const latestConsent = await this.prisma.tenantConsent.findFirst({
+      where: { tenantId },
+      orderBy: { signedAt: 'desc' },
+    });
+
+    if (latestConsent) {
+      await this.prisma.tenantConsent.update({
+        where: { id: latestConsent.id },
+        data: { marketingAccepted },
+      });
+    }
+
+    this.logger.log(
+      `📢 [TİCARİ İLETİ İZNİ GÜNCELLENDİ] İşletme: ${tenantId} | İzin: ${marketingAccepted ? 'AÇIK (KABUL)' : 'KAPALI (RET)'}`,
+    );
+
+    return {
+      success: true,
+      marketingAccepted,
+      message: marketingAccepted
+        ? 'Ticari elektronik ileti izniniz aktif edildi.'
+        : 'Ticari elektronik ileti izniniz iptal edildi. Ret talebiniz sisteme işlendi.',
+    };
+  }
+
+  /**
    * İşletme yetkilisinin B2B sözleşmesini dijital olarak mühürler
    */
   async signB2bConsent(
