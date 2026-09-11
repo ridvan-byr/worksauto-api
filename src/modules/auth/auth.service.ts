@@ -95,16 +95,20 @@ export class AuthService {
       include: { tenant: true },
     });
 
-    if (!user) {
-      throw new UnauthorizedException(
-        'Bu telefon numarasına ait aktif bir servis personeli veya yönetici hesabı bulunamadı.',
+    // Account Enumeration Defense:
+    // If the phone number is not registered or the tenant is suspended,
+    // do not disclose account existence. Return generic success message
+    // but do not issue an OTP code or dispatch SMS.
+    if (!user || (user.tenant && !user.tenant.isActive)) {
+      this.logger.warn(
+        `[AuthService] OTP talep edildi ancak kayıtlı/aktif hesap bulunamadı (Enumeration koruması aktif): ${normalizedPhone.slice(0, 5)}***`,
       );
-    }
-
-    if (user.tenant && !user.tenant.isActive) {
-      throw new UnauthorizedException(
-        'Bağlı olduğunuz oto servisinin lisansı askıya alınmıştır. Lütfen platform yöneticisi ile görüşünüz.',
-      );
+      return {
+        success: true,
+        message: 'Doğrulama kodu telefonunuza SMS ile gönderildi.',
+        phone: normalizedPhone,
+        expiresInSeconds: 180,
+      };
     }
 
     // 6 Haneli Kriptografik Olarak Güvenli OTP Kod Üretimi

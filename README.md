@@ -4,7 +4,7 @@
   <img src="assets/brand/worksauto-logo-white.png#gh-dark-mode-only" alt="WorksAuto Logo" width="340" />
 
   <p align="center">
-    <strong>Enterprise-Grade Multi-Tenant Auto Service & Workshop Backend Core</strong>
+    <strong>Multi-Tenant Automotive Workshop & Dealership Management SaaS Backend</strong>
   </p>
 
   <p align="center">
@@ -20,7 +20,7 @@
   <p align="center">
     <a href="#-about-the-project">About</a> •
     <a href="#-architecture--clean-architecture-boundaries">Architecture</a> •
-    <a href="#-key-enterprise-safeguards">Safeguards</a> •
+    <a href="#-key-safeguards--engineering-decisions">Engineering Safeguards</a> •
     <a href="#-database-schema-prisma">Database Schema</a> •
     <a href="#-api-endpoints-matrix">API Matrix</a> •
     <a href="#-testing--quality-gate">Quality Gate</a> •
@@ -34,9 +34,9 @@
 
 ## 🚀 About the Project
 
-**WorksAuto API** is the mission-critical core backend engine for the WorksAuto multi-tenant automotive repair shop and dealership management SaaS platform.
+**WorksAuto API** is the backend application engine for the WorksAuto multi-tenant automotive repair shop and dealership management SaaS platform.
 
-Engineered with **Clean Architecture + Domain-Driven Design (DDD)**, multi-tenant application-layer isolation, and native PostgreSQL exclusion constraints, it provides financial accuracy, real-time garage bay synchronization, atomic stock decrements, warehouse 2D shelf matrix management, and automated regulatory compliance (KVKK / GDPR / VUK).
+Built with **Clean Architecture + Domain-Driven Design (DDD)**, it features dual-layer tenant isolation (PostgreSQL Native RLS + Prisma AST Guard), concurrency controls via PostgreSQL exclusion constraints (`EXCLUDE USING gist`), atomic stock management, 2D warehouse shelf localization, and regulatory compliance ledgers (KVKK / GDPR / VUK).
 
 ---
 
@@ -74,11 +74,12 @@ worksauto-api/
 
 ---
 
-## 🛡️ Key Enterprise Safeguards
+## 🛡️ Key Safeguards & Engineering Decisions
 
 ### 1. Dual-Layer Multi-Tenant Defense-in-Depth (Native PostgreSQL RLS + Prisma AST Guard)
 * **Layer 1 - Database Engine Kernel (Native PostgreSQL RLS):** 
   * All tenant-scoped relational tables (`customers`, `vehicles`, `appointments`, `work_orders`, `invoices`, `products`, etc.) have Row-Level Security enabled and forced (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY; ALTER TABLE ... FORCE ROW LEVEL SECURITY;`).
+  * Inherited isolation for subordinate child tables (`work_order_items`, `work_order_photos`, `work_order_notes`, `shelf_cells`) enforced via join policies against parent tenant IDs.
   * Enforced via PostgreSQL `tenant_isolation_policy` checking `current_tenant_id()` and `rls_bypassed()` session state.
   * Connection pooler (PgBouncer) transaction-mode compatible via `SET LOCAL app.current_tenant_id = '...'` inside transactions (automatically resets upon commit/rollback, zero connection pool leakage).
   * Dedicated application role `worksauto_app` configured with `NOBYPASSRLS NOSUPERUSER`.
@@ -109,16 +110,15 @@ worksauto-api/
   ```sql
   UPDATE products 
   SET stock_quantity = stock_quantity - :qty 
-  WHERE id = :id AND tenant_id = :tenantId AND stock_quantity >= :qty
+  WHERE id = :id AND stock_quantity >= :qty
   ```
-* Rejects the dispatch immediately without locking the entire table if available stock is insufficient.
+* Rejects the dispatch immediately without locking the entire table if available stock is insufficient. Native PostgreSQL RLS ensures the update cannot cross tenant boundaries even without an explicit `tenant_id` clause in the raw query.
 
-### 6. High Availability & Disaster Recovery
-* **RPO ≤ 15 Minutes:** Continuous PostgreSQL write-ahead log (WAL) archiving via `pgBackRest`/`WAL-G`.
-* **RTO ≤ 1 Hour:** Asynchronous streaming warm standby replica with operator-controlled fencing promotion.
+### 6. Resilience & Failure Handling Strategy
 * **Redis Dual Failure Policy:**
-  * *Fail-Open:* Cache misses and rate-limiting allow traffic during transient Redis degradation.
-  * *Fail-Closed:* Idempotency checks and financial settlements strictly fail closed to protect against double charges.
+  * *Fail-Open:* Cache misses and rate-limiting degrade gracefully without taking down core workshop operations during transient Redis unavailability.
+  * *Fail-Closed:* Idempotency locks and financial settlements strictly fail closed to avoid double disbursements or duplicate invoice generations.
+* **Database Disaster Recovery Architecture:** Designed for continuous write-ahead log (WAL) archiving and asynchronous standby replication in production deployments.
 
 ---
 
