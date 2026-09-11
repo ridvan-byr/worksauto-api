@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import { IAppointmentRepository } from '../domain/appointment.repository.interface';
 import {
@@ -172,28 +172,43 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         ? appointment.slotEndTime
         : new Date(appointment.slotEndTime);
 
-    const data = await this.prisma.appointment.create({
-      data: {
-        tenantId: appointment.tenantId,
-        customerId: appointment.customerId,
-        vehicleId: appointment.vehicleId,
-        serviceId: validatedServiceId,
-        assignedMechanicId: appointment.assignedMechanicId || null,
-        assignedLift: appointment.assignedLift || null,
-        slotDate,
-        slotStartTime,
-        slotEndTime,
-        customerNotes: appointment.customerNotes || null,
-        status: this.mapStatusToPrisma(appointment.status),
-      },
-      include: {
-        customer: true,
-        vehicle: true,
-        service: true,
-        assignedMechanic: { include: { user: true } },
-      },
-    });
-    return this.mapToEntity(data);
+    try {
+      const data = await this.prisma.appointment.create({
+        data: {
+          tenantId: appointment.tenantId,
+          customerId: appointment.customerId,
+          vehicleId: appointment.vehicleId,
+          serviceId: validatedServiceId,
+          assignedMechanicId: appointment.assignedMechanicId || null,
+          assignedLift: appointment.assignedLift || null,
+          slotDate,
+          slotStartTime,
+          slotEndTime,
+          customerNotes: appointment.customerNotes || null,
+          status: this.mapStatusToPrisma(appointment.status),
+        },
+        include: {
+          customer: true,
+          vehicle: true,
+          service: true,
+          assignedMechanic: { include: { user: true } },
+        },
+      });
+      return this.mapToEntity(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('no_overlapping_mechanic')) {
+        throw new ConflictException(
+          'Seçilen teknisyenin bu saat aralığında başka bir randevusu bulunmaktadır.',
+        );
+      }
+      if (msg.includes('no_overlapping_lift')) {
+        throw new ConflictException(
+          'Seçilen lift için bu saat aralığında başka bir randevu bulunmaktadır.',
+        );
+      }
+      throw err;
+    }
   }
 
   async save(appointment: AppointmentEntity): Promise<AppointmentEntity> {
@@ -243,28 +258,43 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       }
     }
 
-    const data = await this.prisma.appointment.update({
-      where: { id: appointment.id },
-      data: {
-        slotDate,
-        slotStartTime,
-        slotEndTime,
-        serviceId: validatedServiceId,
-        assignedMechanicId: appointment.assignedMechanicId || null,
-        assignedLift: appointment.assignedLift || null,
-        status: this.mapStatusToPrisma(appointment.status),
-        customerNotes: appointment.customerNotes,
-        cancellationReason: appointment.cancellationReason,
-      },
-      include: {
-        customer: true,
-        vehicle: true,
-        service: true,
-        assignedMechanic: { include: { user: true } },
-        workOrder: true,
-      },
-    });
-    return this.mapToEntity(data);
+    try {
+      const data = await this.prisma.appointment.update({
+        where: { id: appointment.id },
+        data: {
+          slotDate,
+          slotStartTime,
+          slotEndTime,
+          serviceId: validatedServiceId,
+          assignedMechanicId: appointment.assignedMechanicId || null,
+          assignedLift: appointment.assignedLift || null,
+          status: this.mapStatusToPrisma(appointment.status),
+          customerNotes: appointment.customerNotes,
+          cancellationReason: appointment.cancellationReason,
+        },
+        include: {
+          customer: true,
+          vehicle: true,
+          service: true,
+          assignedMechanic: { include: { user: true } },
+          workOrder: true,
+        },
+      });
+      return this.mapToEntity(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('no_overlapping_mechanic')) {
+        throw new ConflictException(
+          'Seçilen teknisyenin bu saat aralığında başka bir randevusu bulunmaktadır.',
+        );
+      }
+      if (msg.includes('no_overlapping_lift')) {
+        throw new ConflictException(
+          'Seçilen lift için bu saat aralığında başka bir randevu bulunmaktadır.',
+        );
+      }
+      throw err;
+    }
   }
 
   async checkMechanicConflict(

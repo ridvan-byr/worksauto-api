@@ -36,7 +36,7 @@
 
 **WorksAuto API** is the mission-critical core backend engine for the WorksAuto multi-tenant automotive repair shop and dealership management SaaS platform.
 
-Engineered with **Clean Architecture + Domain-Driven Design (DDD)** and strict **Row-Level Security (RLS)**, it provides financial accuracy, real-time garage bay synchronization, atomic stock decrements, warehouse 2D shelf matrix management, and automated regulatory compliance (KVKK / GDPR / VUK).
+Engineered with **Clean Architecture + Domain-Driven Design (DDD)**, multi-tenant application-layer isolation, and native PostgreSQL exclusion constraints, it provides financial accuracy, real-time garage bay synchronization, atomic stock decrements, warehouse 2D shelf matrix management, and automated regulatory compliance (KVKK / GDPR / VUK).
 
 ---
 
@@ -66,7 +66,7 @@ worksauto-api/
 │   │   ├── decorators/         # @Roles, @CurrentUser, @CurrentTenant
 │   │   ├── filters/            # GlobalExceptionFilter with RFC 7807 responses
 │   │   ├── guards/             # JwtAuthGuard, RolesGuard, SuperAdminGuard
-│   │   └── infrastructure/     # PrismaService (RLS AST middleware) & RedisService
+│   │   └── infrastructure/     # PrismaService (AST middleware) & RedisService
 │   └── scripts/
 │       └── verify-architecture.js # AST linter enforcing DDD layer boundaries in CI/CD
 └── docker-compose.yml          # PostgreSQL 16 (btree_gist), Redis 7, MinIO S3
@@ -76,16 +76,16 @@ worksauto-api/
 
 ## 🛡️ Key Enterprise Safeguards
 
-### 1. Multi-Tenant Defense-in-Depth Isolation (Prisma AST Middleware + Composite Keys)
-* **Deterministic ORM AST Middleware:** Enforces multi-tenancy at the query AST layer via a global Prisma Client Extension (`$extends`).
-* **Automatic Query Scoping:** For all tenant-scoped entities, the authenticated `tenantId` (from AsyncLocalStorage via `ClsService`) is automatically injected into queries (`findMany`, `findFirst`, `count`, `updateMany`, `deleteMany`, `create`).
-* **Fail-Closed Security Guard:** Any non-Super-Admin query attempting cross-tenant access or lacking valid tenant context is immediately blocked with `ForbiddenException`.
+### 1. Multi-Tenant Isolation (Prisma Middleware + Compound Unique Keys)
+* **Application-Layer Tenant Isolation:** Tenant isolation is enforced at the application layer via Prisma Client extensions (`$extends`). Every query automatically injects `tenantId` from request context (`AsyncLocalStorage` via `ClsService`).
 * **Database Compound Constraints:** All relational tables enforce `@@unique([tenantId, ...])` compound unique keys, ensuring physical data isolation at the database index level.
+* **Note on Native RLS:** Native PostgreSQL Row-Level Security (`ENABLE ROW LEVEL SECURITY` / `CREATE POLICY`) is not yet implemented; raw SQL queries (`$queryRaw` / `$executeRaw`) bypass the Prisma middleware and must manually include `tenant_id`.
 
-### 2. Zero Collision Appointment Engine
-* Dual exclusion constraint logic preventing overlap:
+### 2. Zero Collision Appointment Engine (PostgreSQL EXCLUDE USING gist)
+* Overlapping bookings are prevented directly at the PostgreSQL database engine level using the `btree_gist` extension and `tstzrange` exclusion constraints:
   1. `no_overlapping_mechanic`: An assigned mechanic cannot work on multiple vehicles simultaneously.
   2. `no_overlapping_lift`: A physical garage lift bay cannot host more than one vehicle at any given timestamp.
+* Because the constraints are enforced by the database kernel itself (`EXCLUDE USING gist`), concurrent booking race conditions (TOCTOU) are physically blocked across all code paths, including parallel requests and rescheduling.
 
 ### 3. Warehouse 2D Shelf Matrix & Cell Localization
 * Automatic hierarchical cell code generation (`{SHELF}-K{ROW}-G{COL}`, e.g., `RAF-A01-K1-G1`).
