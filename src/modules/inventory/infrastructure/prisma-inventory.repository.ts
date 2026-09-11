@@ -254,11 +254,11 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     refId: string,
     author: string,
   ): Promise<StockItemEntity> {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.withTenantContext(tenantId, async (tx) => {
       const updated = await tx.$executeRaw`
         UPDATE products 
         SET stock_quantity = stock_quantity - ${quantity} 
-        WHERE id = ${productId}::uuid AND tenant_id = ${tenantId}::uuid AND stock_quantity >= ${quantity}
+        WHERE id = ${productId}::uuid AND stock_quantity >= ${quantity}
       `;
 
       if (updated === 0) {

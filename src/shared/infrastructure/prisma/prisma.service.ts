@@ -175,12 +175,32 @@ export class PrismaService
   async onModuleInit() {
     await this.$connect();
     this.logger.log(
-      'PostgreSQL Prisma connection established with Multi-Tenant AST Guard.',
+      'PostgreSQL Prisma connection established with Multi-Tenant AST Guard & Native RLS.',
     );
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
     this.logger.log('PostgreSQL Prisma connection closed.');
+  }
+
+  /**
+   * Execute an operation inside a PostgreSQL transaction with Native RLS session variable set.
+   * This is fully PgBouncer transaction-mode safe (SET LOCAL resets automatically upon commit/rollback).
+   */
+  async withTenantContext<T>(
+    tenantId: string | null | undefined,
+    fn: (tx: any) => Promise<T>,
+  ): Promise<T> {
+    return this.$transaction(async (tx) => {
+      if (tenantId) {
+        await tx.$executeRawUnsafe(
+          `SET LOCAL app.current_tenant_id = '${tenantId.replace(/'/g, "''")}'`,
+        );
+      } else {
+        await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
+      }
+      return fn(tx);
+    });
   }
 }

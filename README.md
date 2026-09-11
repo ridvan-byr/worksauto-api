@@ -76,10 +76,18 @@ worksauto-api/
 
 ## 🛡️ Key Enterprise Safeguards
 
-### 1. Multi-Tenant Isolation (Prisma Middleware + Compound Unique Keys)
-* **Application-Layer Tenant Isolation:** Tenant isolation is enforced at the application layer via Prisma Client extensions (`$extends`). Every query automatically injects `tenantId` from request context (`AsyncLocalStorage` via `ClsService`).
-* **Database Compound Constraints:** All relational tables enforce `@@unique([tenantId, ...])` compound unique keys, ensuring physical data isolation at the database index level.
-* **Note on Native RLS:** Native PostgreSQL Row-Level Security (`ENABLE ROW LEVEL SECURITY` / `CREATE POLICY`) is not yet implemented; raw SQL queries (`$queryRaw` / `$executeRaw`) bypass the Prisma middleware and must manually include `tenant_id`.
+### 1. Dual-Layer Multi-Tenant Defense-in-Depth (Native PostgreSQL RLS + Prisma AST Guard)
+* **Layer 1 - Database Engine Kernel (Native PostgreSQL RLS):** 
+  * All tenant-scoped relational tables (`customers`, `vehicles`, `appointments`, `work_orders`, `invoices`, `products`, etc.) have Row-Level Security enabled and forced (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY; ALTER TABLE ... FORCE ROW LEVEL SECURITY;`).
+  * Enforced via PostgreSQL `tenant_isolation_policy` checking `current_tenant_id()` and `rls_bypassed()` session state.
+  * Connection pooler (PgBouncer) transaction-mode compatible via `SET LOCAL app.current_tenant_id = '...'` inside transactions (automatically resets upon commit/rollback, zero connection pool leakage).
+  * Dedicated application role `worksauto_app` configured with `NOBYPASSRLS NOSUPERUSER`.
+  * Even if a developer executes a raw SQL query (`$executeRaw` / `$queryRaw`) without a `WHERE tenant_id` clause, the PostgreSQL storage engine physically suppresses or rejects out-of-tenant data.
+* **Layer 2 - Application Layer (Prisma Client Extension):**
+  * Prisma Client `$extends` middleware automatically injects `tenantId` from request context (`AsyncLocalStorage` via `ClsService`) into every Prisma ORM query (`findMany`, `create`, `update`, `delete`, `count`, etc.).
+  * Prevents accidental cross-tenant mutation attempts before queries even reach the network socket.
+* **Compound Unique Constraints:**
+  * High-frequency models enforce `@@unique([tenantId, ...])` compound unique keys, guaranteeing uniqueness per tenant.
 
 ### 2. Zero Collision Appointment Engine (PostgreSQL EXCLUDE USING gist)
 * Overlapping bookings are prevented directly at the PostgreSQL database engine level using the `btree_gist` extension and `tstzrange` exclusion constraints:
