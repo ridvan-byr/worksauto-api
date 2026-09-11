@@ -42,11 +42,17 @@ export class OnboardingStaffItemDto {
 
   @ApiProperty({ example: 'Ahmet' })
   @IsString()
+  @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
+    message: 'Usta adı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
+  })
   name: string;
 
   @ApiPropertyOptional({ example: 'Usta' })
   @IsOptional()
   @IsString()
+  @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
+    message: 'Usta soyadı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
+  })
   surname?: string;
 
   @ApiProperty({ example: '0532 123 45 67' })

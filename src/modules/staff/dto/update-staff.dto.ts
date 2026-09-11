@@ -13,11 +13,17 @@ export class UpdateStaffDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
+    message: 'Personel adı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
+  })
   name?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
+    message: 'Personel soyadı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
+  })
   surname?: string;
 
   @ApiProperty({ required: false })

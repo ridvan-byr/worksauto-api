@@ -13,11 +13,17 @@ export class CreateStaffDto {
   @ApiProperty({ example: 'Ahmet' })
   @IsNotEmpty({ message: 'Personel adı boş bırakılamaz.' })
   @IsString()
+  @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
+    message: 'Personel adı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
+  })
   name: string;
 
   @ApiProperty({ example: 'Usta' })
   @IsNotEmpty({ message: 'Personel soyadı boş bırakılamaz.' })
   @IsString()
+  @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
+    message: 'Personel soyadı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
+  })
   surname: string;
 
   @ApiProperty({ example: '05553334455' })
