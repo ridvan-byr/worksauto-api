@@ -187,6 +187,8 @@ export class CompleteOnboardingDto {
   @ApiPropertyOptional({ example: 45 })
   @IsOptional()
   @IsNumber()
+  @Min(15, { message: 'Randevu slot periyodu en az 15 dakika olmalıdır.' })
+  @Max(240, { message: 'Randevu slot periyodu en fazla 240 dakika olabilir.' })
   appointmentSlotDuration?: number;
 
   @ApiPropertyOptional({ example: 3 })
