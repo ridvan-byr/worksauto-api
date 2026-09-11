@@ -3,7 +3,8 @@ import { PrismaClient } from '@prisma/client';
 
 describe('PostgreSQL Native Row-Level Security (RLS) Integration', () => {
   // Direct client connecting with NOBYPASSRLS application role
-  const appDbUrl = 'postgresql://worksauto_app:worksauto_secret_2026@localhost:5432/worksauto_db?schema=public';
+  const appDbUrl =
+    'postgresql://worksauto_app:worksauto_secret_2026@localhost:5432/worksauto_db?schema=public';
   let prisma: PrismaClient;
 
   const TENANT_A = '13cf019b-9a00-4493-a68e-9c3049d8e878';
@@ -25,7 +26,9 @@ describe('PostgreSQL Native Row-Level Security (RLS) Integration', () => {
 
   it('2. should return only Tenant A records when SET LOCAL app.current_tenant_id is Tenant A', async () => {
     const result = await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${TENANT_A}'`);
+      await tx.$executeRawUnsafe(
+        `SET LOCAL app.current_tenant_id = '${TENANT_A}'`,
+      );
       return await tx.customer.findMany();
     });
 
@@ -37,16 +40,24 @@ describe('PostgreSQL Native Row-Level Security (RLS) Integration', () => {
 
   it('3. should isolate raw SQL queries without WHERE clause (PostgreSQL Engine enforces RLS)', async () => {
     const rawResult: any = await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${TENANT_A}'`);
-      return await tx.$queryRawUnsafe('SELECT count(*)::int as count FROM customers');
+      await tx.$executeRawUnsafe(
+        `SET LOCAL app.current_tenant_id = '${TENANT_A}'`,
+      );
+      return await tx.$queryRawUnsafe(
+        'SELECT count(*)::int as count FROM customers',
+      );
     });
 
     const tenantACount = rawResult[0].count;
     expect(tenantACount).toBeGreaterThan(0);
 
     const emptyResult: any = await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${TENANT_B}'`);
-      return await tx.$queryRawUnsafe('SELECT count(*)::int as count FROM customers');
+      await tx.$executeRawUnsafe(
+        `SET LOCAL app.current_tenant_id = '${TENANT_B}'`,
+      );
+      return await tx.$queryRawUnsafe(
+        'SELECT count(*)::int as count FROM customers',
+      );
     });
 
     expect(emptyResult[0].count).toBe(0);
@@ -55,20 +66,24 @@ describe('PostgreSQL Native Row-Level Security (RLS) Integration', () => {
   it('4. should reject cross-tenant INSERT at PostgreSQL engine level', async () => {
     await expect(
       prisma.$transaction(async (tx) => {
-        await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${TENANT_A}'`);
+        await tx.$executeRawUnsafe(
+          `SET LOCAL app.current_tenant_id = '${TENANT_A}'`,
+        );
         // Attempt to insert record belonging to Tenant B while session is Tenant A
         await tx.$executeRawUnsafe(`
           INSERT INTO customers (id, tenant_id, first_name, last_name, phone, "updatedAt")
           VALUES (gen_random_uuid(), '${TENANT_B}', 'Malicious', 'Attempt', '5550009988', now())
         `);
-      })
+      }),
     ).rejects.toThrow(/row-level security policy/i);
   });
 
   it('5. should allow super admin bypass when app.bypass_rls is on', async () => {
     const bypassedResult: any = await prisma.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
-      return await tx.$queryRawUnsafe('SELECT count(*)::int as count FROM customers');
+      return await tx.$queryRawUnsafe(
+        'SELECT count(*)::int as count FROM customers',
+      );
     });
 
     expect(bypassedResult[0].count).toBeGreaterThan(0);

@@ -18,12 +18,18 @@ describe('LegalConsentGuard', () => {
     guard = new LegalConsentGuard(reflector, prismaMock);
   });
 
-  const createMockContext = (user: any, isPublic = false, bypassConsent = false): ExecutionContext => {
-    vi.spyOn(reflector, 'getAllAndOverride').mockImplementation((key: string) => {
-      if (key === 'isPublic') return isPublic;
-      if (key === 'bypassB2bConsent') return bypassConsent;
-      return false;
-    });
+  const createMockContext = (
+    user: any,
+    isPublic = false,
+    bypassConsent = false,
+  ): ExecutionContext => {
+    vi.spyOn(reflector, 'getAllAndOverride').mockImplementation(
+      (key: unknown) => {
+        if (key === 'isPublic') return isPublic;
+        if (key === 'bypassB2bConsent') return bypassConsent;
+        return false;
+      },
+    );
 
     return {
       getHandler: vi.fn(),
@@ -49,7 +55,11 @@ describe('LegalConsentGuard', () => {
   });
 
   it('3. should allow SUPER_ADMIN role unconditionally', async () => {
-    const ctx = createMockContext({ id: 'admin1', role: 'SUPER_ADMIN' }, false, false);
+    const ctx = createMockContext(
+      { id: 'admin1', role: 'SUPER_ADMIN' },
+      false,
+      false,
+    );
     const result = await guard.canActivate(ctx);
     expect(result).toBe(true);
     expect(prismaMock.tenant.findUnique).not.toHaveBeenCalled();

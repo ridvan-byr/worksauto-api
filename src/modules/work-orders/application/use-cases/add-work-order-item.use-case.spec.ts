@@ -56,12 +56,10 @@ describe('AddWorkOrderItemUseCase', () => {
   });
 
   it('should add item successfully and emit event', async () => {
-    mockRepo.findById = vi
-      .fn()
-      .mockResolvedValue({
-        id: 'wo-1',
-        status: WorkOrderStatusEnum.IN_PROGRESS,
-      });
+    mockRepo.findById = vi.fn().mockResolvedValue({
+      id: 'wo-1',
+      status: WorkOrderStatusEnum.IN_PROGRESS,
+    });
     mockRepo.addItem = vi
       .fn()
       .mockResolvedValue({ id: 'item-1', name: 'Filtre' });

@@ -133,7 +133,8 @@ export class TenantsController {
   })
   updateNotificationSettings(
     @CurrentTenant() tenantId: string,
-    @Body() dto: import('./dto/update-notification-settings.dto').UpdateNotificationSettingsDto,
+    @Body()
+    dto: import('./dto/update-notification-settings.dto').UpdateNotificationSettingsDto,
   ) {
     return this.tenantsService.updateNotificationSettings(tenantId, dto);
   }

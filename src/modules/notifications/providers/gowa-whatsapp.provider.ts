@@ -44,7 +44,9 @@ export class GowaWhatsAppProvider implements NotificationProvider {
 
       if (!res.ok) {
         const errText = await res.text();
-        this.logger.warn(`GOWA WhatsApp response error (${res.status}): ${errText}`);
+        this.logger.warn(
+          `GOWA WhatsApp response error (${res.status}): ${errText}`,
+        );
         return {
           success: false,
           error: `WhatsApp dispatch failed with status ${res.status}: ${errText}`,
@@ -57,7 +59,9 @@ export class GowaWhatsAppProvider implements NotificationProvider {
         messageId: data.id || `gowa-${Date.now()}`,
       };
     } catch (err: any) {
-      this.logger.warn(`GOWA WhatsApp connection error: ${err.message}. Simulating graceful fallback.`);
+      this.logger.warn(
+        `GOWA WhatsApp connection error: ${err.message}. Simulating graceful fallback.`,
+      );
       return {
         success: true, // Simulation in dev/fallback environment
         messageId: `gowa-mock-${Date.now()}`,

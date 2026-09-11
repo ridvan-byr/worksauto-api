@@ -4,11 +4,17 @@ import {
   IsOptional,
   IsArray,
   IsNumber,
+  IsBoolean,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class OnboardingServiceItemDto {
+  @ApiPropertyOptional({ example: 'srv_1' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @ApiProperty({ example: 'Periyodik Bakım (Yağ + 4 Filtre)' })
   @IsString()
   name: string;
@@ -28,6 +34,11 @@ export class OnboardingServiceItemDto {
 }
 
 export class OnboardingStaffItemDto {
+  @ApiPropertyOptional({ example: 'st_1' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @ApiProperty({ example: 'Ahmet' })
   @IsString()
   name: string;
@@ -48,6 +59,31 @@ export class OnboardingStaffItemDto {
 }
 
 export class CompleteOnboardingDto {
+  @ApiPropertyOptional({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiPropertyOptional({ example: 'bayar-oto' })
+  @IsOptional()
+  @IsString()
+  slug?: string;
+
+  @ApiPropertyOptional({ example: '0532 123 45 67' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ example: 'info@bayaroto.com' })
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiPropertyOptional({ example: 'https://example.com/logo.png' })
+  @IsOptional()
+  @IsString()
+  logoUrl?: string;
+
   @ApiPropertyOptional({ example: 'Bayar Oto Servis & Ekspertiz' })
   @IsOptional()
   @IsString()
@@ -138,4 +174,24 @@ export class CompleteOnboardingDto {
   @IsOptional()
   @IsNumber()
   criticalStockThreshold?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  autoInvoiceOnComplete?: boolean;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  autoWorkOrder?: boolean;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  notifyAppointmentReminder?: boolean;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  notifyReadyForPickup?: boolean;
 }

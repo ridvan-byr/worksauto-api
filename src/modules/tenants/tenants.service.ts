@@ -14,7 +14,7 @@ import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class TenantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async getCurrent(tenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({
@@ -259,6 +259,10 @@ export class TenantsService {
           appointmentSlotDuration: dto.appointmentSlotDuration || undefined,
           activeLiftCount: dto.activeLiftCount || undefined,
           criticalStockThreshold: dto.criticalStockThreshold || undefined,
+          autoInvoiceOnComplete:
+            dto.autoInvoiceOnComplete !== undefined
+              ? dto.autoInvoiceOnComplete
+              : undefined,
           onboardingCompleted: true,
         },
       });

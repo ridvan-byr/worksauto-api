@@ -4,7 +4,8 @@ import { IsBoolean, IsNotEmpty } from 'class-validator';
 export class SignB2bConsentDto {
   @ApiProperty({
     example: true,
-    description: 'WorksAuto B2B SaaS Hizmet ve Lisans Sözleşmesi kabul edildi mi?',
+    description:
+      'WorksAuto B2B SaaS Hizmet ve Lisans Sözleşmesi kabul edildi mi?',
   })
   @IsBoolean()
   @IsNotEmpty()

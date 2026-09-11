@@ -63,12 +63,10 @@ describe('UpdateWorkOrderStatusUseCase', () => {
       customer: { firstName: 'Ali', lastName: 'Yılmaz' },
     };
     mockRepo.findById = vi.fn().mockResolvedValue(existing);
-    mockRepo.updateStatus = vi
-      .fn()
-      .mockResolvedValue({
-        ...existing,
-        status: WorkOrderStatusEnum.IN_PROGRESS,
-      });
+    mockRepo.updateStatus = vi.fn().mockResolvedValue({
+      ...existing,
+      status: WorkOrderStatusEnum.IN_PROGRESS,
+    });
 
     const result = await useCase.execute(
       't-1',
