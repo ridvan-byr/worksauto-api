@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentTenant } from '../../../shared/decorators/current-tenant.decorator';
@@ -7,10 +7,13 @@ import { Roles } from '../../../shared/decorators/roles.decorator';
 import { UserRole, ProductCategory } from '@prisma/client';
 
 import { CreateProductDto } from '../dto/create-product.dto';
+import { UpdateProductDto } from '../dto/update-product.dto';
 import { CreateStockMovementDto } from '../dto/create-stock-movement.dto';
 import { CreateShelfDto, AssignProductCellDto, BulkAssignProductCellDto } from '../dto/create-shelf.dto';
 import { GetStockItemsUseCase } from '../application/use-cases/get-stock-items.use-case';
 import { CreateStockItemUseCase } from '../application/use-cases/create-stock-item.use-case';
+import { UpdateStockItemUseCase } from '../application/use-cases/update-stock-item.use-case';
+import { DeleteStockItemUseCase } from '../application/use-cases/delete-stock-item.use-case';
 import { AddStockMovementUseCase } from '../application/use-cases/add-stock-movement.use-case';
 import { ManageShelvesUseCase } from '../application/use-cases/manage-shelves.use-case';
 
@@ -22,6 +25,8 @@ export class InventoryController {
   constructor(
     private readonly getStockItemsUseCase: GetStockItemsUseCase,
     private readonly createStockItemUseCase: CreateStockItemUseCase,
+    private readonly updateStockItemUseCase: UpdateStockItemUseCase,
+    private readonly deleteStockItemUseCase: DeleteStockItemUseCase,
     private readonly addStockMovementUseCase: AddStockMovementUseCase,
     private readonly manageShelvesUseCase: ManageShelvesUseCase,
   ) {}
@@ -117,6 +122,27 @@ export class InventoryController {
     @CurrentUser('name') userName: string,
   ) {
     return this.createStockItemUseCase.execute(tenantId, dto, userName || 'Depo Sorumlusu');
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.OWNER, UserRole.WAREHOUSE_KEEPER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Mevcut parça / ürün bilgilerini günceller' })
+  update(
+    @CurrentTenant() tenantId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateProductDto,
+  ) {
+    return this.updateStockItemUseCase.execute(tenantId, id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.WAREHOUSE_KEEPER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Parça kaydını siler (Arşive kaldırır)' })
+  delete(
+    @CurrentTenant() tenantId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.deleteStockItemUseCase.execute(tenantId, id);
   }
 
   @Post(':id/stock-movement')

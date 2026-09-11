@@ -11,6 +11,8 @@ import { PrismaShelfRepository } from './infrastructure/prisma-shelf.repository'
 import { InventoryController } from './presentation/inventory.controller';
 import { GetStockItemsUseCase } from './application/use-cases/get-stock-items.use-case';
 import { CreateStockItemUseCase } from './application/use-cases/create-stock-item.use-case';
+import { UpdateStockItemUseCase } from './application/use-cases/update-stock-item.use-case';
+import { DeleteStockItemUseCase } from './application/use-cases/delete-stock-item.use-case';
 import { DecrementStockUseCase } from './application/use-cases/decrement-stock.use-case';
 import { IncrementStockUseCase } from './application/use-cases/increment-stock.use-case';
 import { AddStockMovementUseCase } from './application/use-cases/add-stock-movement.use-case';
@@ -31,6 +33,8 @@ import { ManageShelvesUseCase } from './application/use-cases/manage-shelves.use
     },
     GetStockItemsUseCase,
     CreateStockItemUseCase,
+    UpdateStockItemUseCase,
+    DeleteStockItemUseCase,
     DecrementStockUseCase,
     IncrementStockUseCase,
     AddStockMovementUseCase,
@@ -43,6 +47,8 @@ import { ManageShelvesUseCase } from './application/use-cases/manage-shelves.use
     IncrementStockUseCase,
     GetStockItemsUseCase,
     CreateStockItemUseCase,
+    UpdateStockItemUseCase,
+    DeleteStockItemUseCase,
     AddStockMovementUseCase,
     ManageShelvesUseCase,
   ],

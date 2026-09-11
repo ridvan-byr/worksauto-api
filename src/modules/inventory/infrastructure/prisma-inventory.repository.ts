@@ -19,16 +19,16 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       brand: data.brand,
       stockQuantity: data.stockQuantity,
       minStockLevel: data.minStockLevel,
-      shelfLocation: data.shelfLocation ?? undefined,
+      shelfLocation: data.shelfLocation ?? data.shelfCell?.cellCode ?? undefined,
       purchasePrice: Number(data.purchasePrice),
       salePrice: Number(data.salePrice),
       kdvRate: data.kdvRate,
-      aisle: data.aisle ?? undefined,
-      rack: data.rack ?? undefined,
-      tier: data.tier ?? undefined,
-      bin: data.bin ?? undefined,
-      shelfId: data.shelfId ?? undefined,
-      shelfCellId: data.shelfCellId ?? undefined,
+      aisle: data.aisle ?? data.shelfCell?.shelf?.zone ?? data.shelfCell?.shelf?.name ?? undefined,
+      rack: data.rack ?? data.shelfCell?.shelf?.code ?? undefined,
+      tier: data.tier ?? (data.shelfCell ? `Kat ${data.shelfCell.rowNumber}` : undefined),
+      bin: data.bin ?? (data.shelfCell ? `Göz ${data.shelfCell.colNumber}` : undefined),
+      shelfId: data.shelfId ?? data.shelfCell?.shelfId ?? undefined,
+      shelfCellId: data.shelfCellId ?? data.shelfCell?.id ?? undefined,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     });
@@ -37,6 +37,13 @@ export class PrismaInventoryRepository implements IInventoryRepository {
   async findById(tenantId: string, id: string): Promise<StockItemEntity | null> {
     const data = await this.prisma.product.findFirst({
       where: { id, tenantId, deletedAt: null },
+      include: {
+        shelfCell: {
+          include: {
+            shelf: true,
+          },
+        },
+      },
     });
     return data ? this.mapToEntity(data) : null;
   }
@@ -60,6 +67,13 @@ export class PrismaInventoryRepository implements IInventoryRepository {
               ],
             }
           : {}),
+      },
+      include: {
+        shelfCell: {
+          include: {
+            shelf: true,
+          },
+        },
       },
       orderBy: { name: 'asc' },
     });
@@ -139,6 +153,30 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       throw new BadRequestException('Ürün bulunamadı veya bu işletmeye ait değil.');
     }
 
+    let resolvedShelfId = existing.shelfId;
+    let resolvedShelfLocation = item.shelfLocation;
+    let resolvedAisle = item.aisle;
+    let resolvedRack = item.rack;
+    let resolvedTier = item.tier;
+    let resolvedBin = item.bin;
+
+    if (item.shelfCellId) {
+      const cell = await this.prisma.shelfCell.findUnique({
+        where: { id: item.shelfCellId },
+        include: { shelf: true },
+      });
+      if (cell) {
+        resolvedShelfId = cell.shelfId;
+        resolvedShelfLocation = cell.cellCode;
+        resolvedAisle = cell.shelf?.zone || cell.shelf?.name || resolvedAisle;
+        resolvedRack = cell.shelf?.code || resolvedRack;
+        resolvedTier = `Kat ${cell.rowNumber}`;
+        resolvedBin = `Göz ${cell.colNumber}`;
+      }
+    } else if (item.shelfCellId === null) {
+      resolvedShelfId = null;
+    }
+
     const updated = await this.prisma.product.update({
       where: { id: item.id },
       data: {
@@ -149,18 +187,43 @@ export class PrismaInventoryRepository implements IInventoryRepository {
         brand: item.brand,
         stockQuantity: item.stockQuantity,
         minStockLevel: item.minStockLevel,
-        shelfLocation: item.shelfLocation,
+        shelfLocation: resolvedShelfLocation,
         purchasePrice: item.purchasePrice,
         salePrice: item.salePrice,
         kdvRate: item.kdvRate,
-        aisle: item.aisle,
-        rack: item.rack,
-        tier: item.tier,
-        bin: item.bin,
+        aisle: resolvedAisle,
+        rack: resolvedRack,
+        tier: resolvedTier,
+        bin: resolvedBin,
+        shelfId: resolvedShelfId,
         shelfCellId: item.shelfCellId,
+      },
+      include: {
+        shelfCell: {
+          include: {
+            shelf: true,
+          },
+        },
       },
     });
     return this.mapToEntity(updated);
+  }
+
+  async delete(tenantId: string, id: string): Promise<void> {
+    const existing = await this.prisma.product.findFirst({
+      where: { id, tenantId, deletedAt: null },
+    });
+    if (!existing) {
+      throw new BadRequestException('Silinmek istenen parça bulunamadı.');
+    }
+
+    await this.prisma.product.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        shelfCellId: null,
+      },
+    });
   }
 
   async decrementAtomic(

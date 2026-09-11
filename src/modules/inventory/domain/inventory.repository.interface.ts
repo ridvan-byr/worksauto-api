@@ -7,6 +7,7 @@ export interface IInventoryRepository {
   findAll(tenantId: string, params?: { search?: string; category?: string }): Promise<StockItemEntity[]>;
   create(item: StockItemEntity, author: string): Promise<StockItemEntity>;
   save(item: StockItemEntity): Promise<StockItemEntity>;
+  delete(tenantId: string, id: string): Promise<void>;
   decrementAtomic(
     tenantId: string,
     productId: string,

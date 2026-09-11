@@ -34,13 +34,23 @@ export class CancelAppointmentUseCase {
       appointment: cancelled,
     });
 
+    const reasonTR: Record<string, string> = {
+      CUSTOMER_REQUEST: 'Müşteri randevuyu iptal etti / vazgeçti',
+      PARTS_UNAVAILABLE: 'Gerekli yedek parça temin edilemedi',
+      CAPACITY_FULL: 'Servis atölye lift kapasitesi dolu',
+      PRICE_DISAGREEMENT: 'Fiyat konusunda anlaşılamadı',
+      NO_SHOW: 'Randevuya gelinmedi (No-Show)',
+      OTHER: 'Diğer gerekçe',
+    };
+    const reasonText = reasonTR[reason] || reason;
+
     await this.notificationsService.createNotification({
       tenantId,
       targetRoles: ['OWNER', 'SERVICE_MANAGER', 'TECHNICIAN'],
       type: NotificationType.WARNING,
       category: 'APPOINTMENT',
       title: 'Randevu İptal Edildi',
-      message: `Bir randevu iptal edildi. Neden: ${reason}`,
+      message: `Bir randevu iptal edildi. Neden: ${reasonText}`,
       link: '/appointments',
       metadata: { appointmentId: id, reason },
     });
