@@ -45,6 +45,11 @@ export class CreateWorkshopBayDto {
   @IsOptional()
   @IsInt()
   orderIndex?: number;
+
+  @ApiProperty({ required: false, default: true, description: 'Aktiflik Durumu' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateWorkshopBayDto {

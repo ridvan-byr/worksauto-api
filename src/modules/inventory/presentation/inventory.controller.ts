@@ -210,12 +210,14 @@ export class InventoryController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: CreateStockMovementDto,
     @CurrentUser('name') userName: string,
+    @CurrentUser('id') userId?: string,
   ) {
     return this.addStockMovementUseCase.execute(
       tenantId,
       id,
       dto as any,
       userName || 'Depo Sorumlusu',
+      userId,
     );
   }
 

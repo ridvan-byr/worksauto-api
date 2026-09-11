@@ -66,6 +66,7 @@ export class CancelAppointmentUseCase {
 
     await this.notificationsService.createNotification({
       tenantId,
+      actorUserId: userId,
       targetRoles: ['OWNER', 'SERVICE_MANAGER', 'TECHNICIAN'],
       type: NotificationType.WARNING,
       category: 'APPOINTMENT',

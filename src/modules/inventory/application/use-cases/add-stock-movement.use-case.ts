@@ -34,6 +34,7 @@ export class AddStockMovementUseCase {
     productId: string,
     input: AddStockMovementInput,
     author: string,
+    userId?: string,
   ): Promise<StockItemEntity> {
     const item = await this.inventoryRepository.findById(tenantId, productId);
     if (!item) {
@@ -85,6 +86,7 @@ export class AddStockMovementUseCase {
 
       await this.notificationsService.createNotification({
         tenantId,
+        actorUserId: userId,
         targetRoles: ['OWNER', 'SERVICE_MANAGER', 'WAREHOUSE_KEEPER'],
         type: NotificationType.WARNING,
         category: 'INVENTORY',

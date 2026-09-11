@@ -57,6 +57,7 @@ export class CreateInvoiceUseCase {
       try {
         await this.notificationsService.createNotification({
           tenantId,
+          actorUserId: userId,
           targetRoles: ['OWNER', 'SERVICE_MANAGER', 'CASHIER'],
           category: 'FINANCE',
           type: NotificationType.WARNING,

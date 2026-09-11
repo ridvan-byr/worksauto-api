@@ -18,7 +18,8 @@ export class DashboardService {
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
     const [
-      activeWorkOrdersCount,
+      inProgressWorkOrdersCount,
+      queueWorkOrdersCount,
       todayAppointmentsCount,
       criticalStockRows,
       totalCustomersCount,
@@ -28,11 +29,19 @@ export class DashboardService {
       monthlyPayments,
       recentWorkOrders,
     ] = await Promise.all([
-      // 1. Atölyedeki aktif iş emirleri
+      // 1. Atölyede liftte / işlemde olan iş emirleri
       this.prisma.workOrder.count({
         where: {
           tenantId,
-          status: { in: [WorkOrderStatus.QUEUE, WorkOrderStatus.IN_PROGRESS] },
+          status: WorkOrderStatus.IN_PROGRESS,
+        },
+      }),
+
+      // 1b. Atölyede sırada bekleyen iş emirleri
+      this.prisma.workOrder.count({
+        where: {
+          tenantId,
+          status: WorkOrderStatus.QUEUE,
         },
       }),
 
@@ -123,8 +132,12 @@ export class DashboardService {
       if (remaining > 0) unpaidTotal += remaining;
     }
 
+    const activeWorkOrdersCount = inProgressWorkOrdersCount + queueWorkOrdersCount;
+
     return {
       activeWorkOrdersCount,
+      inProgressWorkOrdersCount,
+      queueWorkOrdersCount,
       todayAppointmentsCount,
       criticalStockCount: Number(criticalStockRows[0]?.count || 0),
       totalCustomersCount,

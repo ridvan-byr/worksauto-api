@@ -118,6 +118,7 @@ export class RescheduleAppointmentUseCase {
 
     await this.notificationsService.createNotification({
       tenantId,
+      actorUserId: userId,
       targetRoles: ['OWNER', 'SERVICE_MANAGER', 'TECHNICIAN'],
       type: NotificationType.INFO,
       category: 'APPOINTMENT',

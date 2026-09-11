@@ -57,6 +57,7 @@ export class UpdateAppointmentStatusUseCase {
         : '';
       await this.notificationsService.createNotification({
         tenantId,
+        actorUserId: userId,
         type: NotificationType.SUCCESS,
         category: 'APPOINTMENT',
         title: 'Randevunuz Onaylandı',

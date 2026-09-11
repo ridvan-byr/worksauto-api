@@ -128,6 +128,7 @@ export class TenantsService {
         code: dto.code?.trim() || null,
         category: dto.category || 'GENERAL',
         isAvailableForOnline: dto.isAvailableForOnline ?? true,
+        isActive: dto.isActive ?? true,
         orderIndex: dto.orderIndex ?? 0,
       },
     });

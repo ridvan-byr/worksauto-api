@@ -55,6 +55,10 @@ export class NotificationsService {
       let targetUserIds: string[] = [];
 
       if (dto.userId) {
+        // Kendi kendine bildirim gitmesini engelle
+        if (dto.actorUserId && dto.userId === dto.actorUserId) {
+          return null;
+        }
         targetUserIds = [dto.userId];
       } else if (dto.tenantId) {
         const users = await this.prisma.user.findMany({
@@ -100,11 +104,13 @@ export class NotificationsService {
 
       // 3. WebSocket Canlı Yayın (Actor Exclusion & Role Filtering)
       if (dto.userId) {
-        this.eventsGateway.emitToUser(
-          dto.userId,
-          'notification:new',
-          primaryNotif || dto,
-        );
+        if (!dto.actorUserId || dto.userId !== dto.actorUserId) {
+          this.eventsGateway.emitToUser(
+            dto.userId,
+            'notification:new',
+            primaryNotif || dto,
+          );
+        }
       } else if (dto.tenantId) {
         this.eventsGateway.emitToTenantExcept(
           dto.tenantId,
