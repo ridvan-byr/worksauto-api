@@ -7,6 +7,8 @@ import {
   IsBoolean,
   ValidateNested,
   Matches,
+  Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -18,6 +20,9 @@ export class OnboardingServiceItemDto {
 
   @ApiProperty({ example: 'Periyodik Bakım (Yağ + 4 Filtre)' })
   @IsString()
+  @Matches(/^[a-zA-Z0-9çÇğĞıIİiöÖşŞüÜ\s\(\)\+\-\/\.]{2,100}$/, {
+    message: 'Hizmet adı en az 2 karakter olmalı ve geçerli bir başlık olmalıdır.',
+  })
   name: string;
 
   @ApiPropertyOptional({ example: 'Periyodik Bakım' })
@@ -27,10 +32,13 @@ export class OnboardingServiceItemDto {
 
   @ApiProperty({ example: 60 })
   @IsNumber()
+  @Min(5, { message: 'Hizmet süresi en az 5 dakika olmalıdır.' })
+  @Max(1440, { message: 'Hizmet süresi en fazla 1440 dakika olabilir.' })
   durationMinutes: number;
 
   @ApiProperty({ example: 1250 })
   @IsNumber()
+  @Min(0, { message: 'İşçilik ücreti 0 veya pozitif bir değer olmalıdır.' })
   laborPrice: number;
 }
 
@@ -107,11 +115,17 @@ export class CompleteOnboardingDto {
   @ApiPropertyOptional({ example: 'İkitelli' })
   @IsOptional()
   @IsString()
+  @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
+    message: 'Vergi dairesi yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır.',
+  })
   taxOffice?: string;
 
   @ApiPropertyOptional({ example: '1234567890' })
   @IsOptional()
   @IsString()
+  @Matches(/^[0-9]{10,11}$/, {
+    message: 'Vergi Numarası 10 haneli VKN veya 11 haneli TCKN olmalıdır.',
+  })
   taxNumber?: string;
 
   @ApiPropertyOptional({ example: 'İstanbul' })
@@ -178,11 +192,13 @@ export class CompleteOnboardingDto {
   @ApiPropertyOptional({ example: 3 })
   @IsOptional()
   @IsNumber()
+  @Min(1, { message: 'Aktif lift kapasitesi en az 1 olmalıdır.' })
   activeLiftCount?: number;
 
   @ApiPropertyOptional({ example: 5 })
   @IsOptional()
   @IsNumber()
+  @Min(1, { message: 'Kritik stok eşiği en az 1 olmalıdır.' })
   criticalStockThreshold?: number;
 
   @ApiPropertyOptional({ example: true })
