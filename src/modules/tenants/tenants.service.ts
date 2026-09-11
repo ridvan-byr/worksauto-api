@@ -14,7 +14,7 @@ import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class TenantsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async getCurrent(tenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({

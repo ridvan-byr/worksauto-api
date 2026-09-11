@@ -69,6 +69,10 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
         await prisma.customer?.deleteMany({ where: { tenantId } });
         await prisma.auditLog?.deleteMany({ where: { tenantId } });
         await prisma.notification?.deleteMany({ where: { tenantId } });
+        await prisma.tenantConsent?.deleteMany({ where: { tenantId } });
+        await prisma.tenantNotificationSetting?.deleteMany({
+          where: { tenantId },
+        });
         await prisma.refreshToken?.deleteMany({
           where: { user: { tenantId } },
         });
@@ -78,7 +82,9 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
         console.warn('E2E clean-up warning:', (err as any)?.message);
       }
     }
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('Step 1: Tenant & Owner Registration -> Token Extraction (Md. 6 & 7)', async () => {
@@ -100,6 +106,20 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
 
     authToken = res.body.accessToken;
     tenantId = res.body.tenant.id;
+
+    // 1.1 B2B Legal & KVKK Contract Signature
+    const signRes = await request(app.getHttpServer())
+      .post('/api/v1/legal/sign')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({
+        saasTermsAccepted: true,
+        dataProcessingAccepted: true,
+        marketingAccepted: true,
+      })
+      .expect(200);
+
+    expect(signRes.body.success).toBe(true);
+    expect(signRes.body.tenant.b2bConsentAccepted).toBe(true);
 
     const tenantUpdateRes = await request(app.getHttpServer())
       .patch('/api/v1/tenants/current')
