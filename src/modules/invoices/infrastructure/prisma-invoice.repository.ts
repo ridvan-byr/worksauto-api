@@ -156,6 +156,12 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
           );
         }
 
+        if (workOrder.status === WorkOrderStatus.CANCELLED) {
+          throw new BadRequestException(
+            'İptal edilmiş bir iş emrine fatura kesilemez.',
+          );
+        }
+
         const existingInvoiceForWO = await tx.invoice.findFirst({
           where: {
             workOrderId: invoice.workOrderId,
