@@ -212,12 +212,40 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         ? InvoiceStatus.PAID
         : (advancePaid > 0 ? InvoiceStatus.PARTIALLY_PAID : (invoice.status as InvoiceStatus || InvoiceStatus.UNPAID));
 
+      // Allocate sequence number atomically inside transaction if not pre-assigned or PENDING
+      let finalInvoiceNumber = invoice.invoiceNumber;
+      let finalGibInvoiceNumber = invoice.gibInvoiceNumber;
+
+      if (!finalInvoiceNumber || finalInvoiceNumber === 'PENDING') {
+        const year = new Date().getFullYear();
+        const sequence = await tx.documentSequence.upsert({
+          where: {
+            tenantId_docType_year: {
+              tenantId: invoice.tenantId,
+              docType: 'INVOICE',
+              year,
+            },
+          },
+          create: {
+            tenantId: invoice.tenantId,
+            docType: 'INVOICE',
+            year,
+            lastNumber: 1,
+          },
+          update: {
+            lastNumber: { increment: 1 },
+          },
+        });
+        finalInvoiceNumber = `INV-${year}-${String(sequence.lastNumber).padStart(5, '0')}`;
+        finalGibInvoiceNumber = `GIB${year}${String(sequence.lastNumber).padStart(9, '0')}`;
+      }
+
       const created = await tx.invoice.create({
         data: {
           tenantId: invoice.tenantId,
           workOrderId: invoice.workOrderId,
           customerId: invoice.customerId,
-          invoiceNumber: invoice.invoiceNumber,
+          invoiceNumber: finalInvoiceNumber,
           issueDate: invoice.issueDate,
           dueDate: invoice.dueDate,
           subtotal: invoice.subtotal,
@@ -226,7 +254,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
           paidAmount: advancePaid,
           remainingAmount: initialRemaining,
           status: initialStatus,
-          gibInvoiceNumber: invoice.gibInvoiceNumber,
+          gibInvoiceNumber: finalGibInvoiceNumber,
           eInvoiceStatus: invoice.eInvoiceStatus || 'COMPLETED',
         },
       });

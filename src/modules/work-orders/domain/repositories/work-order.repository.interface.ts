@@ -27,7 +27,12 @@ export interface CreateWorkOrderData {
 }
 
 export interface IWorkOrderRepository {
-  findAll(tenantId: string, status?: string): Promise<any[]>;
+  findAll(
+    tenantId: string,
+    status?: string,
+    page?: number,
+    limit?: number,
+  ): Promise<any>;
   findById(tenantId: string, id: string): Promise<any | null>;
   getNextWorkOrderNumber(tenantId: string): Promise<string>;
   create(data: CreateWorkOrderData): Promise<any>;

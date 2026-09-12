@@ -16,6 +16,8 @@ export interface CreateInvoiceInput {
   kdvAmount: number;
   grandTotal: number;
   offsetAdvanceAmount?: number;
+  invoiceNumber?: string;
+  gibInvoiceNumber?: string;
 }
 
 @Injectable()
@@ -32,14 +34,11 @@ export class CreateInvoiceUseCase {
     dto: CreateInvoiceInput,
     userId?: string,
   ): Promise<InvoiceEntity> {
-    const { invoiceNumber, gibInvoiceNumber } =
-      await this.invoiceRepository.getNextInvoiceNumber(tenantId);
-
     const entity = new InvoiceEntity({
       tenantId,
       workOrderId: dto.workOrderId,
       customerId: dto.customerId,
-      invoiceNumber,
+      invoiceNumber: dto.invoiceNumber || 'PENDING',
       issueDate: new Date(),
       dueDate: new Date(dto.dueDate),
       subtotal: dto.subtotal,
@@ -47,7 +46,7 @@ export class CreateInvoiceUseCase {
       grandTotal: dto.grandTotal,
       remainingAmount: dto.grandTotal,
       status: 'UNPAID',
-      gibInvoiceNumber,
+      gibInvoiceNumber: dto.gibInvoiceNumber || 'PENDING',
       eInvoiceStatus: 'COMPLETED',
     });
 
@@ -87,7 +86,7 @@ export class CreateInvoiceUseCase {
         entityName: 'Invoice',
         entityId: result.invoice.id,
         changesAfter: {
-          invoiceNumber,
+          invoiceNumber: result.invoice.invoiceNumber,
           grandTotal: dto.grandTotal,
           subtotal: dto.subtotal,
           kdvAmount: dto.kdvAmount,

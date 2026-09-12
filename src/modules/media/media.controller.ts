@@ -157,8 +157,7 @@ export class MediaController {
       authHeader.startsWith('Bearer ')
         ? authHeader.slice(7)
         : null) ||
-      (req.cookies ? req.cookies['worksauto_access_token'] : null) ||
-      (req.query?.token as string);
+      (req.cookies ? req.cookies['worksauto_access_token'] : null);
 
     let requestingTenantId = '';
     if (token) {

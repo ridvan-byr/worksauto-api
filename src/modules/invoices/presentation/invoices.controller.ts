@@ -20,6 +20,7 @@ import { CurrentTenant } from '../../../shared/decorators/current-tenant.decorat
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { Roles } from '../../../shared/decorators/roles.decorator';
 import { RequirePermission } from '../../../shared/decorators/require-permission.decorator';
+import { RequireIdempotency } from '../../../shared/decorators/require-idempotency.decorator';
 import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../../shared/interceptors/idempotency.interceptor';
 import { Permission } from '../../../shared/constants/permissions.enum';
@@ -64,10 +65,11 @@ export class InvoicesController {
   @Post()
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
   @RequirePermission(Permission.INVOICE_CREATE)
+  @RequireIdempotency()
   @ApiOperation({ summary: 'Yeni fatura keser ve cari hesaba borç işler' })
   @ApiHeader({
     name: 'X-Idempotency-Key',
-    required: false,
+    required: true,
     description: 'Tekrarlanan istek koruması için benzersiz anahtar',
   })
   create(

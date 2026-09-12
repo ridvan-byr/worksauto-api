@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Param, Body, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../../shared/decorators/public.decorator';
 import { ManageConsentUseCase } from '../application/use-cases/manage-consent.use-case';
 import { ConfirmConsentDto } from '../dto/consent.dto';
@@ -10,6 +11,7 @@ export class ConsentPublicController {
   constructor(private readonly manageConsentUseCase: ManageConsentUseCase) {}
 
   @Public()
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
   @Get('verify/:token')
   @ApiOperation({
     summary:
@@ -20,6 +22,7 @@ export class ConsentPublicController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('confirm/:token')
   @ApiOperation({
     summary: 'Müşteri açık rıza ve KVKK onayını IP/cihaz bilgisiyle kaydeder',

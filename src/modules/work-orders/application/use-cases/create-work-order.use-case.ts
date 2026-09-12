@@ -1,8 +1,14 @@
-import { Injectable, Inject, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  BadRequestException,
+  Optional,
+} from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { WorkOrderStatusEnum } from '../../domain/value-objects/work-order-status.vo';
 import { EventsGateway } from '../../../events/events.gateway';
 import { NotificationsService } from '../../../notifications/notifications.service';
+import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
 import { NotificationType } from '@prisma/client';
 
 export interface CreateWorkOrderInput {
@@ -25,12 +31,18 @@ export interface CreateWorkOrderInput {
 
 @Injectable()
 export class CreateWorkOrderUseCase {
+  private readonly templateService: NotificationTemplateService;
+
   constructor(
     @Inject('IWorkOrderRepository')
     private readonly workOrderRepository: IWorkOrderRepository,
     private readonly eventsGateway: EventsGateway,
     private readonly notificationsService: NotificationsService,
-  ) {}
+    @Optional()
+    templateService?: NotificationTemplateService,
+  ) {
+    this.templateService = templateService || new NotificationTemplateService();
+  }
 
   async execute(
     tenantId: string,
@@ -101,6 +113,43 @@ export class CreateWorkOrderUseCase {
       ...createdWorkOrder,
     });
 
+    const customer = (createdWorkOrder as any)?.customer;
+    const vehicle = (createdWorkOrder as any)?.vehicle;
+    const tenant = (createdWorkOrder as any)?.tenant;
+
+    const tenantTitle = tenant?.title || 'Oto Servisiniz';
+    const customerName = customer
+      ? `${customer.firstName} ${customer.lastName || ''}`.trim()
+      : 'Değerli Müşterimiz';
+    const plate = vehicle?.plate || '';
+    const trackingUrl = this.templateService.getTrackingUrl(
+      createdWorkOrder.id,
+    );
+
+    const customerMsg =
+      this.templateService.formatWorkOrderCreatedCustomerMessage({
+        customerName,
+        plate,
+        workOrderNumber: woNumber,
+        trackingUrl,
+        tenantTitle,
+      });
+
+    const customerHtml = this.templateService.generateBrandedHtmlEmail({
+      title: 'İş Emriniz Açıldı - Servis Kabulü Yapıldı',
+      customerName,
+      message: `${woNumber} numaralı servis iş emriniz oluşturulmuştur. Aracınızın kabul kontrolleri yapılmış olup servis sırasına alınmıştır. Yapılan işlemleri ve hasar/onarım fotoğraflarını anlık canlı takip edebilirsiniz.`,
+      buttonText: 'Canlı Takip Sayfasını Aç',
+      buttonUrl: trackingUrl,
+      tenantTitle,
+      extraDetails: {
+        'İş Emri No': woNumber,
+        Plaka: plate || 'Belirtilmedi',
+        Aşama: 'Servis Sırasında (Kabul Edildi)',
+        'Giriş Kilometresi': `${input.initialKm} km`,
+      },
+    });
+
     await this.notificationsService.createNotification({
       tenantId,
       actorUserId,
@@ -109,9 +158,21 @@ export class CreateWorkOrderUseCase {
       title: 'Yeni İş Emri Açıldı',
       message: `${woNumber} nolu iş emri kabul edildi.`,
       link: `/work-orders/${createdWorkOrder.id}`,
-      metadata: { workOrderId: createdWorkOrder.id, workOrderNumber: woNumber },
+      metadata: {
+        workOrderId: createdWorkOrder.id,
+        workOrderNumber: woNumber,
+        trackingUrl,
+      },
+      recipientPhone: customer?.phone,
+      recipientEmail: customer?.email,
+      customerMessage: customerMsg,
+      customerHtml,
+      sendSms: !!customer?.phone,
+      sendWhatsApp: !!customer?.phone,
+      sendEmail: !!customer?.email,
     });
 
     return createdWorkOrder;
   }
 }
+

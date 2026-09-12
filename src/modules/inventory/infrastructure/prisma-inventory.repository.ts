@@ -258,7 +258,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       const updated = await tx.$executeRaw`
         UPDATE products 
         SET stock_quantity = stock_quantity - ${quantity} 
-        WHERE id = ${productId}::uuid AND stock_quantity >= ${quantity}
+        WHERE id = ${productId}::uuid AND tenant_id = ${tenantId}::uuid AND stock_quantity >= ${quantity}
       `;
 
       if (updated === 0) {

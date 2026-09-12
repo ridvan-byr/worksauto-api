@@ -3,6 +3,7 @@ import {
   Inject,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import {
@@ -10,15 +11,26 @@ import {
   ICustomerConsentRepository,
 } from '../../domain/customer-consent.repository.interface';
 import { ConfirmConsentDto, DirectConsentDto } from '../../dto/consent.dto';
+import { QueueService } from '../../../queues/queue.service';
+import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
 
 @Injectable()
 export class ManageConsentUseCase {
+  private readonly templateService: NotificationTemplateService;
+
   constructor(
     @Inject(CUSTOMER_CONSENT_REPOSITORY)
     private readonly consentRepository: ICustomerConsentRepository,
-  ) {}
+    @Optional()
+    private readonly queueService?: QueueService,
+    @Optional()
+    templateService?: NotificationTemplateService,
+  ) {
+    this.templateService = templateService || new NotificationTemplateService();
+  }
 
   private maskPhone(phone: string): string {
+
     if (phone.length <= 6) return phone;
     return phone.substring(0, 4) + '****' + phone.substring(phone.length - 2);
   }
@@ -80,6 +92,26 @@ export class ManageConsentUseCase {
     });
 
     const verificationPath = `/c/kvkk?token=${token}`;
+    const consentUrl = this.templateService.getConsentUrl(token);
+
+    const smsMessage = this.templateService.formatConsentSmsMessage({
+      customerName: `${customer.firstName} ${customer.lastName || ''}`.trim(),
+      consentUrl,
+      tenantTitle: customer.tenant.title,
+    });
+
+    if (this.queueService && customer.phone) {
+      await this.queueService.addNotificationJob('send-sms', {
+        to: customer.phone,
+        message: smsMessage,
+        tenantId,
+        metadata: {
+          token,
+          customerId,
+          channel: 'SMS_LINK',
+        },
+      });
+    }
 
     await this.consentRepository.logAudit({
       tenantId,
@@ -90,14 +122,15 @@ export class ManageConsentUseCase {
         customerName: `${customer.firstName} ${customer.lastName || ''}`.trim(),
         phone: customer.phone,
         verificationPath,
+        consentUrl,
       },
     });
 
     return {
       success: true,
-      message: 'Müşteri onay linki oluşturuldu ve hazırlandı.',
+      message: 'Müşteri onay SMS linki başarıyla iletildi.',
       verificationToken: token,
-      verificationUrl: verificationPath,
+      verificationUrl: consentUrl,
       customerPhone: customer.phone,
       tenantTitle: customer.tenant.title,
     };

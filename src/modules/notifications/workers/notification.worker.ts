@@ -78,23 +78,36 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
       `Processing background notification job [${name}] (ID: ${job.id})`,
     );
 
+    let result: any = null;
     switch (name) {
       case 'send-sms':
-        return this.provider.sendSms(data);
+        result = await this.provider.sendSms(data);
+        break;
 
       case 'send-whatsapp':
-        return this.provider.sendWhatsApp(data);
+        result = await this.provider.sendWhatsApp(data);
+        break;
 
       case 'send-email':
-        return this.provider.sendEmail(data);
+        result = await this.provider.sendEmail(data);
+        break;
 
       case 'appointment-reminder':
-        return this.handleAppointmentReminder(data);
+        result = await this.handleAppointmentReminder(data);
+        break;
 
       default:
         this.logger.warn(`Unknown job name: ${name}`);
         return null;
     }
+
+    if (result && !result.success) {
+      this.logger.warn(
+        `⚠️ Notification job ${job.id} (${name}) provider result: ${result.error}`,
+      );
+    }
+
+    return result;
   }
 
   private async handleAppointmentReminder(data: {

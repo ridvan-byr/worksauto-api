@@ -34,12 +34,36 @@ export class PaymentsService {
     private readonly payTrService: PayTrService,
   ) {}
 
-  async findAll(tenantId: string) {
-    return this.prisma.payment.findMany({
-      where: { tenantId },
-      include: { customer: true, invoice: true },
-      orderBy: { paymentDate: 'desc' },
-    });
+  async findAll(tenantId: string, page?: number, limit?: number) {
+    const isExplicitPagination = page !== undefined || limit !== undefined;
+    const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
+    const safePage = Math.max(Number(page) || 1, 1);
+    const skip = (safePage - 1) * safeLimit;
+
+    const [items, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: { tenantId },
+        include: { customer: true, invoice: true },
+        orderBy: { paymentDate: 'desc' },
+        take: safeLimit,
+        skip: isExplicitPagination ? skip : 0,
+      }),
+      this.prisma.payment.count({ where: { tenantId } }),
+    ]);
+
+    if (isExplicitPagination) {
+      return {
+        data: items,
+        meta: {
+          total,
+          page: safePage,
+          limit: safeLimit,
+          totalPages: Math.ceil(total / safeLimit),
+        },
+      };
+    }
+
+    return items;
   }
 
   async create(

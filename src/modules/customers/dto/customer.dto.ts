@@ -8,7 +8,10 @@ import {
   IsNumber,
   IsBoolean,
   IsArray,
+  ArrayMaxSize,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { CustomerType } from '@prisma/client';
 
 export class CreateCustomerDto {
@@ -160,6 +163,11 @@ export class BatchImportRowDto {
 export class BatchImportRequestDto {
   @ApiProperty({ type: [BatchImportRowDto] })
   @IsArray()
+  @ArrayMaxSize(200, {
+    message: 'Tek seferde maksimum 200 satır içe aktarılabilir.',
+  })
+  @ValidateNested({ each: true })
+  @Type(() => BatchImportRowDto)
   items: BatchImportRowDto[];
 
   @ApiPropertyOptional({

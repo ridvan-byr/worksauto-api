@@ -176,43 +176,86 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         ? appointment.slotEndTime
         : new Date(appointment.slotEndTime);
 
-    try {
-      const data = await this.prisma.appointment.create({
-        data: {
-          tenantId: appointment.tenantId,
-          customerId: appointment.customerId,
-          vehicleId: appointment.vehicleId,
-          serviceId: validatedServiceId,
-          assignedMechanicId: appointment.assignedMechanicId || null,
-          assignedLift: appointment.assignedLift || null,
-          slotDate,
-          slotStartTime,
-          slotEndTime,
-          customerNotes: appointment.customerNotes || null,
-          status: this.mapStatusToPrisma(appointment.status),
-        },
-        include: {
-          customer: true,
-          vehicle: true,
-          service: true,
-          assignedMechanic: { include: { user: true } },
-        },
-      });
-      return this.mapToEntity(data);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('no_overlapping_mechanic')) {
-        throw new ConflictException(
-          'Seçilen teknisyenin bu saat aralığında başka bir randevusu bulunmaktadır.',
-        );
+    return this.prisma.$transaction(async (tx) => {
+      // Advisory transaction lock per resource & slot window to serialize concurrent requests
+      const lockResource = appointment.assignedLift || appointment.assignedMechanicId || 'slot';
+      const lockKey = `${appointment.tenantId}:${lockResource}:${slotStartTime.toISOString()}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+
+      // Re-verify mechanic conflict inside serialized transaction lock
+      if (appointment.assignedMechanicId) {
+        const mechanicConflict = await tx.appointment.findFirst({
+          where: {
+            tenantId: appointment.tenantId,
+            assignedMechanicId: appointment.assignedMechanicId,
+            status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+            slotStartTime: { lt: slotEndTime },
+            slotEndTime: { gt: slotStartTime },
+          },
+        });
+        if (mechanicConflict) {
+          throw new ConflictException(
+            'Seçilen teknisyenin bu saat aralığında başka bir randevusu bulunmaktadır.',
+          );
+        }
       }
-      if (msg.includes('no_overlapping_lift')) {
-        throw new ConflictException(
-          'Seçilen lift için bu saat aralığında başka bir randevu bulunmaktadır.',
-        );
+
+      // Re-verify lift conflict inside serialized transaction lock
+      if (appointment.assignedLift) {
+        const liftConflict = await tx.appointment.findFirst({
+          where: {
+            tenantId: appointment.tenantId,
+            assignedLift: appointment.assignedLift,
+            status: { notIn: ['CANCELLED', 'NO_SHOW'] },
+            slotStartTime: { lt: slotEndTime },
+            slotEndTime: { gt: slotStartTime },
+          },
+        });
+        if (liftConflict) {
+          throw new ConflictException(
+            `"${appointment.assignedLift}" için bu saat aralığında başka bir randevu bulunmaktadır.`,
+          );
+        }
       }
-      throw err;
-    }
+
+      try {
+        const data = await tx.appointment.create({
+          data: {
+            tenantId: appointment.tenantId,
+            customerId: appointment.customerId,
+            vehicleId: appointment.vehicleId,
+            serviceId: validatedServiceId,
+            assignedMechanicId: appointment.assignedMechanicId || null,
+            assignedLift: appointment.assignedLift || null,
+            slotDate,
+            slotStartTime,
+            slotEndTime,
+            customerNotes: appointment.customerNotes || null,
+            status: this.mapStatusToPrisma(appointment.status),
+          },
+          include: {
+            customer: true,
+            vehicle: true,
+            service: true,
+            assignedMechanic: { include: { user: true } },
+          },
+        });
+        return this.mapToEntity(data);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('no_overlapping_mechanic')) {
+          throw new ConflictException(
+            'Seçilen teknisyenin bu saat aralığında başka bir randevusu bulunmaktadır.',
+          );
+        }
+        if (msg.includes('no_overlapping_lift')) {
+          throw new ConflictException(
+            'Seçilen lift için bu saat aralığında başka bir randevu bulunmaktadır.',
+          );
+        }
+        throw err;
+      }
+    });
   }
 
   async save(appointment: AppointmentEntity): Promise<AppointmentEntity> {

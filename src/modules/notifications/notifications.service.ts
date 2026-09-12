@@ -23,6 +23,8 @@ export interface CreateNotificationDto {
   metadata?: Record<string, any>;
   recipientPhone?: string;
   recipientEmail?: string;
+  customerMessage?: string; // Müşteriye özel WhatsApp/SMS mesaj metni (iç personel bildiriminden bağımsız, linkli)
+  customerHtml?: string; // Müşteriye özel HTML e-posta gövdesi
   sendSms?: boolean;
   sendWhatsApp?: boolean;
   sendEmail?: boolean;
@@ -124,10 +126,13 @@ export class NotificationsService {
       }
 
       // 4. Asenkron Arka Plan Bildirim Kuyruğu (BullMQ)
+      const outgoingMessage =
+        dto.customerMessage || `${dto.title}: ${dto.message}`;
+
       if (dto.sendSms && dto.recipientPhone) {
         await this.queueService.addNotificationJob('send-sms', {
           to: dto.recipientPhone,
-          message: `${dto.title}: ${dto.message}`,
+          message: outgoingMessage,
           tenantId: dto.tenantId,
           metadata: dto.metadata,
         });
@@ -136,7 +141,7 @@ export class NotificationsService {
       if (dto.sendWhatsApp && dto.recipientPhone) {
         await this.queueService.addNotificationJob('send-whatsapp', {
           to: dto.recipientPhone,
-          message: `${dto.title}: ${dto.message}`,
+          message: outgoingMessage,
           tenantId: dto.tenantId,
           metadata: dto.metadata,
         });
@@ -146,7 +151,8 @@ export class NotificationsService {
         await this.queueService.addNotificationJob('send-email', {
           to: dto.recipientEmail,
           subject: dto.title,
-          message: dto.message,
+          message: outgoingMessage,
+          html: dto.customerHtml,
           tenantId: dto.tenantId,
           metadata: dto.metadata,
         });

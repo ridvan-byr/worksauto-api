@@ -19,21 +19,52 @@ import {
 export class PrismaWorkOrderRepository implements IWorkOrderRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(tenantId: string, status?: string): Promise<any[]> {
-    return this.prisma.workOrder.findMany({
-      where: {
-        tenantId,
-        ...(status ? { status: status as WorkOrderStatus } : {}),
-      },
-      include: {
-        customer: true,
-        vehicle: true,
-        assignedMechanic: { include: { user: true } },
-        items: true,
-        photos: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+  async findAll(
+    tenantId: string,
+    status?: string,
+    page?: number,
+    limit?: number,
+  ): Promise<any> {
+    const isExplicitPagination = page !== undefined || limit !== undefined;
+    const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
+    const safePage = Math.max(Number(page) || 1, 1);
+    const skip = (safePage - 1) * safeLimit;
+
+    const where = {
+      tenantId,
+      ...(status ? { status: status as WorkOrderStatus } : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.workOrder.findMany({
+        where,
+        include: {
+          customer: true,
+          vehicle: true,
+          assignedMechanic: { include: { user: true } },
+          items: true,
+          photos: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: safeLimit,
+        skip: isExplicitPagination ? skip : 0,
+      }),
+      this.prisma.workOrder.count({ where }),
+    ]);
+
+    if (isExplicitPagination) {
+      return {
+        data: items,
+        meta: {
+          total,
+          page: safePage,
+          limit: safeLimit,
+          totalPages: Math.ceil(total / safeLimit),
+        },
+      };
+    }
+
+    return items;
   }
 
   async findById(tenantId: string, id: string): Promise<any | null> {

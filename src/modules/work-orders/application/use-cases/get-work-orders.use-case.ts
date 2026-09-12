@@ -8,7 +8,15 @@ export class GetWorkOrdersUseCase {
     private readonly workOrderRepository: IWorkOrderRepository,
   ) {}
 
-  async findAll(tenantId: string, status?: string) {
+  async findAll(
+    tenantId: string,
+    status?: string,
+    page?: number,
+    limit?: number,
+  ) {
+    if (page !== undefined || limit !== undefined) {
+      return this.workOrderRepository.findAll(tenantId, status, page, limit);
+    }
     return this.workOrderRepository.findAll(tenantId, status);
   }
 

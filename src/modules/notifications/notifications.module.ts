@@ -1,6 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
+import { NotificationTemplateService } from './services/notification-template.service';
 import { GowaWhatsAppProvider } from './providers/gowa-whatsapp.provider';
 import { NOTIFICATION_PROVIDER } from './providers/notification-provider.interface';
 import { NotificationWorker } from './workers/notification.worker';
@@ -11,6 +12,7 @@ import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
+    NotificationTemplateService,
     NotificationWorker,
     PrismaService,
     {
@@ -18,6 +20,11 @@ import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service
       useClass: GowaWhatsAppProvider,
     },
   ],
-  exports: [NotificationsService, NOTIFICATION_PROVIDER],
+  exports: [
+    NotificationsService,
+    NotificationTemplateService,
+    NOTIFICATION_PROVIDER,
+  ],
 })
 export class NotificationsModule {}
+

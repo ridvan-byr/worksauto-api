@@ -369,6 +369,11 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     let updatedVehiclesCount = 0;
     const errors: any[] = [];
     const updateExisting = Boolean(options?.updateExisting);
+    if (rows && rows.length > 200) {
+      throw new BadRequestException(
+        'Tek seferde maksimum 200 satır içe aktarılabilir.',
+      );
+    }
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];

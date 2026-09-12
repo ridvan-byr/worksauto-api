@@ -20,10 +20,13 @@ import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator'
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { RequirePermission } from '../../shared/decorators/require-permission.decorator';
+import { RequireIdempotency } from '../../shared/decorators/require-idempotency.decorator';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../shared/interceptors/idempotency.interceptor';
 import { Permission } from '../../shared/constants/permissions.enum';
 import { Public } from '../../shared/decorators/public.decorator';
+import { Throttle } from '@nestjs/throttler';
+import { CreatePayTrTokenDto } from './dto/create-paytr-token.dto';
 import { UserRole } from '@prisma/client';
 
 @ApiTags('Payments & Cashier (Kasa & Tahsilat)')
@@ -38,17 +41,22 @@ export class PaymentsController {
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
   @RequirePermission(Permission.PAYMENT_VIEW)
   @ApiOperation({ summary: 'Tahsilat geçmişini listeler' })
-  findAll(@CurrentTenant() tenantId: string) {
-    return this.paymentsService.findAll(tenantId);
+  findAll(
+    @CurrentTenant() tenantId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.paymentsService.findAll(tenantId, page, limit);
   }
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
   @RequirePermission(Permission.PAYMENT_CREATE)
+  @RequireIdempotency()
   @ApiOperation({ summary: 'Yeni tahsilat alır ve faturayı/cariyi günceller' })
   @ApiHeader({
     name: 'X-Idempotency-Key',
-    required: false,
+    required: true,
     description: 'Tekrarlanan istek koruması için benzersiz anahtar',
   })
   create(
@@ -87,14 +95,15 @@ export class PaymentsController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('public/create-paytr-token')
   @ApiOperation({
     summary: 'Müşteri için PayTR ödeme tokenı üretir (Şifresiz / Linkle Ödeme)',
   })
-  createPayTrToken(@Body('invoiceId') invoiceId: string, @Req() req: any) {
+  createPayTrToken(@Body() dto: CreatePayTrTokenDto, @Req() req: any) {
     const rawIp =
       req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1';
     const ip = Array.isArray(rawIp) ? rawIp[0] : String(rawIp).split(',')[0].trim();
-    return this.paymentsService.createPayTrPaymentToken(invoiceId, ip);
+    return this.paymentsService.createPayTrPaymentToken(dto.invoiceId, ip);
   }
 }

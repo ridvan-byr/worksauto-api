@@ -13,6 +13,7 @@ import { PrismaService } from './shared/infrastructure/prisma/prisma.service';
 import { RedisModule } from './shared/infrastructure/redis/redis.module';
 import { RolesGuard } from './shared/guards/roles.guard';
 import { JwtAuthGuard } from './shared/guards/jwt-auth.guard';
+import { RequireIdempotencyGuard } from './shared/guards/require-idempotency.guard';
 
 import { AuthModule } from './modules/auth/auth.module';
 import { CustomersModule } from './modules/customers/customers.module';
@@ -96,6 +97,10 @@ import { LegalConsentGuard } from './shared/guards/legal-consent.guard';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RequireIdempotencyGuard,
     },
   ],
   exports: [PrismaService, RedisModule],

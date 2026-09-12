@@ -88,8 +88,10 @@ export class WorkOrdersController {
   findAll(
     @CurrentTenant() tenantId: string,
     @Query('status') status?: WorkOrderStatus,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
-    return this.getWorkOrdersUseCase.findAll(tenantId, status);
+    return this.getWorkOrdersUseCase.findAll(tenantId, status, page, limit);
   }
 
   @Get(':id')

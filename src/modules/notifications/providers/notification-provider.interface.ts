@@ -3,6 +3,7 @@ export interface SendNotificationOptions {
   recipientName?: string;
   message: string;
   subject?: string;
+  html?: string;
   tenantId?: string;
   metadata?: Record<string, any>;
 }

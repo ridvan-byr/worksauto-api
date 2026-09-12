@@ -17,6 +17,7 @@ import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
 import { BypassB2bConsent } from '../../shared/decorators/bypass-b2b-consent.decorator';
+import { Throttle } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 
 @ApiTags('B2B Legal & KVKK (Super Admin <-> İşletme Sözleşmeleri)')
@@ -59,6 +60,7 @@ export class LegalController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('opt-out')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
