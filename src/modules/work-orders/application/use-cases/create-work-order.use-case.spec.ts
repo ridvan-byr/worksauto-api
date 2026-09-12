@@ -13,6 +13,7 @@ describe('CreateWorkOrderUseCase', () => {
   beforeEach(() => {
     mockRepo = {
       getNextWorkOrderNumber: vi.fn().mockResolvedValue('WO-2026-00001'),
+      findActiveByVehicleId: vi.fn().mockResolvedValue(null),
       create: vi.fn(),
       findById: vi.fn(),
       save: vi.fn(),
@@ -94,4 +95,27 @@ describe('CreateWorkOrderUseCase', () => {
       expect.anything(),
     );
   });
+
+  it('should reject creating a work order if the vehicle already has an active order', async () => {
+    vi.mocked(mockRepo.findActiveByVehicleId).mockResolvedValue({
+      id: 'existing-wo',
+      workOrderNumber: 'WO-2026-00042',
+      status: 'IN_PROGRESS',
+    } as any);
+
+    await expect(
+      useCase.execute(
+        't-1',
+        {
+          customerId: 'c-1',
+          vehicleId: 'v-1',
+          initialKm: 50000,
+        },
+        'Ustabaşı Ali',
+      ),
+    ).rejects.toThrow(/Bu araca ait halen devam eden/);
+
+    expect(mockRepo.create).not.toHaveBeenCalled();
+  });
 });
+
