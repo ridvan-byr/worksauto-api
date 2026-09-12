@@ -7,7 +7,6 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import {
@@ -16,12 +15,10 @@ import {
   ApiBearerAuth,
   ApiHeader,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { CurrentTenant } from '../../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { Roles } from '../../../shared/decorators/roles.decorator';
 import { RequirePermission } from '../../../shared/decorators/require-permission.decorator';
-import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../../shared/interceptors/idempotency.interceptor';
 import { Permission } from '../../../shared/constants/permissions.enum';
 import { Public } from '../../../shared/decorators/public.decorator';

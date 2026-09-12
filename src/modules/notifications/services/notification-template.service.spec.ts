@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  NotificationTemplateService,
-  WORK_ORDER_STATUS_LABELS_TR,
-} from './notification-template.service';
+import { NotificationTemplateService } from './notification-template.service';
 
 describe('NotificationTemplateService', () => {
   const service = new NotificationTemplateService();
