@@ -61,10 +61,11 @@ export class GowaWhatsAppProvider implements NotificationProvider {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'X-Device-Id':
+          options.metadata?.deviceId ||
+          process.env.WHATSAPP_DEVICE_ID ||
+          'default',
       };
-      if (options.metadata?.deviceId) {
-        headers['X-Device-Id'] = options.metadata.deviceId;
-      }
 
       this.logger.log(
         `💬 [GOWA WhatsApp Gönderim] -> ${cleanPhone} | Tenant: ${options.tenantId || 'global'}`,
