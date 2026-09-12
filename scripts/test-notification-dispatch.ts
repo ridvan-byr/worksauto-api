@@ -55,6 +55,9 @@ async function main() {
     },
   });
 
+  const logoAttachment = templateService.getLogoAttachment();
+  const attachments = logoAttachment ? [logoAttachment] : [];
+
   if (process.env.SMTP_HOST && process.env.SMTP_USER) {
     console.log(`   ⚙️ Gerçek SMTP Yapılandırması Bulundu: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || 587}`);
     try {
@@ -73,6 +76,7 @@ async function main() {
         to: targetEmail,
         subject: 'WorksAuto Canlı Bildirim Testi (34ABC123)',
         html: htmlEmail,
+        attachments,
       });
 
       console.log(`   ✅ [GERÇEK E-POSTA İLETİLDİ]`);
@@ -101,6 +105,7 @@ async function main() {
         to: targetEmail,
         subject: 'WorksAuto Canlı Takip Bildirimi (34ABC123)',
         html: htmlEmail,
+        attachments,
       });
 
       const previewUrl = nodemailer.getTestMessageUrl(info);

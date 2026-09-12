@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import {
@@ -47,6 +49,31 @@ export class GowaWhatsAppProvider implements NotificationProvider {
         '⚠️ [SMTP Eksik] SMTP_HOST ortam değişkeni tanımlanmamış. E-postalar konsola simüle edilecek.',
       );
     }
+  }
+
+  /**
+   * Orijinal marka logosu dosya yolunu bulur
+   */
+  private resolveLogoPath(): string | null {
+    try {
+      const candidates = [
+        path.join(__dirname, '../../../../assets/brand/worksauto-logo-dark.png'),
+        path.join(process.cwd(), 'assets/brand/worksauto-logo-dark.png'),
+        path.join(process.cwd(), '../assets/brand/worksauto-logo-dark.png'),
+        path.join(
+          process.cwd(),
+          'worksauto-api/assets/brand/worksauto-logo-dark.png',
+        ),
+        path.join(
+          process.cwd(),
+          'worksauto-web/public/brand/worksauto-logo-dark.png',
+        ),
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) return p;
+      }
+    } catch {}
+    return null;
   }
 
   /**
@@ -133,12 +160,27 @@ export class GowaWhatsAppProvider implements NotificationProvider {
 
     if (this.mailTransporter) {
       try {
+        const attachments: any[] = [];
+        const logoPath = this.resolveLogoPath();
+        if (
+          logoPath &&
+          options.html &&
+          options.html.includes('cid:worksauto-logo')
+        ) {
+          attachments.push({
+            filename: 'worksauto-logo.png',
+            path: logoPath,
+            cid: 'worksauto-logo',
+          });
+        }
+
         const info = await this.mailTransporter.sendMail({
           from: this.smtpFrom,
           to: options.to,
           subject,
           text: options.message,
           html: options.html || `<p>${options.message}</p>`,
+          attachments,
         });
 
         this.logger.log(

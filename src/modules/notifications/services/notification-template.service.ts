@@ -23,9 +23,9 @@ export class NotificationTemplateService {
   }
 
   /**
-   * Orijinal WorksAuto marka logosunun kaynağını döner (Yerel Base64 veya CDN URL)
+   * Orijinal WorksAuto marka logosunun dosya yolunu çözer
    */
-  getWorksAutoLogoSrc(): string {
+  resolveLogoPath(): string | null {
     try {
       const candidates = [
         path.join(__dirname, '../../../../assets/brand/worksauto-logo-dark.png'),
@@ -41,12 +41,38 @@ export class NotificationTemplateService {
         ),
       ];
       for (const p of candidates) {
-        if (fs.existsSync(p)) {
-          const b64 = fs.readFileSync(p).toString('base64');
-          return `data:image/png;base64,${b64}`;
-        }
+        if (fs.existsSync(p)) return p;
       }
     } catch {}
+    return null;
+  }
+
+  /**
+   * Nodemailer için CID inline attachment nesnesi döner (Gmail'de kırılmayan logo için)
+   */
+  getLogoAttachment(): { filename: string; path: string; cid: string } | null {
+    const p = this.resolveLogoPath();
+    if (p) {
+      return {
+        filename: 'worksauto-logo.png',
+        path: p,
+        cid: 'worksauto-logo',
+      };
+    }
+    return null;
+  }
+
+  /**
+   * Orijinal WorksAuto marka logosunun kaynağını döner (Yerel Base64 veya CDN URL)
+   */
+  getWorksAutoLogoSrc(): string {
+    const p = this.resolveLogoPath();
+    if (p) {
+      try {
+        const b64 = fs.readFileSync(p).toString('base64');
+        return `data:image/png;base64,${b64}`;
+      } catch {}
+    }
     return `${this.getAppBaseUrl()}/brand/worksauto-logo-dark.png`;
   }
 
@@ -234,7 +260,7 @@ export class NotificationTemplateService {
             <td style="background-color: #f8fafc; padding: 24px 20px; text-align: center; border-top: 1px solid #e2e8f0;">
               <!-- WorksAuto Original Brand Logo -->
               <div style="margin-bottom: 14px; text-align: center;">
-                <img src="${this.getWorksAutoLogoSrc()}" alt="WorksAuto" width="145" style="display: block; margin: 0 auto; width: 145px; max-width: 160px; height: auto; border: 0; outline: none; text-decoration: none;" />
+                <img src="cid:worksauto-logo" alt="WorksAuto" width="145" style="display: block; margin: 0 auto; width: 145px; max-width: 160px; height: auto; border: 0; outline: none; text-decoration: none;" />
               </div>
               <p style="color: #64748b; font-size: 12px; margin: 0; line-height: 1.5;">
                 Bu e-posta <strong>${params.tenantTitle}</strong> adına <strong>WorksAuto</strong> canlı araç takip altyapısı tarafından otomatik olarak gönderilmiştir.
