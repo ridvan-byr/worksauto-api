@@ -46,4 +46,13 @@ export class CreateInvoiceDto {
   @IsNumber()
   @Min(0)
   grandTotal: number;
+
+  @ApiPropertyOptional({
+    example: 900.0,
+    description: 'Müşteri cari avansından faturaya mahsup edilecek tutar',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  offsetAdvanceAmount?: number;
 }

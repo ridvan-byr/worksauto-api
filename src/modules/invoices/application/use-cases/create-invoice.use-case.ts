@@ -15,6 +15,7 @@ export interface CreateInvoiceInput {
   subtotal: number;
   kdvAmount: number;
   grandTotal: number;
+  offsetAdvanceAmount?: number;
 }
 
 @Injectable()
@@ -50,7 +51,10 @@ export class CreateInvoiceUseCase {
       eInvoiceStatus: 'COMPLETED',
     });
 
-    const result = await this.invoiceRepository.createWithCariMovement(entity);
+    const result = await this.invoiceRepository.createWithCariMovement(
+      entity,
+      dto.offsetAdvanceAmount,
+    );
 
     // CREDIT LIMIT CHECK (Şartname Madde 28)
     if (result.creditLimit > 0 && result.newBalance > result.creditLimit) {

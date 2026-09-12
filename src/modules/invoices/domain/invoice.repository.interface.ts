@@ -21,6 +21,7 @@ export interface IInvoiceRepository {
   ): Promise<{ invoiceNumber: string; gibInvoiceNumber: string }>;
   createWithCariMovement(
     invoice: InvoiceEntity,
+    offsetAdvanceAmount?: number,
   ): Promise<CreateInvoiceTransactionResult>;
   cancelWithCariReversal(
     tenantId: string,

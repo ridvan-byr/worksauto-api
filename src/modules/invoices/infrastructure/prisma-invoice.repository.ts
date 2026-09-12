@@ -13,6 +13,7 @@ import {
   InvoiceStatus,
   CariReferenceType,
   WorkOrderStatus,
+  PaymentMethod,
 } from '@prisma/client';
 
 @Injectable()
@@ -121,6 +122,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
 
   async createWithCariMovement(
     invoice: InvoiceEntity,
+    offsetAdvanceAmount?: number,
   ): Promise<CreateInvoiceTransactionResult> {
     return this.prisma.$transaction(async (tx) => {
       // 1. Verify customer strictly belongs to this tenant (IDOR Protection)
@@ -197,6 +199,19 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         );
       }
 
+      // Advance offset calculation (Cari avans mahsubu)
+      let advancePaid = 0;
+      const currentBalance = Number(currentAccount.balance);
+      if (offsetAdvanceAmount && offsetAdvanceAmount > 0 && currentBalance < 0) {
+        const availableAdvance = Math.abs(currentBalance);
+        advancePaid = Math.min(Number(invoice.grandTotal), Math.min(availableAdvance, Number(offsetAdvanceAmount)));
+      }
+
+      const initialRemaining = Math.max(0, Number(invoice.grandTotal) - advancePaid);
+      const initialStatus = initialRemaining <= 0
+        ? InvoiceStatus.PAID
+        : (advancePaid > 0 ? InvoiceStatus.PARTIALLY_PAID : (invoice.status as InvoiceStatus || InvoiceStatus.UNPAID));
+
       const created = await tx.invoice.create({
         data: {
           tenantId: invoice.tenantId,
@@ -208,12 +223,28 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
           subtotal: invoice.subtotal,
           kdvAmount: invoice.kdvAmount,
           grandTotal: invoice.grandTotal,
-          remainingAmount: invoice.remainingAmount,
-          status: invoice.status as InvoiceStatus,
+          paidAmount: advancePaid,
+          remainingAmount: initialRemaining,
+          status: initialStatus,
           gibInvoiceNumber: invoice.gibInvoiceNumber,
           eInvoiceStatus: invoice.eInvoiceStatus || 'COMPLETED',
         },
       });
+
+      if (advancePaid > 0) {
+        await tx.payment.create({
+          data: {
+            tenantId: invoice.tenantId,
+            customerId: invoice.customerId,
+            invoiceId: created.id,
+            amount: advancePaid,
+            paymentMethod: PaymentMethod.ONLINE,
+            paymentDate: new Date(),
+            cashierName: 'Sistem (Cari Avans Mahsubu)',
+            notes: `Fatura #${invoice.invoiceNumber} için müşteri cari avansından ${advancePaid.toLocaleString('tr-TR')} ₺ mahsup edildi.`,
+          },
+        });
+      }
 
       // Atomically increment totalDebits and balance to avoid TOCTOU race condition
       const updatedCA = await tx.currentAccount.update({
@@ -226,12 +257,16 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
 
       const newBalance = Number(updatedCA.balance);
 
+      const advanceMovementNote = advancePaid > 0
+        ? ` (${advancePaid.toLocaleString('tr-TR')} ₺ cari avansından mahsup edildi)`
+        : '';
+
       await tx.cariMovement.create({
         data: {
           tenantId: invoice.tenantId,
           currentAccountId: currentAccount.id,
           date: new Date(),
-          description: `Fatura Kesildi (#${invoice.invoiceNumber})`,
+          description: `Fatura Kesildi (#${invoice.invoiceNumber})${advanceMovementNote}`,
           referenceType: CariReferenceType.INVOICE,
           referenceNo: invoice.invoiceNumber,
           debit: invoice.grandTotal,
