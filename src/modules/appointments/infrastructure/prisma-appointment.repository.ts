@@ -386,11 +386,21 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
           },
         });
 
+        const reasonMap: Record<string, string> = {
+          CUSTOMER_REQUEST: 'Müşteri randevuyu iptal etti / vazgeçti',
+          PARTS_UNAVAILABLE: 'Gerekli yedek parça temin edilemedi',
+          CAPACITY_FULL: 'Servis atölye lift kapasitesi dolu',
+          PRICE_DISAGREEMENT: 'Fiyat konusunda anlaşılamadı',
+          NO_SHOW: 'Randevuya gelinmedi (No-Show)',
+          OTHER: 'Diğer gerekçe',
+        };
+        const localizedReason = reasonMap[reason] || reason;
+
         await tx.workOrderNote.create({
           data: {
             workOrderId: updatedApp.workOrder.id,
             authorName: 'SİSTEM',
-            text: `Bağlı randevu iptal edildi. Neden: ${reason}`,
+            text: `Bağlı randevu iptal edildi. Gerekçe: ${localizedReason}`,
             isInternal: true,
           },
         });
