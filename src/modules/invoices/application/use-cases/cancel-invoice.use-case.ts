@@ -40,6 +40,19 @@ export class CancelInvoiceUseCase {
       throw new BadRequestException('Bu fatura zaten iptal edilmiştir.');
     }
 
+    // 48 saatlik mali denetim ve kasa güvenliği zaman kilidi
+    const referenceDate =
+      inv.workOrder?.completedAt || inv.issueDate || inv.createdAt;
+    if (referenceDate) {
+      const elapsedMs = Date.now() - new Date(referenceDate).getTime();
+      const fortyEightHoursMs = 48 * 60 * 60 * 1000;
+      if (elapsedMs > fortyEightHoursMs) {
+        throw new BadRequestException(
+          'Bu iş emri tamamlanalı 48 saatten fazla olduğu için muhasebe ve denetim güvenliği gereği geri açılamaz. Lütfen düzeltme veya ilave işlemler için yeni bir iş emri oluşturun.',
+        );
+      }
+    }
+
     const cancelled = await this.invoiceRepository.cancelWithCariReversal(
       tenantId,
       id,

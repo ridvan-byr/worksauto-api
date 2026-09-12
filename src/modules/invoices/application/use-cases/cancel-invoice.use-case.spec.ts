@@ -162,4 +162,31 @@ describe('CancelInvoiceUseCase', () => {
       expect.objectContaining({ action: 'invoice.cancelled' }),
     );
   });
+
+  it('should throw BadRequestException when invoice or work order completion is older than 48 hours', async () => {
+    const threeDaysAgo = new Date(Date.now() - 72 * 60 * 60 * 1000);
+    const staleInvoice = new InvoiceEntity({
+      id: 'inv-stale',
+      tenantId: 'tenant-1',
+      customerId: 'cust-1',
+      invoiceNumber: 'INV-2026-00001',
+      dueDate: new Date(),
+      subtotal: 1000,
+      kdvAmount: 200,
+      grandTotal: 1200,
+      paidAmount: 1200,
+      remainingAmount: 0,
+      status: 'PAID',
+      createdAt: threeDaysAgo,
+      workOrder: {
+        completedAt: threeDaysAgo,
+      },
+    });
+
+    vi.mocked(mockRepo.findById).mockResolvedValue(staleInvoice);
+
+    await expect(
+      useCase.execute('tenant-1', 'inv-stale', 'Eski fatura iptali'),
+    ).rejects.toThrow(BadRequestException);
+  });
 });
