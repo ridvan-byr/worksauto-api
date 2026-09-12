@@ -852,4 +852,26 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
       },
     });
   }
+
+  async findActiveByVehicleId(
+    tenantId: string,
+    vehicleId: string,
+  ): Promise<any | null> {
+    return this.prisma.workOrder.findFirst({
+      where: {
+        tenantId,
+        vehicleId,
+        status: {
+          in: [WorkOrderStatus.QUEUE, WorkOrderStatus.IN_PROGRESS],
+        },
+      },
+      select: {
+        id: true,
+        workOrderNumber: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+  }
 }
+

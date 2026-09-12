@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { WorkOrderStatusEnum } from '../../domain/value-objects/work-order-status.vo';
 import { EventsGateway } from '../../../events/events.gateway';
@@ -38,6 +38,18 @@ export class CreateWorkOrderUseCase {
     author: string,
     actorUserId?: string,
   ) {
+    // Prevent duplicate active work order for the same vehicle
+    const existingActiveOrder =
+      await this.workOrderRepository.findActiveByVehicleId(
+        tenantId,
+        input.vehicleId,
+      );
+    if (existingActiveOrder) {
+      throw new BadRequestException(
+        `Bu araca ait halen devam eden (${existingActiveOrder.status === 'IN_PROGRESS' ? 'İşlemde' : 'Kuyrukta'}) #${existingActiveOrder.workOrderNumber} numaralı bir iş emri bulunmaktadır. Aynı araca mükerrer iş emri açılamaz. Lütfen mevcut iş emrine işlem veya parça ekleyiniz.`,
+      );
+    }
+
     const woNumber =
       await this.workOrderRepository.getNextWorkOrderNumber(tenantId);
 

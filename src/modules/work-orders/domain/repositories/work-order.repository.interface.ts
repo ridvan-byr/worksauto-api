@@ -120,4 +120,9 @@ export interface IWorkOrderRepository {
     workOrderId: string,
   ): Promise<any | null>;
   findPublicTrackByTokenOrNumber(tokenOrNumber: string): Promise<any | null>;
+  findActiveByVehicleId(
+    tenantId: string,
+    vehicleId: string,
+  ): Promise<any | null>;
 }
+
