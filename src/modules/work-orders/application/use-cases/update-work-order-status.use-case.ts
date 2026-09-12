@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import {
   WorkOrderStatusVO,
@@ -35,7 +35,9 @@ export class UpdateWorkOrderStatusUseCase {
 
     const currentStatusVO = new WorkOrderStatusVO(wo.status);
     if (!currentStatusVO.canTransitionTo(targetStatus)) {
-      // allow idempotent same-status update or throw
+      throw new BadRequestException(
+        `İş emri '${wo.status}' durumundan '${targetStatus}' durumuna geçirilemez. Tamamlanmış veya iptal edilmiş iş emirleri için lütfen 'Geri Al' akışını kullanın.`,
+      );
     }
 
     const completedAt =

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { UpdateWorkOrderStatusUseCase } from './update-work-order-status.use-case';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { CreateInvoiceUseCase } from '../../../invoices/application/use-cases/create-invoice.use-case';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { WorkOrderStatusEnum } from '../../domain/value-objects/work-order-status.vo';
 
 describe('UpdateWorkOrderStatusUseCase', () => {
@@ -77,5 +77,33 @@ describe('UpdateWorkOrderStatusUseCase', () => {
     expect(result.status).toBe(WorkOrderStatusEnum.IN_PROGRESS);
     expect(mockAudit.log).toHaveBeenCalled();
     expect(mockEvents.emitToTenant).toHaveBeenCalled();
+  });
+
+  it('should throw BadRequestException if transition from COMPLETED to IN_PROGRESS is attempted', async () => {
+    const existing = {
+      id: 'wo-1',
+      tenantId: 't-1',
+      workOrderNumber: 'WO-001',
+      status: WorkOrderStatusEnum.COMPLETED,
+    };
+    mockRepo.findById = vi.fn().mockResolvedValue(existing);
+
+    await expect(
+      useCase.execute('t-1', 'wo-1', WorkOrderStatusEnum.IN_PROGRESS),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('should throw BadRequestException if transition from CANCELLED to QUEUE is attempted', async () => {
+    const existing = {
+      id: 'wo-1',
+      tenantId: 't-1',
+      workOrderNumber: 'WO-001',
+      status: WorkOrderStatusEnum.CANCELLED,
+    };
+    mockRepo.findById = vi.fn().mockResolvedValue(existing);
+
+    await expect(
+      useCase.execute('t-1', 'wo-1', WorkOrderStatusEnum.QUEUE),
+    ).rejects.toThrow(BadRequestException);
   });
 });

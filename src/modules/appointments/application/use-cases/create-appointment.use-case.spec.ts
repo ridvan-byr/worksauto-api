@@ -53,9 +53,9 @@ describe('CreateAppointmentUseCase', () => {
         customerId: 'cust-1',
         vehicleId: 'veh-1',
         assignedMechanicId: 'mech-1',
-        slotDate: '2026-09-12',
-        slotStartTime: '2026-09-12T09:00:00.000Z',
-        slotEndTime: '2026-09-12T10:00:00.000Z',
+        slotDate: '2026-12-15',
+        slotStartTime: '2026-12-15T09:00:00.000Z',
+        slotEndTime: '2026-12-15T10:00:00.000Z',
       }),
     ).rejects.toThrow(ConflictException);
   });
@@ -68,9 +68,9 @@ describe('CreateAppointmentUseCase', () => {
         customerId: 'cust-1',
         vehicleId: 'veh-1',
         assignedLift: 'Lift 1',
-        slotDate: '2026-09-12',
-        slotStartTime: '2026-09-12T09:00:00.000Z',
-        slotEndTime: '2026-09-12T10:00:00.000Z',
+        slotDate: '2026-12-15',
+        slotStartTime: '2026-12-15T09:00:00.000Z',
+        slotEndTime: '2026-12-15T10:00:00.000Z',
       }),
     ).rejects.toThrow(ConflictException);
   });
@@ -81,9 +81,9 @@ describe('CreateAppointmentUseCase', () => {
       tenantId: 'tenant-1',
       customerId: 'cust-1',
       vehicleId: 'veh-1',
-      slotDate: new Date('2026-09-12'),
-      slotStartTime: new Date('2026-09-12T09:00:00.000Z'),
-      slotEndTime: new Date('2026-09-12T10:00:00.000Z'),
+      slotDate: new Date('2026-12-15'),
+      slotStartTime: new Date('2026-12-15T09:00:00.000Z'),
+      slotEndTime: new Date('2026-12-15T10:00:00.000Z'),
       status: 'CONFIRMED',
     });
 
@@ -92,9 +92,9 @@ describe('CreateAppointmentUseCase', () => {
     const result = await useCase.execute('tenant-1', {
       customerId: 'cust-1',
       vehicleId: 'veh-1',
-      slotDate: '2026-09-12',
-      slotStartTime: '2026-09-12T09:00:00.000Z',
-      slotEndTime: '2026-09-12T10:00:00.000Z',
+      slotDate: '2026-12-15',
+      slotStartTime: '2026-12-15T09:00:00.000Z',
+      slotEndTime: '2026-12-15T10:00:00.000Z',
     });
 
     expect(result.id).toBe('app-1');

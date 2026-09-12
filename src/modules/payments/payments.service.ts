@@ -11,6 +11,8 @@ import { EventsGateway } from '../events/events.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { QueueService } from '../queues/queue.service';
 
+import { PayTrService, PayTrWebhookPayload } from './infrastructure/paytr.service';
+
 export interface CreatePaymentDto {
   invoiceId?: string;
   customerId?: string;
@@ -29,6 +31,7 @@ export class PaymentsService {
     private readonly eventsGateway: EventsGateway,
     private readonly notificationsService: NotificationsService,
     private readonly queueService: QueueService,
+    private readonly payTrService: PayTrService,
   ) {}
 
   async findAll(tenantId: string) {
@@ -279,5 +282,118 @@ export class PaymentsService {
       grandTotal,
       transactionCount: payments.length,
     };
+  }
+
+  /**
+   * Generates a PayTR iframe checkout token for a specific invoice (public/unauthenticated)
+   */
+  async createPayTrPaymentToken(invoiceId: string, clientIp: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId },
+      include: {
+        customer: true,
+        workOrder: {
+          include: {
+            vehicle: true,
+            items: true,
+          },
+        },
+        tenant: true,
+      },
+    });
+
+    if (!invoice) {
+      throw new BadRequestException('Fatura bulunamadı.');
+    }
+
+    if (invoice.status === InvoiceStatus.PAID) {
+      throw new BadRequestException('Bu fatura zaten tamamen ödenmiştir.');
+    }
+
+    const remainingAmount =
+      Number(invoice.grandTotal) - Number(invoice.paidAmount || 0);
+    if (remainingAmount <= 0) {
+      throw new BadRequestException('Ödenecek kalan bakiye bulunmuyor.');
+    }
+
+    const basketItems = (invoice.workOrder?.items || []).map((item: any) => ({
+      name: item.name,
+      price: Number(item.unitPrice).toFixed(2),
+      quantity: Number(item.quantity) || 1,
+    }));
+
+    if (basketItems.length === 0) {
+      basketItems.push({
+        name: `Servis Bedeli (${invoice.invoiceNumber})`,
+        price: remainingAmount.toFixed(2),
+        quantity: 1,
+      });
+    }
+
+    const customerName = invoice.customer
+      ? `${invoice.customer.firstName || ''} ${invoice.customer.lastName || ''}`.trim() || 'Değerli Müşterimiz'
+      : 'Değerli Müşterimiz';
+
+    const paytrRes = await this.payTrService.createIframeToken({
+      merchantOid: invoice.id,
+      email: invoice.customer?.email || 'musteri@worksauto.com',
+      paymentAmount: remainingAmount,
+      userName: customerName,
+      userPhone: invoice.customer?.phone || '5550000000',
+      userIp: clientIp || '127.0.0.1',
+      basket: basketItems,
+    });
+
+    return {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      customerName,
+      plate: invoice.workOrder?.vehicle?.plate || 'Plaka',
+      remainingAmount,
+      totalAmount: Number(invoice.grandTotal),
+      paytrToken: paytrRes.token,
+      iframeUrl: paytrRes.iframeUrl,
+      isTest: paytrRes.isTest,
+    };
+  }
+
+  /**
+   * Processes PayTR Webhook notification
+   */
+  async handlePayTrWebhook(payload: PayTrWebhookPayload): Promise<string> {
+    const isValid = this.payTrService.verifyWebhook(payload);
+    if (!isValid) {
+      throw new BadRequestException('PAYTR_SIGNATURE_INVALID');
+    }
+
+    const invoiceId = payload.merchant_oid;
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId },
+    });
+
+    if (!invoice) {
+      return 'OK';
+    }
+
+    if (invoice.status === InvoiceStatus.PAID) {
+      return 'OK';
+    }
+
+    if (payload.status === 'success') {
+      const paidTl = Number(payload.total_amount) / 100;
+      await this.create(
+        invoice.tenantId,
+        {
+          invoiceId: invoice.id,
+          customerId: invoice.customerId,
+          amount: paidTl,
+          paymentMethod: PaymentMethod.ONLINE,
+          notes: `PayTR Online 3D-Secure Tahsilat (Sipariş: ${payload.merchant_oid})`,
+        },
+        'PayTR Sanal POS',
+      );
+    }
+
+    return 'OK';
   }
 }

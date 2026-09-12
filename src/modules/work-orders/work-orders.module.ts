@@ -21,6 +21,7 @@ import { AddWorkOrderPhotoUseCase } from './application/use-cases/add-work-order
 import { AddWorkOrderNoteUseCase } from './application/use-cases/add-work-order-note.use-case';
 import { UpdateWorkOrderNoteUseCase } from './application/use-cases/update-work-order-note.use-case';
 import { DeleteWorkOrderNoteUseCase } from './application/use-cases/delete-work-order-note.use-case';
+import { GetPublicWorkOrderTrackUseCase } from './application/use-cases/get-public-work-order-track.use-case';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { DeleteWorkOrderNoteUseCase } from './application/use-cases/delete-work-
     AddWorkOrderNoteUseCase,
     UpdateWorkOrderNoteUseCase,
     DeleteWorkOrderNoteUseCase,
+    GetPublicWorkOrderTrackUseCase,
   ],
   exports: ['IWorkOrderRepository'],
 })

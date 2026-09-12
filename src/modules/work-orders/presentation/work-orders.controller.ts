@@ -24,6 +24,7 @@ import { RequirePermission } from '../../../shared/decorators/require-permission
 import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../../shared/interceptors/idempotency.interceptor';
 import { Permission } from '../../../shared/constants/permissions.enum';
+import { Public } from '../../../shared/decorators/public.decorator';
 import { UserRole, WorkOrderStatus, WorkOrderPhotoType } from '@prisma/client';
 import { AddWorkOrderItemDto } from '../dto/add-item.dto';
 import { UpdateWorkOrderItemDto } from '../dto/update-item.dto';
@@ -41,6 +42,7 @@ import { AddWorkOrderPhotoUseCase } from '../application/use-cases/add-work-orde
 import { AddWorkOrderNoteUseCase } from '../application/use-cases/add-work-order-note.use-case';
 import { UpdateWorkOrderNoteUseCase } from '../application/use-cases/update-work-order-note.use-case';
 import { DeleteWorkOrderNoteUseCase } from '../application/use-cases/delete-work-order-note.use-case';
+import { GetPublicWorkOrderTrackUseCase } from '../application/use-cases/get-public-work-order-track.use-case';
 
 @ApiTags('Work Orders (Atölye İş Emirleri)')
 @ApiBearerAuth('JWT-auth')
@@ -60,7 +62,18 @@ export class WorkOrdersController {
     private readonly addWorkOrderNoteUseCase: AddWorkOrderNoteUseCase,
     private readonly updateWorkOrderNoteUseCase: UpdateWorkOrderNoteUseCase,
     private readonly deleteWorkOrderNoteUseCase: DeleteWorkOrderNoteUseCase,
+    private readonly getPublicWorkOrderTrackUseCase: GetPublicWorkOrderTrackUseCase,
   ) {}
+
+  @Public()
+  @Get('public/track/:token')
+  @ApiOperation({
+    summary:
+      'Dış müşteri için araç canlı servis takip kartı (Şifresiz / Doğrudan Takip)',
+  })
+  getPublicTrack(@Param('token') token: string) {
+    return this.getPublicWorkOrderTrackUseCase.execute(token);
+  }
 
   @Get()
   @Roles(
