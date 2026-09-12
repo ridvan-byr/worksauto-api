@@ -35,8 +35,16 @@ export class UpdateWorkOrderStatusUseCase {
 
     const currentStatusVO = new WorkOrderStatusVO(wo.status);
     if (!currentStatusVO.canTransitionTo(targetStatus)) {
+      const statusLabels: Record<string, string> = {
+        QUEUE: 'Kuyrukta (Sırada)',
+        IN_PROGRESS: 'İşlemde (Onarımda)',
+        COMPLETED: 'Tamamlandı',
+        CANCELLED: 'İptal Edildi',
+      };
+      const fromLabel = statusLabels[wo.status] || wo.status;
+      const toLabel = statusLabels[targetStatus] || targetStatus;
       throw new BadRequestException(
-        `İş emri '${wo.status}' durumundan '${targetStatus}' durumuna geçirilemez. Tamamlanmış veya iptal edilmiş iş emirleri için lütfen 'Geri Al' akışını kullanın.`,
+        `İş emri '${fromLabel}' durumundan doğrudan '${toLabel}' durumuna geçirilemez. Tamamlanmış veya iptal edilmiş iş emirleri için lütfen 'Geri Al' akışını kullanın.`,
       );
     }
 
