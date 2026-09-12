@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export const WORK_ORDER_STATUS_LABELS_TR: Record<string, string> = {
   QUEUE: 'Servis Sırasında (Kabul Edildi)',
@@ -18,6 +20,34 @@ export class NotificationTemplateService {
       process.env.NEXT_PUBLIC_APP_URL ||
       'https://app.worksauto.com';
     return raw.replace(/\/+$/, '');
+  }
+
+  /**
+   * Orijinal WorksAuto marka logosunun kaynağını döner (Yerel Base64 veya CDN URL)
+   */
+  getWorksAutoLogoSrc(): string {
+    try {
+      const candidates = [
+        path.join(__dirname, '../../../../assets/brand/worksauto-logo-dark.png'),
+        path.join(process.cwd(), 'assets/brand/worksauto-logo-dark.png'),
+        path.join(process.cwd(), '../assets/brand/worksauto-logo-dark.png'),
+        path.join(
+          process.cwd(),
+          'worksauto-api/assets/brand/worksauto-logo-dark.png',
+        ),
+        path.join(
+          process.cwd(),
+          'worksauto-web/public/brand/worksauto-logo-dark.png',
+        ),
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          const b64 = fs.readFileSync(p).toString('base64');
+          return `data:image/png;base64,${b64}`;
+        }
+      }
+    } catch {}
+    return `${this.getAppBaseUrl()}/brand/worksauto-logo-dark.png`;
   }
 
   getTrackingUrl(workOrderId: string): string {
@@ -202,20 +232,10 @@ export class NotificationTemplateService {
           <!-- Footer -->
           <tr>
             <td style="background-color: #f8fafc; padding: 24px 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-              <!-- WorksAuto Brand Badge -->
-              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 12px;">
-                <tr>
-                  <td style="vertical-align: middle; padding-right: 8px;">
-                    <div style="background-color: #2563eb; color: #ffffff; width: 28px; height: 28px; border-radius: 6px; font-weight: 900; font-size: 15px; line-height: 28px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);">
-                      W
-                    </div>
-                  </td>
-                  <td style="vertical-align: middle; text-align: left;">
-                    <span style="font-size: 14px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; display: block;">Works<span style="color: #2563eb;">Auto</span></span>
-                    <span style="font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; display: block;">Akıllı Oto Servis Altyapısı</span>
-                  </td>
-                </tr>
-              </table>
+              <!-- WorksAuto Original Brand Logo -->
+              <div style="margin-bottom: 14px; text-align: center;">
+                <img src="${this.getWorksAutoLogoSrc()}" alt="WorksAuto" width="145" style="display: block; margin: 0 auto; width: 145px; max-width: 160px; height: auto; border: 0; outline: none; text-decoration: none;" />
+              </div>
               <p style="color: #64748b; font-size: 12px; margin: 0; line-height: 1.5;">
                 Bu e-posta <strong>${params.tenantTitle}</strong> adına <strong>WorksAuto</strong> canlı araç takip altyapısı tarafından otomatik olarak gönderilmiştir.
               </p>

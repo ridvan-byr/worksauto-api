@@ -137,7 +137,8 @@ describe('NotificationTemplateService', () => {
       expect(html).toContain('https://app.worksauto.com/track/123');
       expect(html).toContain('WO-100');
       expect(html).toContain('34CAN34');
-      expect(html).toContain('WorksAuto sistemi tarafından otomatik olarak gönderilmiştir');
+      expect(html).toContain('alt="WorksAuto"');
+      expect(html).toContain('canlı araç takip altyapısı tarafından otomatik olarak gönderilmiştir');
     });
   });
 });
