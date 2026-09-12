@@ -21,6 +21,8 @@ export interface RescheduleAppointmentInput {
   slotEndTime: string; // ISO
   assignedMechanicId?: string;
   assignedLift?: string;
+  reason?: string;
+  notifyCustomer?: boolean;
 }
 
 @Injectable()
@@ -116,6 +118,12 @@ export class RescheduleAppointmentUseCase {
       updated,
     );
 
+    const timeFormatted = new Date(dto.slotStartTime).toLocaleTimeString('tr-TR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const notificationMessage = `Randevu saati güncellendi: ${dto.slotDate} (${timeFormatted}).${dto.reason ? ` Neden: ${dto.reason}` : ''}`;
+
     await this.notificationsService.createNotification({
       tenantId,
       actorUserId: userId,
@@ -123,9 +131,19 @@ export class RescheduleAppointmentUseCase {
       type: NotificationType.INFO,
       category: 'APPOINTMENT',
       title: 'Randevu Yeniden Planlandı',
-      message: `Randevu saati güncellendi: ${dto.slotDate} (${new Date(dto.slotStartTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })})`,
+      message: notificationMessage,
       link: '/appointments',
-      metadata: { appointmentId: id },
+      metadata: {
+        appointmentId: id,
+        reason: dto.reason,
+        notifiedCustomer: !!(dto.notifyCustomer && app.customer?.phone),
+      },
+      recipientPhone:
+        dto.notifyCustomer && app.customer?.phone
+          ? app.customer.phone
+          : undefined,
+      sendSms: !!(dto.notifyCustomer && app.customer?.phone),
+      sendWhatsApp: !!(dto.notifyCustomer && app.customer?.phone),
     });
 
     await this.auditService.log({
@@ -138,6 +156,8 @@ export class RescheduleAppointmentUseCase {
       changesAfter: {
         slotDate: dto.slotDate,
         slotStartTime: dto.slotStartTime,
+        reason: dto.reason,
+        notifiedCustomer: !!(dto.notifyCustomer && app.customer?.phone),
       },
     });
 

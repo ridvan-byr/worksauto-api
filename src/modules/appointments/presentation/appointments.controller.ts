@@ -86,11 +86,13 @@ export class AppointmentsController {
     schema: {
       type: 'object',
       properties: {
-        slotDate: { type: 'string', example: '2026-09-12' },
-        slotStartTime: { type: 'string', example: '2026-09-12T09:00:00.000Z' },
-        slotEndTime: { type: 'string', example: '2026-09-12T10:00:00.000Z' },
+        slotDate: { type: 'string', example: '2026-09-15' },
+        slotStartTime: { type: 'string', example: '2026-09-15T09:00:00Z' },
+        slotEndTime: { type: 'string', example: '2026-09-15T10:00:00Z' },
         assignedMechanicId: { type: 'string' },
         assignedLift: { type: 'string' },
+        reason: { type: 'string', example: 'Yedek parça tedarik süreci' },
+        notifyCustomer: { type: 'boolean', example: true },
       },
       required: ['slotDate', 'slotStartTime', 'slotEndTime'],
     },
@@ -106,6 +108,8 @@ export class AppointmentsController {
       slotEndTime: string;
       assignedMechanicId?: string;
       assignedLift?: string;
+      reason?: string;
+      notifyCustomer?: boolean;
     },
   ) {
     return this.rescheduleAppointmentUseCase.execute(
