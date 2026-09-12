@@ -39,7 +39,7 @@ async function main() {
   // --- 1. E-POSTA DOĞRULAMASI ---
   console.log('📧 [1/3] E-Posta Gönderim Testi Başlatılıyor...');
 
-  const sampleTrackingUrl = 'https://app.worksauto.com/track/demo-wo-12345';
+  const sampleTrackingUrl = templateService.getTrackingUrl('demo-wo-12345');
   const htmlEmail = templateService.generateBrandedHtmlEmail({
     title: 'Servis Kabul Bildirimi (Canlı Doğrulama Testi)',
     customerName: 'Ahmet Yılmaz',
@@ -180,7 +180,7 @@ async function main() {
   console.log('\n📱 [3/3] SMS (Netgsm) Testi Başlatılıyor...');
   const smsMessage = templateService.formatConsentSmsMessage({
     customerName: 'Ahmet Yılmaz',
-    consentUrl: 'https://app.worksauto.com/c/kvkk?token=demo-token-9988',
+    consentUrl: templateService.getConsentUrl('demo-token-9988'),
     tenantTitle: 'Yıldız Oto',
   });
 
