@@ -160,27 +160,12 @@ export class GowaWhatsAppProvider implements NotificationProvider {
 
     if (this.mailTransporter) {
       try {
-        const attachments: any[] = [];
-        const logoPath = this.resolveLogoPath();
-        if (
-          logoPath &&
-          options.html &&
-          options.html.includes('cid:worksauto-logo')
-        ) {
-          attachments.push({
-            filename: 'worksauto-logo.png',
-            path: logoPath,
-            cid: 'worksauto-logo',
-          });
-        }
-
         const info = await this.mailTransporter.sendMail({
           from: this.smtpFrom,
           to: options.to,
           subject,
           text: options.message,
           html: options.html || `<p>${options.message}</p>`,
-          attachments,
         });
 
         this.logger.log(

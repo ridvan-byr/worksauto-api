@@ -63,17 +63,15 @@ export class NotificationTemplateService {
   }
 
   /**
-   * Orijinal WorksAuto marka logosunun kaynağını döner (Yerel Base64 veya CDN URL)
+   * Orijinal WorksAuto marka logosunun güvenilir HTTPS CDN / Web URL'sini döner.
+   * E-posta gövdesinde harici ek (attachment) oluşturmaması için halka açık HTTPS URL kullanılır.
    */
   getWorksAutoLogoSrc(): string {
-    const p = this.resolveLogoPath();
-    if (p) {
-      try {
-        const b64 = fs.readFileSync(p).toString('base64');
-        return `data:image/png;base64,${b64}`;
-      } catch {}
+    if (process.env.BRAND_LOGO_URL) {
+      return process.env.BRAND_LOGO_URL;
     }
-    return `${this.getAppBaseUrl()}/brand/worksauto-logo-dark.png`;
+    // Halka açık, yüksek erişilebilirlikli WorksAuto orijinal logo CDN adresi
+    return 'https://raw.githubusercontent.com/ridvan-byr/worksauto-web/main/public/brand/worksauto-logo-dark.png';
   }
 
   getTrackingUrl(workOrderId: string): string {
@@ -258,9 +256,9 @@ export class NotificationTemplateService {
           <!-- Footer -->
           <tr>
             <td style="background-color: #f8fafc; padding: 24px 20px; text-align: center; border-top: 1px solid #e2e8f0;">
-              <!-- WorksAuto Original Brand Logo -->
+              <!-- WorksAuto Original Brand Logo (Hosted HTTPS URL) -->
               <div style="margin-bottom: 14px; text-align: center;">
-                <img src="cid:worksauto-logo" alt="WorksAuto" width="145" style="display: block; margin: 0 auto; width: 145px; max-width: 160px; height: auto; border: 0; outline: none; text-decoration: none;" />
+                <img src="${this.getWorksAutoLogoSrc()}" alt="WorksAuto" width="145" style="display: block; margin: 0 auto; width: 145px; max-width: 160px; height: auto; border: 0; outline: none; text-decoration: none;" />
               </div>
               <p style="color: #64748b; font-size: 12px; margin: 0; line-height: 1.5;">
                 Bu e-posta <strong>${params.tenantTitle}</strong> adına <strong>WorksAuto</strong> canlı araç takip altyapısı tarafından otomatik olarak gönderilmiştir.
