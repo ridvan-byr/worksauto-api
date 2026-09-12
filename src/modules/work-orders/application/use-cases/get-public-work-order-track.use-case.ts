@@ -38,7 +38,9 @@ export class GetPublicWorkOrderTrackUseCase {
       ? `${wo.assignedMechanic.user.name} ${wo.assignedMechanic.user.surname || ''}`.trim()
       : 'Atölye Sorumlusu';
 
-    const customerMasked = `${this.maskName(wo.customer?.firstName)} ${this.maskName(wo.customer?.lastName)}`;
+    const customerFullName = wo.customer
+      ? `${wo.customer.firstName || ''} ${wo.customer.lastName || ''}`.trim() || 'Değerli Müşterimiz'
+      : 'Değerli Müşterimiz';
     const phoneMasked = this.maskPhone(wo.customer?.phone);
 
     const services = (wo.items || [])
@@ -93,7 +95,7 @@ export class GetPublicWorkOrderTrackUseCase {
       assignedLift: wo.assignedLift || 'Mekanik Lift',
       mechanicName,
       customer: {
-        name: customerMasked,
+        name: customerFullName,
         phone: phoneMasked,
       },
       vehicle: {
