@@ -30,16 +30,20 @@ export class CancelInvoiceUseCase {
       throw new NotFoundException('Fatura bulunamadı.');
     }
 
-    if (!inv.canCancel()) {
+    if (!reason || reason.trim().length < 5) {
       throw new BadRequestException(
-        'Ödemesi tamamlanmış veya tahsilat yapılmış bir fatura doğrudan iptal edilemez. Önce tahsilat iadesi yapılmalıdır.',
+        'Fatura iptal gerekçesi zorunludur ve en az 5 karakter olmalıdır.',
       );
+    }
+
+    if (!inv.canCancel()) {
+      throw new BadRequestException('Bu fatura zaten iptal edilmiştir.');
     }
 
     const cancelled = await this.invoiceRepository.cancelWithCariReversal(
       tenantId,
       id,
-      reason,
+      reason.trim(),
     );
 
     try {
@@ -53,10 +57,12 @@ export class CancelInvoiceUseCase {
           invoiceNumber: inv.invoiceNumber,
           status: inv.status,
           grandTotal: inv.grandTotal,
+          paidAmount: inv.paidAmount,
         },
         changesAfter: {
           status: 'CANCELLED',
-          reason,
+          reason: reason.trim(),
+          transferredToAdvance: inv.paidAmount,
         },
       });
     } catch (err) {

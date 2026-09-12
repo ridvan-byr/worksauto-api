@@ -35,7 +35,51 @@ describe('CancelInvoiceUseCase', () => {
     ).rejects.toThrow(NotFoundException);
   });
 
-  it('should throw BadRequestException when trying to cancel an already paid invoice', async () => {
+  it('should throw BadRequestException when reason is empty or too short', async () => {
+    const invoice = new InvoiceEntity({
+      id: 'inv-1',
+      tenantId: 'tenant-1',
+      customerId: 'cust-1',
+      invoiceNumber: 'INV-2026-00001',
+      dueDate: new Date('2026-04-01'),
+      subtotal: 1000,
+      kdvAmount: 200,
+      grandTotal: 1200,
+      paidAmount: 0,
+      remainingAmount: 1200,
+      status: 'UNPAID',
+    });
+
+    vi.mocked(mockRepo.findById).mockResolvedValue(invoice);
+
+    await expect(
+      useCase.execute('tenant-1', 'inv-1', 'abc'),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('should throw BadRequestException when invoice is already cancelled', async () => {
+    const cancelledInvoice = new InvoiceEntity({
+      id: 'inv-1',
+      tenantId: 'tenant-1',
+      customerId: 'cust-1',
+      invoiceNumber: 'INV-2026-00001',
+      dueDate: new Date('2026-04-01'),
+      subtotal: 1000,
+      kdvAmount: 200,
+      grandTotal: 1200,
+      paidAmount: 0,
+      remainingAmount: 0,
+      status: 'CANCELLED',
+    });
+
+    vi.mocked(mockRepo.findById).mockResolvedValue(cancelledInvoice);
+
+    await expect(
+      useCase.execute('tenant-1', 'inv-1', 'Zaten iptal edilmişti'),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('should successfully cancel a paid invoice and record audit log with advance transfer', async () => {
     const paidInvoice = new InvoiceEntity({
       id: 'inv-1',
       tenantId: 'tenant-1',
@@ -50,11 +94,35 @@ describe('CancelInvoiceUseCase', () => {
       status: 'PAID',
     });
 
-    vi.mocked(mockRepo.findById).mockResolvedValue(paidInvoice);
+    const cancelledInvoice = new InvoiceEntity({
+      ...paidInvoice,
+      status: 'CANCELLED',
+    });
 
-    await expect(
-      useCase.execute('tenant-1', 'inv-1', 'Test cancellation'),
-    ).rejects.toThrow(BadRequestException);
+    vi.mocked(mockRepo.findById).mockResolvedValue(paidInvoice);
+    vi.mocked(mockRepo.cancelWithCariReversal).mockResolvedValue(cancelledInvoice);
+
+    const result = await useCase.execute(
+      'tenant-1',
+      'inv-1',
+      'İş emrine ilave onarım eklenecek',
+      'user-123',
+    );
+
+    expect(result.status).toBe('CANCELLED');
+    expect(mockRepo.cancelWithCariReversal).toHaveBeenCalledWith(
+      'tenant-1',
+      'inv-1',
+      'İş emrine ilave onarım eklenecek',
+    );
+    expect(mockAudit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'invoice.cancelled',
+        changesAfter: expect.objectContaining({
+          transferredToAdvance: 1200,
+        }),
+      }),
+    );
   });
 
   it('should cancel invoice and record audit log', async () => {
@@ -82,13 +150,13 @@ describe('CancelInvoiceUseCase', () => {
       cancelledInvoice,
     );
 
-    const result = await useCase.execute('tenant-1', 'inv-1', 'Hatalı giriş');
+    const result = await useCase.execute('tenant-1', 'inv-1', 'Hatalı giriş iptali');
 
     expect(result.status).toBe('CANCELLED');
     expect(mockRepo.cancelWithCariReversal).toHaveBeenCalledWith(
       'tenant-1',
       'inv-1',
-      'Hatalı giriş',
+      'Hatalı giriş iptali',
     );
     expect(mockAudit.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'invoice.cancelled' }),

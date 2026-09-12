@@ -73,18 +73,12 @@ export class InvoiceEntity {
   }
 
   public canCancel(): boolean {
-    return (
-      this.status !== 'PAID' &&
-      this.paidAmount === 0 &&
-      this.status !== 'CANCELLED'
-    );
+    return this.status !== 'CANCELLED';
   }
 
   public cancel(): void {
     if (!this.canCancel()) {
-      throw new Error(
-        'Ödemesi tamamlanmış veya tahsilat yapılmış bir fatura doğrudan iptal edilemez.',
-      );
+      throw new Error('Bu fatura zaten iptal edilmiştir.');
     }
     this.status = 'CANCELLED';
   }

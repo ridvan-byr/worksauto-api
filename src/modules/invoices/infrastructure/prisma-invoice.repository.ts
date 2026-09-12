@@ -294,6 +294,11 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         where: { invoiceId: existing.id, tenantId },
       });
 
+      const totalPaidAmount = attachedPayments.reduce(
+        (sum, p) => sum + Number(p.amount),
+        0,
+      );
+
       const cancelled = await tx.invoice.update({
         where: { id: existing.id },
         data: {
@@ -309,36 +314,35 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       });
 
       if (currentAccount) {
-        let totalCreditsAdjustment = 0;
-        for (const p of attachedPayments) {
-          totalCreditsAdjustment += Number(p.amount);
-        }
-
+        // Reverse only the invoice grand total from debits.
+        // We do NOT decrement totalCredits or delete payments!
+        // The customer paid that money, so it remains in totalCredits and creates/increases a credit balance (avans alacağı).
         const newTotalDebits = Math.max(
           0,
           Number(currentAccount.totalDebits) - Number(cancelled.grandTotal),
         );
-        const newTotalCredits = Math.max(
-          0,
-          Number(currentAccount.totalCredits) - totalCreditsAdjustment,
-        );
+        const newTotalCredits = Number(currentAccount.totalCredits);
         const newBalance = newTotalDebits - newTotalCredits;
 
         await tx.currentAccount.update({
           where: { id: currentAccount.id },
           data: {
             totalDebits: newTotalDebits,
-            totalCredits: newTotalCredits,
             balance: newBalance,
           },
         });
+
+        const advanceNote =
+          totalPaidAmount > 0
+            ? ` | Tahsil edilen ${totalPaidAmount.toLocaleString('tr-TR')} ₺ tutar müşteri cari hesabına avans olarak aktarıldı.`
+            : '';
 
         await tx.cariMovement.create({
           data: {
             tenantId,
             currentAccountId: currentAccount.id,
             date: new Date(),
-            description: `Fatura İptal Edildi (#${cancelled.invoiceNumber}) - Neden: ${reason}`,
+            description: `Fatura İptal Edildi (#${cancelled.invoiceNumber}) - Neden: ${reason}${advanceNote}`,
             referenceType: CariReferenceType.INVOICE,
             referenceNo: cancelled.invoiceNumber,
             debit: 0,
@@ -347,27 +351,18 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
           },
         });
 
-        // If payments were registered for this invoice, reverse them from cari & remove payment records
+        // Retain payments! Update notes to preserve audit trail instead of deleting payment records
         if (attachedPayments.length > 0) {
           for (const p of attachedPayments) {
-            await tx.cariMovement.create({
+            await tx.payment.update({
+              where: { id: p.id },
               data: {
-                tenantId,
-                currentAccountId: currentAccount.id,
-                date: new Date(),
-                description: `Fatura İptali Nedeniyle Tahsilat İadesi (#${cancelled.invoiceNumber})`,
-                referenceType: CariReferenceType.PAYMENT,
-                referenceNo: p.id.substring(0, 8),
-                debit: Number(p.amount),
-                credit: 0,
-                balanceAfter: newBalance,
+                notes: p.notes
+                  ? `${p.notes} (Fatura #${cancelled.invoiceNumber} iptali nedeniyle avansa aktarıldı)`
+                  : `Fatura #${cancelled.invoiceNumber} iptali nedeniyle müşteri avansına aktarıldı`,
               },
             });
           }
-
-          await tx.payment.deleteMany({
-            where: { invoiceId: existing.id, tenantId },
-          });
         }
       }
 
