@@ -46,7 +46,6 @@ import { GetPublicWorkOrderTrackUseCase } from '../application/use-cases/get-pub
 
 @ApiTags('Work Orders (Atölye İş Emirleri)')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
 @UseInterceptors(IdempotencyInterceptor)
 @Controller('work-orders')
 export class WorkOrdersController {
