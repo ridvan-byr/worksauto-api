@@ -20,7 +20,7 @@ export class OnboardingServiceItemDto {
 
   @ApiProperty({ example: 'Periyodik Bakım (Yağ + 4 Filtre)' })
   @IsString()
-  @Matches(/^[a-zA-Z0-9çÇğĞıIİiöÖşŞüÜ\s\(\)\+\-\/\.]{2,100}$/, {
+  @Matches(/^[a-zA-Z0-9çÇğĞıIİiöÖşŞüÜ\s()+\-/.]{2,100}$/, {
     message: 'Hizmet adı en az 2 karakter olmalı ve geçerli bir başlık olmalıdır.',
   })
   name: string;

@@ -1,9 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 
 @Injectable()
 export class GetPublicWorkOrderTrackUseCase {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @Inject('IWorkOrderRepository')
+    private readonly workOrderRepository: IWorkOrderRepository,
+  ) {}
 
   private maskName(name?: string | null): string {
     if (!name) return 'Değerli Müşterimiz';
@@ -22,84 +25,7 @@ export class GetPublicWorkOrderTrackUseCase {
   }
 
   async execute(tokenOrNumber: string) {
-    const raw = tokenOrNumber.trim();
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
-    const whereClause = isUuid
-      ? { id: raw }
-      : { workOrderNumber: { equals: raw, mode: 'insensitive' as const } };
-
-    const wo: any = await this.prisma.workOrder.findFirst({
-      where: whereClause,
-      include: {
-        tenant: {
-          select: {
-            title: true,
-            phone: true,
-            address: true,
-            city: true,
-            district: true,
-            logoUrl: true,
-          },
-        },
-        customer: {
-          select: {
-            firstName: true,
-            lastName: true,
-            phone: true,
-          },
-        },
-        vehicle: {
-          select: {
-            plate: true,
-            brand: true,
-            model: true,
-            year: true,
-            currentKm: true,
-            color: true,
-          },
-        },
-        items: {
-          select: {
-            id: true,
-            itemType: true,
-            name: true,
-            quantity: true,
-            unitPrice: true,
-            totalPrice: true,
-          },
-        },
-        photos: {
-          select: {
-            id: true,
-            url: true,
-            photoType: true,
-            caption: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        },
-        assignedMechanic: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                surname: true,
-              },
-            },
-          },
-        },
-        invoice: {
-          select: {
-            id: true,
-            invoiceNumber: true,
-            grandTotal: true,
-            paidAmount: true,
-            remainingAmount: true,
-            status: true,
-          },
-        },
-      },
-    });
+    const wo: any = await this.workOrderRepository.findPublicTrackByTokenOrNumber(tokenOrNumber);
 
     if (!wo) {
       throw new NotFoundException('İş emri veya araç takip kaydı bulunamadı.');

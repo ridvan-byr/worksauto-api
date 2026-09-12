@@ -64,7 +64,7 @@ export class PayTrService {
 
     // Hash calculation: merchant_id + user_ip + merchant_oid + email + payment_amount + user_basket + no_installment + max_installment + currency + test_mode
     const hashStr = `${this.merchantId}${request.userIp}${request.merchantOid}${request.email}${kurusAmount}${userBasketBase64}${noInstallment}${maxInstallment}${currency}${testMode}`;
-    const paytrToken = crypto
+    const _paytrToken = crypto
       .createHmac('sha256', this.merchantKey)
       .update(hashStr + this.merchantSalt)
       .digest('base64');

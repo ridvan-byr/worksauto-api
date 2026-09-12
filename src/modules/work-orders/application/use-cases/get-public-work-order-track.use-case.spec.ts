@@ -4,25 +4,23 @@ import { NotFoundException } from '@nestjs/common';
 
 describe('GetPublicWorkOrderTrackUseCase', () => {
   let useCase: GetPublicWorkOrderTrackUseCase;
-  let mockPrisma: any;
+  let mockWorkOrderRepository: any;
 
   beforeEach(() => {
-    mockPrisma = {
-      workOrder: {
-        findFirst: vi.fn(),
-      },
+    mockWorkOrderRepository = {
+      findPublicTrackByTokenOrNumber: vi.fn(),
     };
-    useCase = new GetPublicWorkOrderTrackUseCase(mockPrisma);
+    useCase = new GetPublicWorkOrderTrackUseCase(mockWorkOrderRepository);
   });
 
   it('should throw NotFoundException if work order is not found', async () => {
-    mockPrisma.workOrder.findFirst.mockResolvedValue(null);
+    mockWorkOrderRepository.findPublicTrackByTokenOrNumber.mockResolvedValue(null);
 
     await expect(useCase.execute('WO-9999-999')).rejects.toThrow(NotFoundException);
   });
 
   it('should return masked customer info and sanitized tracking details', async () => {
-    mockPrisma.workOrder.findFirst.mockResolvedValue({
+    mockWorkOrderRepository.findPublicTrackByTokenOrNumber.mockResolvedValue({
       id: 'wo-1',
       workOrderNumber: 'WO-2026-001',
       status: 'IN_PROGRESS',
