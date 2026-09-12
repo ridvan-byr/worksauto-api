@@ -39,19 +39,60 @@ async function main() {
   // --- 1. E-POSTA DOĞRULAMASI ---
   console.log('📧 [1/3] E-Posta Gönderim Testi Başlatılıyor...');
 
-  const sampleTrackingUrl = templateService.getTrackingUrl('demo-wo-12345');
+  let targetWorkOrderUuid = '6330060c-f26f-4efc-bba6-262c01116410';
+  let targetPlate = '34 ABC 789';
+  let targetWoNumber = 'WO-2026-0001';
+  let targetTenantTitle = 'Bayar Oto Servis & Ekspertiz';
+  let targetCustomerName = 'Ahmet Yılmaz';
+  let targetKm = '42.500 km';
+  let targetMechanic = 'Mehmet Usta';
+
+  try {
+    const { PrismaClient } = await import('@prisma/client');
+    const prisma = new PrismaClient();
+    const wo = await prisma.workOrder.findFirst({
+      where: {
+        status: { in: ['IN_PROGRESS', 'QUEUE', 'COMPLETED'] },
+      },
+      include: {
+        vehicle: true,
+        tenant: true,
+        customer: true,
+        assignedMechanic: {
+          include: { user: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (wo) {
+      targetWorkOrderUuid = wo.id;
+      targetWoNumber = wo.workOrderNumber;
+      if (wo.vehicle?.plate) targetPlate = wo.vehicle.plate;
+      if (wo.tenant?.title) targetTenantTitle = wo.tenant.title;
+      if (wo.customer?.firstName) {
+        targetCustomerName = `${wo.customer.firstName} ${wo.customer.lastName || ''}`.trim();
+      }
+      if (wo.initialKm) targetKm = `${wo.initialKm.toLocaleString('tr-TR')} km`;
+      if (wo.assignedMechanic?.user?.name) {
+        targetMechanic = `${wo.assignedMechanic.user.name} Usta`;
+      }
+    }
+    await prisma.$disconnect();
+  } catch {}
+
+  const sampleTrackingUrl = templateService.getTrackingUrl(targetWorkOrderUuid);
   const htmlEmail = templateService.generateBrandedHtmlEmail({
-    title: 'Servis Kabul Bildirimi (Canlı Doğrulama Testi)',
-    customerName: 'Ahmet Yılmaz',
-    message: 'Aracınızın 10.000 km periyodik bakım kabulü yapılmıştır. Yapılan işlemleri, değiştirilen parçaları ve kabul fotoğraflarını aşağıdaki canlı takip butonuna tıklayarak anlık izleyebilirsiniz.',
+    title: `Servis Kabul Bildirimi (${targetPlate})`,
+    customerName: targetCustomerName,
+    message: 'Aracınızın periyodik servis ve bakım kabulü yapılmıştır. Yapılan işlemleri, parça değişimlerini ve kabul fotoğraflarını aşağıdaki canlı takip butonuna tıklayarak anlık izleyebilirsiniz.',
     buttonText: 'Canlı Takip Sayfasını Aç',
     buttonUrl: sampleTrackingUrl,
-    tenantTitle: 'Yıldız Oto Bosch Car Service',
+    tenantTitle: targetTenantTitle,
     extraDetails: {
-      'İş Emri No': 'WO-2026-0089',
-      'Plaka': '34ABC123',
-      'Kabul Kilometresi': '45.200 km',
-      'Servis Danışmanı': 'Mustafa Usta',
+      'İş Emri No': targetWoNumber,
+      'Plaka': targetPlate,
+      'Kabul Kilometresi': targetKm,
+      'Servis Danışmanı': targetMechanic,
     },
   });
 
