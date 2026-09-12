@@ -103,6 +103,16 @@ export class PaymentsService {
       throw new BadRequestException('Müşteri ID (customerId) belirtilmelidir.');
     }
 
+    // Faturasız Serbest Avans / Cari Tahsilat Denetimi
+    if (!dto.invoiceId) {
+      const reference = (dto.posSlipNo || dto.notes || '').trim();
+      if (reference.length < 3) {
+        throw new BadRequestException(
+          'Faturasız serbest cari/avans tahsilatlarında dekont/fiş no veya açıklama (en az 3 karakter) girilmesi zorunludur.',
+        );
+      }
+    }
+
     // Verify customer strictly belongs to this tenant
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, tenantId, deletedAt: null },

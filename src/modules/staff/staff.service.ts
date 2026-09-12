@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
@@ -50,7 +52,34 @@ export class StaffService {
     return user;
   }
 
-  async create(tenantId: string, dto: CreateStaffDto) {
+  async create(
+    tenantId: string,
+    dto: CreateStaffDto,
+    currentUserRole?: UserRole,
+  ) {
+    if (dto.role === UserRole.SUPER_ADMIN) {
+      throw new BadRequestException(
+        'Süper Admin hesabı işletme içerisinden oluşturulamaz.',
+      );
+    }
+    if (
+      dto.role === UserRole.OWNER &&
+      currentUserRole !== UserRole.OWNER &&
+      currentUserRole !== UserRole.SUPER_ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Yalnızca işletme sahibi yeni bir İşletme Sahibi (OWNER) hesabı tanımlayabilir.',
+      );
+    }
+    if (
+      currentUserRole === UserRole.SERVICE_MANAGER &&
+      (dto.role === UserRole.SERVICE_MANAGER || dto.role === UserRole.OWNER)
+    ) {
+      throw new ForbiddenException(
+        'Servis müdürleri yalnızca teknisyen, veznedar veya depo sorumlusu hesapları açabilir.',
+      );
+    }
+
     const normalizedPhone = this.normalizePhone(dto.phone);
 
     const existing = await this.prisma.user.findFirst({
@@ -114,9 +143,46 @@ export class StaffService {
     });
   }
 
-  async update(tenantId: string, id: string, dto: UpdateStaffDto) {
+  async update(
+    tenantId: string,
+    id: string,
+    dto: UpdateStaffDto,
+    currentUserRole?: UserRole,
+  ) {
     const previousUser = await this.findOne(tenantId, id);
     const prevMechanic = previousUser.mechanic;
+
+    if (dto.role === UserRole.SUPER_ADMIN) {
+      throw new BadRequestException(
+        'Süper Admin rolü işletme içerisinden atanamaz.',
+      );
+    }
+    if (
+      dto.role === UserRole.OWNER &&
+      currentUserRole !== UserRole.OWNER &&
+      currentUserRole !== UserRole.SUPER_ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Yalnızca işletme sahibi bir personeli İşletme Sahibi (OWNER) yapabilir.',
+      );
+    }
+    if (
+      currentUserRole === UserRole.SERVICE_MANAGER &&
+      (dto.role === UserRole.SERVICE_MANAGER || dto.role === UserRole.OWNER)
+    ) {
+      throw new ForbiddenException(
+        'Servis müdürleri rolü servis müdürü veya dükkan sahibi olarak değiştiremez.',
+      );
+    }
+    if (
+      previousUser.role === UserRole.OWNER &&
+      currentUserRole !== UserRole.OWNER &&
+      currentUserRole !== UserRole.SUPER_ADMIN
+    ) {
+      throw new ForbiddenException(
+        'İşletme sahibi hesabında değişiklik yapma yetkiniz bulunmamaktadır.',
+      );
+    }
 
     let normalizedPhone: string | undefined;
     if (dto.phone) {

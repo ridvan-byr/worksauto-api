@@ -25,7 +25,14 @@ export class UpdateWorkOrderItemQuantityUseCase {
     itemId: string,
     dto: UpdateWorkOrderItemDto,
     author: string,
+    userRole?: string,
   ) {
+    if (userRole === 'TECHNICIAN' && dto.unitPrice !== undefined) {
+      throw new BadRequestException(
+        'Teknisyenler iş emrindeki birim fiyatları veya işçilik ücretlerini değiştiremez. Yalnızca parça adedi veya sarfiyat güncelleyebilir.',
+      );
+    }
+
     const wo = await this.workOrderRepository.findById(tenantId, workOrderId);
     if (!wo) throw new NotFoundException('İş emri bulunamadı.');
 

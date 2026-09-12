@@ -14,6 +14,7 @@ import { StaffService } from './staff.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
+import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 
@@ -45,8 +46,12 @@ export class StaffController {
   @ApiOperation({
     summary: 'Yeni personel / usta kaydı açar ve lift ataması yapar',
   })
-  create(@CurrentTenant() tenantId: string, @Body() dto: CreateStaffDto) {
-    return this.staffService.create(tenantId, dto);
+  create(
+    @CurrentTenant() tenantId: string,
+    @Body() dto: CreateStaffDto,
+    @CurrentUser('role') currentUserRole: UserRole,
+  ) {
+    return this.staffService.create(tenantId, dto, currentUserRole);
   }
 
   @Patch(':id')
@@ -58,8 +63,9 @@ export class StaffController {
     @CurrentTenant() tenantId: string,
     @Param('id') id: string,
     @Body() dto: UpdateStaffDto,
+    @CurrentUser('role') currentUserRole: UserRole,
   ) {
-    return this.staffService.update(tenantId, id, dto);
+    return this.staffService.update(tenantId, id, dto, currentUserRole);
   }
 
   @Delete(':id')

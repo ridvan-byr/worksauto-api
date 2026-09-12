@@ -775,12 +775,14 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
   async findPublicTrackByTokenOrNumber(tokenOrNumber: string): Promise<any | null> {
     const raw = tokenOrNumber.trim();
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
-    const whereClause = isUuid
-      ? { id: raw }
-      : { workOrderNumber: { equals: raw, mode: 'insensitive' as const } };
+    
+    // Security Defense: Direct enumeration by sequential number (WO-2026-0001) is disallowed to prevent scraping
+    if (!isUuid) {
+      return null;
+    }
 
     return this.prisma.workOrder.findFirst({
-      where: whereClause,
+      where: { id: raw },
       include: {
         tenant: {
           select: {

@@ -603,6 +603,29 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       throw new NotFoundException('Müşteri bulunamadı.');
     }
 
+    // Yasal ve Finansal Denetim: Açık borcu veya ödenmemiş faturası olan müşteri anonimleştirilemez (TTK md. 82)
+    const currentAccount = await this.prisma.currentAccount.findFirst({
+      where: { customerId: id, tenantId },
+    });
+    if (currentAccount && Number(currentAccount.balance) > 0) {
+      throw new BadRequestException(
+        `Bu müşterinin ${Number(currentAccount.balance).toLocaleString('tr-TR')} ₺ açık borcu bulunmaktadır. Yasal alacak takibi ve zamanaşımı (TTK md. 82) süresince açık borcu olan müşteriler KVKK kapsamında silinemez veya anonimleştirilemez. Lütfen önce tahsilatı tamamlayınız.`,
+      );
+    }
+
+    const openInvoice = await this.prisma.invoice.findFirst({
+      where: {
+        customerId: id,
+        tenantId,
+        status: { notIn: ['PAID', 'CANCELLED'] },
+      },
+    });
+    if (openInvoice) {
+      throw new BadRequestException(
+        `Bu müşteriye ait ödenmemiş açık bir fatura (${openInvoice.invoiceNumber}) bulunmaktadır. Fatura kapatılmadan müşteri verileri anonimleştirilemez.`,
+      );
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const anonymized = await tx.customer.update({
         where: { id },

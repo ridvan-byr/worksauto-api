@@ -25,6 +25,7 @@ import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../../shared/interceptors/idempotency.interceptor';
 import { Permission } from '../../../shared/constants/permissions.enum';
 import { Public } from '../../../shared/decorators/public.decorator';
+import { Throttle } from '@nestjs/throttler';
 import { UserRole, WorkOrderStatus, WorkOrderPhotoType } from '@prisma/client';
 import { AddWorkOrderItemDto } from '../dto/add-item.dto';
 import { UpdateWorkOrderItemDto } from '../dto/update-item.dto';
@@ -65,6 +66,7 @@ export class WorkOrdersController {
   ) {}
 
   @Public()
+  @Throttle({ default: { limit: 15, ttl: 60000 } })
   @Get('public/track/:token')
   @ApiOperation({
     summary:
@@ -220,6 +222,7 @@ export class WorkOrdersController {
     @Param('itemId') itemId: string,
     @Body() dto: UpdateWorkOrderItemDto,
     @CurrentUser('name') userName: string,
+    @CurrentUser('role') userRole: string,
   ) {
     return this.updateWorkOrderItemQuantityUseCase.execute(
       tenantId,
@@ -227,6 +230,7 @@ export class WorkOrdersController {
       itemId,
       dto,
       userName || 'Teknisyen',
+      userRole,
     );
   }
 

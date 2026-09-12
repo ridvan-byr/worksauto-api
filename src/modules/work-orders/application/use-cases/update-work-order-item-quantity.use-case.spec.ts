@@ -105,4 +105,17 @@ describe('UpdateWorkOrderItemQuantityUseCase', () => {
     );
     expect(mockEvents.emitToTenant).toHaveBeenCalled();
   });
+
+  it('should throw BadRequestException if a TECHNICIAN attempts to change unitPrice', async () => {
+    await expect(
+      useCase.execute(
+        't-1',
+        'wo-1',
+        'it-1',
+        { unitPrice: 250 },
+        'Ali',
+        'TECHNICIAN',
+      ),
+    ).rejects.toThrow(BadRequestException);
+  });
 });

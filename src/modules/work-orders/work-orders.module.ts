@@ -5,6 +5,7 @@ import { EventsModule } from '../events/events.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { QueueModule } from '../queues/queue.module';
 import { AuditModule } from '../audit/audit.module';
+import { MediaModule } from '../media/media.module';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 
 import { WorkOrdersController } from './presentation/work-orders.controller';
@@ -31,6 +32,7 @@ import { GetPublicWorkOrderTrackUseCase } from './application/use-cases/get-publ
     NotificationsModule,
     QueueModule,
     AuditModule,
+    MediaModule,
   ],
   controllers: [WorkOrdersController],
   providers: [

@@ -1,11 +1,14 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, Optional } from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
+import { MediaService } from '../../../media/media.service';
 
 @Injectable()
 export class GetPublicWorkOrderTrackUseCase {
   constructor(
     @Inject('IWorkOrderRepository')
     private readonly workOrderRepository: IWorkOrderRepository,
+    @Optional()
+    private readonly mediaService?: MediaService,
   ) {}
 
   private maskName(name?: string | null): string {
@@ -54,6 +57,32 @@ export class GetPublicWorkOrderTrackUseCase {
         quantity: Number(p.quantity),
       }));
 
+    const photos = await Promise.all(
+      (wo.photos || []).map(async (photo: any) => {
+        let displayUrl = photo.url;
+        if (this.mediaService && photo.url && wo.tenantId) {
+          try {
+            const presigned = await this.mediaService.getPresignedUrl(
+              wo.tenantId,
+              photo.url,
+              86400, // 24 hours valid
+            );
+            if (presigned) displayUrl = presigned;
+          } catch {
+            displayUrl = photo.url;
+          }
+        }
+        return {
+          id: photo.id,
+          url: displayUrl,
+          rawUrl: photo.url,
+          display_url: displayUrl,
+          type: photo.photoType,
+          caption: photo.caption,
+        };
+      }),
+    );
+
     return {
       workOrderNumber: wo.workOrderNumber,
       status: wo.status,
@@ -77,12 +106,7 @@ export class GetPublicWorkOrderTrackUseCase {
       },
       services,
       parts,
-      photos: (wo.photos || []).map((photo) => ({
-        id: photo.id,
-        url: photo.url,
-        type: photo.photoType,
-        caption: photo.caption,
-      })),
+      photos,
       tenant: wo.tenant,
       invoice: wo.invoice
         ? {
