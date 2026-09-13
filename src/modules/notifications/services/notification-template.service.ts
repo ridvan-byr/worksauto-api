@@ -186,6 +186,53 @@ export class NotificationTemplateService {
   }
 
   /**
+   * 7. Randevu Oluşturuldu Teyit Mesajı
+   */
+  formatAppointmentCreatedCustomerMessage(params: {
+    customerName: string;
+    plate: string;
+    dateStr: string;
+    tenantTitle: string;
+  }): string {
+    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const plateStr = params.plate ? `${params.plate} plakalı ` : '';
+    return `${greeting}, ${plateStr}aracınız için ${params.dateStr} tarihine servis randevunuz başarıyla oluşturulmuştur. Sizleri aramızda görmekten mutluluk duyarız. - ${params.tenantTitle}`;
+  }
+
+  /**
+   * 8. Tahsilat / Ödeme Alındı Makbuzu Mesajı
+   */
+  formatPaymentReceivedCustomerMessage(params: {
+    customerName: string;
+    amount: number;
+    invoiceNumber?: string;
+    tenantTitle: string;
+  }): string {
+    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const amountStr = params.amount.toLocaleString('tr-TR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const invStr = params.invoiceNumber ? ` (${params.invoiceNumber} nolu fatura)` : '';
+    return `${greeting}, ${amountStr} ₺ tutarındaki servis ödemeniz başarıyla tahsil edilmiştir${invStr}. Bizi tercih ettiğiniz için teşekkür ederiz. - ${params.tenantTitle}`;
+  }
+
+  /**
+   * 9. İş Emri İptal Edildi Mesajı
+   */
+  formatWorkOrderCancelledCustomerMessage(params: {
+    customerName: string;
+    plate: string;
+    workOrderNumber: string;
+    trackingUrl: string;
+    tenantTitle: string;
+  }): string {
+    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const plateStr = params.plate ? `${params.plate} plakalı ` : '';
+    return `${greeting}, ${plateStr}aracınıza ait ${params.workOrderNumber} numaralı servis iş emri iptal edilmiştir. Detaylar ve iletişim: ${params.trackingUrl} - ${params.tenantTitle}`;
+  }
+
+  /**
    * Profesyonel HTML E-Posta Şablonu Üretici
    */
   generateBrandedHtmlEmail(params: {

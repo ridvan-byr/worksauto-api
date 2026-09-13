@@ -8,6 +8,9 @@ import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
 import { NotificationType } from '@prisma/client';
 
+import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
+import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
+
 export interface CreateInvoiceInput {
   workOrderId?: string;
   customerId: string;
@@ -27,6 +30,8 @@ export class CreateInvoiceUseCase {
     private readonly invoiceRepository: IInvoiceRepository,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
+    private readonly prisma: PrismaService,
+    private readonly templateService: NotificationTemplateService,
   ) {}
 
   async execute(
@@ -96,6 +101,68 @@ export class CreateInvoiceUseCase {
       });
     } catch (err) {
       console.error('Audit log failed for invoice.created:', err);
+    }
+
+    // Müşteriye Fatura & Online Ödeme Linki Bildirimi (E-Posta, SMS, WhatsApp)
+    try {
+      const [customer, tenant] = await Promise.all([
+        this.prisma.customer.findUnique({
+          where: { id: dto.customerId },
+          select: { firstName: true, lastName: true, email: true, phone: true },
+        }),
+        this.prisma.tenant.findUnique({
+          where: { id: tenantId },
+          select: { title: true },
+        }),
+      ]);
+
+      const customerName = customer
+        ? `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Değerli Müşterimiz'
+        : 'Değerli Müşterimiz';
+      const tenantTitle = tenant?.title || 'WorksAuto Servis';
+      const paymentUrl = this.templateService.getPaymentUrl(result.invoice.id);
+
+      const customerMsg = this.templateService.formatInvoiceCreatedCustomerMessage({
+        customerName,
+        invoiceNumber: result.invoice.invoiceNumber,
+        grandTotal: dto.grandTotal,
+        paymentUrl,
+        tenantTitle,
+      });
+
+      const customerHtml = this.templateService.generateBrandedHtmlEmail({
+        title: `Servis Faturanız Düzenlenmiştir (#${result.invoice.invoiceNumber})`,
+        customerName,
+        message: `${result.invoice.invoiceNumber} numaralı servis faturanız hazırlanmıştır. Fatura dökümünüzü inceleyebilir veya kredi kartınızla online güvenli ödeme yapabilirsiniz.`,
+        buttonText: 'Faturayı İncele & Kredi Kartı ile Öde',
+        buttonUrl: paymentUrl,
+        tenantTitle,
+        extraDetails: {
+          'Fatura No': result.invoice.invoiceNumber,
+          'Toplam Tutar': `${dto.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`,
+          'Vade Tarihi': dto.dueDate ? new Date(dto.dueDate).toLocaleDateString('tr-TR') : 'Peşin',
+          'Durum': 'Ödeme Bekliyor',
+        },
+      });
+
+      await this.notificationsService.createNotification({
+        tenantId,
+        actorUserId: userId,
+        type: NotificationType.INFO,
+        category: 'FINANCE',
+        title: `Faturanız Düzenlendi (#${result.invoice.invoiceNumber})`,
+        message: `${result.invoice.invoiceNumber} nolu servis faturanız düzenlenmiştir (Tutar: ${dto.grandTotal.toLocaleString('tr-TR')} ₺).`,
+        link: `/invoices`,
+        recipientPhone: customer?.phone || undefined,
+        recipientEmail: customer?.email || undefined,
+        customerMessage: customerMsg,
+        customerHtml,
+        sendSms: !!customer?.phone,
+        sendWhatsApp: !!customer?.phone,
+        sendEmail: !!customer?.email,
+      });
+    } catch (notifErr) {
+      console.warn('Invoice customer notification error:', notifErr);
     }
 
     return result.invoice;

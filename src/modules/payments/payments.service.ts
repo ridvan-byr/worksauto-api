@@ -13,6 +13,8 @@ import { QueueService } from '../queues/queue.service';
 
 import { PayTrService, PayTrWebhookPayload } from './infrastructure/paytr.service';
 
+import { NotificationTemplateService } from '../notifications/services/notification-template.service';
+
 export interface CreatePaymentDto {
   invoiceId?: string;
   customerId?: string;
@@ -32,6 +34,7 @@ export class PaymentsService {
     private readonly notificationsService: NotificationsService,
     private readonly queueService: QueueService,
     private readonly payTrService: PayTrService,
+    private readonly templateService: NotificationTemplateService,
   ) {}
 
   async findAll(tenantId: string, page?: number, limit?: number) {
@@ -272,6 +275,63 @@ export class PaymentsService {
         method: paymentMethod,
       },
     });
+
+    // Müşteriye Ödeme Alındı & Tahsilat Makbuzu Bildirimi (E-Posta, SMS, WhatsApp)
+    try {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { title: true },
+      });
+      const tenantTitle = tenant?.title || 'WorksAuto Servis';
+
+      let invoiceNumber: string | undefined;
+      if (dto.invoiceId) {
+        const inv = await this.prisma.invoice.findUnique({
+          where: { id: dto.invoiceId },
+          select: { invoiceNumber: true },
+        });
+        invoiceNumber = inv?.invoiceNumber;
+      }
+
+      const customerMsg = this.templateService.formatPaymentReceivedCustomerMessage({
+        customerName,
+        amount: dto.amount,
+        invoiceNumber,
+        tenantTitle,
+      });
+
+      const customerHtml = this.templateService.generateBrandedHtmlEmail({
+        title: 'Ödemeniz Başarıyla Alınmıştır',
+        customerName,
+        message: `${Number(dto.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺ tutarındaki servis ödemeniz başarıyla tahsil edilmiş ve kayıtlara işlenmiştir. Bizi tercih ettiğiniz için teşekkür ederiz.`,
+        tenantTitle,
+        extraDetails: {
+          'Tahsilat Tutarı': `${Number(dto.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`,
+          'Ödeme Yöntemi': paymentMethod,
+          ...(invoiceNumber ? { 'Fatura No': invoiceNumber } : {}),
+          'İşlem Tarihi': new Date().toLocaleDateString('tr-TR'),
+          'Durum': 'Tahsil Edildi (Başarılı)',
+        },
+      });
+
+      await this.notificationsService.createNotification({
+        tenantId,
+        actorUserId,
+        type: NotificationType.SUCCESS,
+        category: 'FINANCE',
+        title: 'Ödemeniz Alındı (Makbuz)',
+        message: `${Number(dto.amount).toLocaleString('tr-TR')} ₺ tutarındaki ödemeniz başarıyla kaydedildi.`,
+        recipientPhone: customer.phone || undefined,
+        recipientEmail: customer.email || undefined,
+        customerMessage: customerMsg,
+        customerHtml,
+        sendSms: !!customer.phone,
+        sendWhatsApp: !!customer.phone,
+        sendEmail: !!customer.email,
+      });
+    } catch (custNotifErr) {
+      console.warn('Customer payment notification error:', custNotifErr);
+    }
 
     return createdPayment;
   }

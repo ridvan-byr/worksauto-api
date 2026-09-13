@@ -14,6 +14,8 @@ import { NotificationsService } from '../../../notifications/notifications.servi
 import { EventsGateway } from '../../../events/events.gateway';
 import { NotificationType } from '@prisma/client';
 
+import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
+
 export interface CreatePublicAppointmentInput {
   customerName: string;
   customerPhone: string;
@@ -33,6 +35,7 @@ export class CreatePublicAppointmentUseCase {
     private readonly appointmentRepository: IAppointmentRepository,
     private readonly notificationsService: NotificationsService,
     private readonly eventsGateway: EventsGateway,
+    private readonly templateService: NotificationTemplateService,
   ) {}
 
   async execute(
@@ -128,6 +131,46 @@ export class CreatePublicAppointmentUseCase {
       created,
     );
 
+    const tenantTitle = tenant.title || 'WorksAuto Servis';
+    const appointmentDate = new Date(dto.slotStartTime).toLocaleDateString(
+      'tr-TR',
+      {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      },
+    );
+    const appointmentTime = new Date(dto.slotStartTime).toLocaleTimeString(
+      'tr-TR',
+      {
+        hour: '2-digit',
+        minute: '2-digit',
+      },
+    );
+    const dateStr = `${appointmentDate} ${appointmentTime}`;
+
+    const customerMsg =
+      this.templateService.formatAppointmentCreatedCustomerMessage({
+        customerName: dto.customerName,
+        plate: dto.plate,
+        dateStr,
+        tenantTitle,
+      });
+
+    const customerHtml = this.templateService.generateBrandedHtmlEmail({
+      title: 'Online Randevu Talebiniz Alındı',
+      customerName: dto.customerName,
+      message: `${tenantTitle} servisimizden oluşturduğunuz online randevu talebiniz başarıyla alınmıştır. Servis danışmanımız randevunuzu inceleyerek onaylayacaktır. Randevu saatinizde sizleri bekleriz.`,
+      tenantTitle,
+      extraDetails: {
+        'Araç Plakası': dto.plate,
+        'Randevu Tarihi': appointmentDate,
+        'Randevu Saati': appointmentTime,
+        ...(assignedLift ? { 'Kabul Alanı': assignedLift } : {}),
+        ...(dto.customerNotes ? { Notunuz: dto.customerNotes } : {}),
+      },
+    });
+
     await this.notificationsService.createNotification({
       tenantId: tenant.id,
       targetRoles: ['OWNER', 'SERVICE_MANAGER'],
@@ -137,6 +180,13 @@ export class CreatePublicAppointmentUseCase {
       message: `${dto.customerName} (${dto.plate}) online randevu talebinde bulundu (${dto.slotDate}).`,
       link: '/appointments',
       metadata: { appointmentId: created.id, source: 'PUBLIC_BOOKING' },
+      recipientPhone: dto.customerPhone || undefined,
+      recipientEmail: customer.email || undefined,
+      customerMessage: customerMsg,
+      customerHtml,
+      sendSms: !!dto.customerPhone,
+      sendWhatsApp: !!dto.customerPhone,
+      sendEmail: !!customer.email,
     });
 
     return created;

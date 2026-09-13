@@ -14,6 +14,8 @@ import { NotificationsService } from '../../../notifications/notifications.servi
 import { EventsGateway } from '../../../events/events.gateway';
 import { QueueService } from '../../../queues/queue.service';
 import { NotificationType } from '@prisma/client';
+import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
+import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
 
 export interface CreateAppointmentInput {
   customerId: string;
@@ -36,6 +38,8 @@ export class CreateAppointmentUseCase {
     private readonly notificationsService: NotificationsService,
     private readonly eventsGateway: EventsGateway,
     private readonly queueService: QueueService,
+    private readonly prisma: PrismaService,
+    private readonly templateService: NotificationTemplateService,
   ) {}
 
   async execute(
@@ -121,19 +125,6 @@ export class CreateAppointmentUseCase {
     // Realtime Socket Event
     this.eventsGateway.emitToTenant(tenantId, 'appointment:created', created);
 
-    // In-app Notification
-    await this.notificationsService.createNotification({
-      tenantId,
-      actorUserId: userId,
-      targetRoles: ['OWNER', 'SERVICE_MANAGER', 'TECHNICIAN'],
-      type: NotificationType.INFO,
-      category: 'APPOINTMENT',
-      title: 'Yeni Randevu Oluşturuldu',
-      message: `${created.slotDate ? new Date(created.slotDate).toLocaleDateString('tr-TR') : ''} tarihine yeni randevu kaydı oluşturuldu.`,
-      link: '/appointments',
-      metadata: { appointmentId: created.id },
-    });
-
     // Schedule 2-Hour Prior SMS Reminder via BullMQ
     const reminderTime = new Date(start.getTime() - 2 * 60 * 60 * 1000);
     const delay = reminderTime.getTime() - Date.now();
@@ -142,6 +133,95 @@ export class CreateAppointmentUseCase {
         tenantId,
         slotStartTime: start.toISOString(),
       });
+    }
+
+    // In-app & Customer Notifications (Email, SMS, WhatsApp)
+    try {
+      const [customer, vehicle, tenant] = await Promise.all([
+        this.prisma.customer.findUnique({
+          where: { id: dto.customerId },
+          select: { firstName: true, lastName: true, email: true, phone: true },
+        }),
+        this.prisma.vehicle.findUnique({
+          where: { id: dto.vehicleId },
+          select: { plate: true },
+        }),
+        this.prisma.tenant.findUnique({
+          where: { id: tenantId },
+          select: { title: true },
+        }),
+      ]);
+
+      const customerName = customer
+        ? `${customer.firstName || ''} ${customer.lastName || ''}`.trim() ||
+          'Değerli Müşterimiz'
+        : 'Değerli Müşterimiz';
+      const tenantTitle = tenant?.title || 'WorksAuto Servis';
+      const plate = vehicle?.plate || 'Belirtilmedi';
+      const appointmentDate = new Date(dto.slotStartTime).toLocaleDateString(
+        'tr-TR',
+        {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        },
+      );
+      const appointmentTime = new Date(dto.slotStartTime).toLocaleTimeString(
+        'tr-TR',
+        {
+          hour: '2-digit',
+          minute: '2-digit',
+        },
+      );
+      const dateStr = `${appointmentDate} ${appointmentTime}`;
+
+      const customerMsg =
+        this.templateService.formatAppointmentCreatedCustomerMessage({
+          customerName,
+          plate,
+          dateStr,
+          tenantTitle,
+        });
+
+      const customerHtml = this.templateService.generateBrandedHtmlEmail({
+        title: 'Servis Randevunuz Onaylandı',
+        customerName,
+        message: `${tenantTitle} servisimizden almış olduğunuz randevunuz başarıyla oluşturulmuş ve onaylanmıştır. Belirtilen randevu saatinde servisimizde olmanızı rica ederiz.`,
+        tenantTitle,
+        extraDetails: {
+          'Araç Plakası': plate,
+          'Randevu Tarihi': appointmentDate,
+          'Randevu Saati': appointmentTime,
+          ...(dto.assignedLift
+            ? { 'Kabul Alanı / Lift': dto.assignedLift }
+            : {}),
+          ...(dto.customerNotes ? { Notunuz: dto.customerNotes } : {}),
+        },
+      });
+
+      await this.notificationsService.createNotification({
+        tenantId,
+        actorUserId: userId,
+        targetRoles: ['OWNER', 'SERVICE_MANAGER', 'TECHNICIAN'],
+        type: NotificationType.INFO,
+        category: 'APPOINTMENT',
+        title: 'Yeni Randevu Oluşturuldu',
+        message: `${created.slotDate ? new Date(created.slotDate).toLocaleDateString('tr-TR') : ''} tarihine yeni randevu kaydı oluşturuldu (${plate}).`,
+        link: '/appointments',
+        metadata: { appointmentId: created.id },
+        recipientPhone: customer?.phone,
+        recipientEmail: customer?.email || undefined,
+        customerMessage: customerMsg,
+        customerHtml,
+        sendSms: !!customer?.phone,
+        sendWhatsApp: !!customer?.phone,
+        sendEmail: !!customer?.email,
+      });
+    } catch (notifErr) {
+      console.error(
+        '[CreateAppointmentUseCase] Customer notification error:',
+        notifErr,
+      );
     }
 
     // Audit Log

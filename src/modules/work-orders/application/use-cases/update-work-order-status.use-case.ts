@@ -231,6 +231,54 @@ export class UpdateWorkOrderStatusUseCase {
         sendWhatsApp: !!wo.customer?.phone,
         sendEmail: !!(wo.customer as any)?.email,
       });
+    } else if (targetStatus === WorkOrderStatusEnum.CANCELLED) {
+      const customerMsg =
+        this.templateService.formatWorkOrderCancelledCustomerMessage({
+          customerName,
+          plate,
+          workOrderNumber: wo.workOrderNumber,
+          trackingUrl,
+          tenantTitle,
+        });
+
+      const customerHtml = this.templateService.generateBrandedHtmlEmail({
+        title: `İş Emriniz İptal Edilmiştir (#${wo.workOrderNumber})`,
+        customerName,
+        message: `${wo.workOrderNumber} numaralı iş emrine ait ${plate ? plate + ' plakalı ' : ''}aracınızın servis kaydı iptal edilmiştir. Yapılan veya planlanan herhangi bir aktif bakım/onarım işlemi bulunmamaktadır. Ayrıntılı bilgi almak için servis danışmanınız ile görüşebilirsiniz.`,
+        buttonText: 'Takip Sayfasını Görüntüle',
+        buttonUrl: trackingUrl,
+        tenantTitle,
+        extraDetails: {
+          'İş Emri No': wo.workOrderNumber,
+          'Plaka': plate || 'Belirtilmedi',
+          'Durum': 'İptal Edildi',
+          'Tarih': new Date().toLocaleDateString('tr-TR'),
+        },
+      });
+
+      await this.notificationsService.createNotification({
+        tenantId,
+        actorUserId: userId,
+        type: NotificationType.WARNING,
+        category: 'WORK_ORDER',
+        title: 'İş Emri İptal Edildi',
+        message: `${wo.workOrderNumber} nolu iş emri (${plate || ''}) iptal edildi.`,
+        link: `/work-orders/${id}`,
+        metadata: {
+          workOrderId: id,
+          workOrderNumber: wo.workOrderNumber,
+          status: targetStatus,
+          statusLabelTr: 'İptal Edildi',
+          trackingUrl,
+        },
+        recipientPhone: wo.customer?.phone,
+        recipientEmail: (wo.customer as any)?.email,
+        customerMessage: customerMsg,
+        customerHtml,
+        sendSms: !!wo.customer?.phone,
+        sendWhatsApp: !!wo.customer?.phone,
+        sendEmail: !!(wo.customer as any)?.email,
+      });
     } else {
       const customerMsg =
         this.templateService.formatWorkOrderStatusChangedCustomerMessage({
