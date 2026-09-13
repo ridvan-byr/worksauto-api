@@ -115,13 +115,38 @@ export class GowaWhatsAppProvider implements NotificationProvider {
       }
       const data = await res.json().catch(() => ({}));
       const results = data.results || {};
-      const isConnected = results.state === 'connected' || !!results.jid;
+      const isConnected =
+        results.is_connected === true ||
+        results.is_logged_in === true ||
+        results.state === 'connected' ||
+        results.state === 'logged_in' ||
+        !!results.jid;
+
+      let jid = results.jid;
+      let displayName = results.display_name;
+
+      // GOWA /status uç noktasında jid/displayName yoksa /devices listesinden çek
+      if (isConnected && (!jid || !displayName)) {
+        try {
+          const listRes = await fetch(`${this.gowaBaseUrl}/devices`);
+          if (listRes.ok) {
+            const listData = await listRes.json().catch(() => ({}));
+            const matching = (listData.results || []).find((d: any) => d.id === deviceId);
+            if (matching) {
+              jid = jid || matching.jid;
+              displayName = displayName || matching.display_name;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
 
       return {
         connected: isConnected,
-        state: results.state || (isConnected ? 'connected' : 'disconnected'),
-        jid: results.jid,
-        displayName: results.display_name,
+        state: isConnected ? 'connected' : (results.state || 'disconnected'),
+        jid,
+        displayName,
       };
     } catch (err: any) {
       return {
@@ -143,12 +168,24 @@ export class GowaWhatsAppProvider implements NotificationProvider {
       );
       if (!res.ok) {
         const errText = await res.text();
+        if (errText.includes('ALREADY_LOGGED_IN') || errText.includes('already logged in')) {
+          return {
+            success: false,
+            error: 'WhatsApp hattınız zaten bağlı. Yeni eşleşme için önce "Hattı Ayır" butonuna basınız.',
+          };
+        }
         return {
           success: false,
           error: `QR kod alınamadı (${res.status}): ${errText}`,
         };
       }
       const data = await res.json().catch(() => ({}));
+      if (data.code === 'ALREADY_LOGGED_IN') {
+        return {
+          success: false,
+          error: 'WhatsApp hattınız zaten bağlı. Yeni eşleşme için önce "Hattı Ayır" butonuna basınız.',
+        };
+      }
       const results = data.results || {};
       let qrBase64: string | undefined = undefined;
 
@@ -168,7 +205,7 @@ export class GowaWhatsAppProvider implements NotificationProvider {
         success: true,
         qrLink: results.qr_link,
         qrBase64,
-        qrDuration: results.qr_duration || 30,
+        qrDuration: Math.max(results.qr_duration || 90, 90),
       };
     } catch (err: any) {
       return {
