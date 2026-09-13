@@ -4,8 +4,43 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsArray,
+  ValidateNested,
   Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class CreateInvoiceItemDto {
+  @ApiProperty({ example: 'Periyodik Bakım İşçiliği' })
+  @IsNotEmpty()
+  @IsString()
+  name: string;
+
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  @Min(1)
+  quantity: number;
+
+  @ApiProperty({ example: 1000.0 })
+  @IsNumber()
+  @Min(0)
+  unitPrice: number;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  @IsNumber()
+  kdvRate?: number;
+
+  @ApiPropertyOptional({ example: 1200.0 })
+  @IsOptional()
+  @IsNumber()
+  totalPrice?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
 
 export class CreateInvoiceDto {
   @ApiPropertyOptional({
@@ -55,4 +90,30 @@ export class CreateInvoiceDto {
   @IsNumber()
   @Min(0)
   offsetAdvanceAmount?: number;
+
+  @ApiPropertyOptional({
+    type: [CreateInvoiceItemDto],
+    description: 'Fatura satır kalemleri',
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateInvoiceItemDto)
+  items?: CreateInvoiceItemDto[];
+
+  @ApiPropertyOptional({
+    example: 'İşbu fatura muhteviyatı teslim edilmiş olup, irsaliye yerine geçer.',
+    description: 'Fatura açıklama ve yasal notları',
+  })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @ApiPropertyOptional({
+    example: 'TICARIFATURA',
+    description: 'E-Fatura Senaryo Türü (TICARIFATURA, TEMELFATURA, EARSIVFATURA)',
+  })
+  @IsOptional()
+  @IsString()
+  profileId?: 'TICARIFATURA' | 'TEMELFATURA' | 'EARSIVFATURA';
 }

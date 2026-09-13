@@ -31,4 +31,15 @@ export interface IInvoiceRepository {
     id: string,
     reason: string,
   ): Promise<InvoiceEntity>;
+  updateEInvoiceDetails(
+    tenantId: string,
+    id: string,
+    data: {
+      eInvoiceUuid?: string;
+      gibInvoiceNumber?: string;
+      eInvoiceStatus?: string;
+      profileId?: string;
+      notes?: string;
+    },
+  ): Promise<InvoiceEntity>;
 }

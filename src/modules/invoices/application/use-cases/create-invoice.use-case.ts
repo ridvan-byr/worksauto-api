@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 import {
   IInvoiceRepository,
   INVOICE_REPOSITORY,
@@ -8,6 +8,7 @@ import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
 import { NotificationType } from '@prisma/client';
 import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
+import { EInvoiceProviderFactory } from '../../infrastructure/providers/einvoice-provider.factory';
 
 export interface CreateInvoiceInput {
   workOrderId?: string;
@@ -19,6 +20,9 @@ export interface CreateInvoiceInput {
   offsetAdvanceAmount?: number;
   invoiceNumber?: string;
   gibInvoiceNumber?: string;
+  items?: any[];
+  notes?: string;
+  profileId?: 'TICARIFATURA' | 'TEMELFATURA' | 'EARSIVFATURA';
 }
 
 @Injectable()
@@ -29,6 +33,8 @@ export class CreateInvoiceUseCase {
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
     private readonly templateService: NotificationTemplateService,
+    @Optional()
+    private readonly providerFactory?: EInvoiceProviderFactory,
   ) {}
 
   async execute(
@@ -36,6 +42,13 @@ export class CreateInvoiceUseCase {
     dto: CreateInvoiceInput,
     userId?: string,
   ): Promise<InvoiceEntity> {
+    const standardNotes = [
+      dto.notes,
+      'İşbu fatura muhteviyatı teslim edilmiş olup, irsaliye yerine geçer.',
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
     const entity = new InvoiceEntity({
       tenantId,
       workOrderId: dto.workOrderId,
@@ -49,13 +62,75 @@ export class CreateInvoiceUseCase {
       remainingAmount: dto.grandTotal,
       status: 'UNPAID',
       gibInvoiceNumber: dto.gibInvoiceNumber || 'PENDING',
-      eInvoiceStatus: 'COMPLETED',
+      eInvoiceStatus: 'QUEUED',
+      profileId: dto.profileId,
+      notes: standardNotes,
+      items: dto.items,
     });
 
     const result = await this.invoiceRepository.createWithCariMovement(
       entity,
       dto.offsetAdvanceAmount,
     );
+
+    // E-Fatura Sağlayıcı Entegrasyonu (Paraşüt / Nilvera / Dahili)
+    if (this.providerFactory && result.invoice.id) {
+      try {
+        const provider = await this.providerFactory.getProvider(tenantId);
+        const invoiceItems = (result.invoice.items && result.invoice.items.length > 0)
+          ? result.invoice.items
+          : (dto.items || [
+              {
+                name: 'Genel Servis & Bakım Bedeli',
+                quantity: 1,
+                unitPrice: dto.subtotal,
+                kdvRate: 20,
+                totalPrice: dto.subtotal,
+              },
+            ]);
+
+        const providerRes = await provider.createInvoice({
+          invoiceId: result.invoice.id,
+          invoiceNumber: result.invoice.invoiceNumber,
+          issueDate: result.invoice.issueDate,
+          dueDate: result.invoice.dueDate,
+          customer: {
+            name: result.customerName,
+            email: result.customerEmail || undefined,
+            phone: result.customerPhone || undefined,
+          },
+          items: invoiceItems.map((i: any) => ({
+            name: i.name || 'Hizmet',
+            quantity: Number(i.quantity || 1),
+            unitPrice: Number(i.unitPrice || 0),
+            kdvRate: Number(i.kdvRate ?? 20),
+            totalPrice: Number(i.totalPrice ?? (Number(i.quantity || 1) * Number(i.unitPrice || 0))),
+          })),
+          subtotal: dto.subtotal,
+          kdvAmount: dto.kdvAmount,
+          grandTotal: dto.grandTotal,
+          isPaid: result.invoice.status === 'PAID',
+          paidAmount: result.invoice.paidAmount,
+          notes: standardNotes,
+          profileId: dto.profileId,
+        });
+
+        if (providerRes.success) {
+          await this.invoiceRepository.updateEInvoiceDetails(tenantId, result.invoice.id, {
+            eInvoiceUuid: providerRes.eInvoiceUuid,
+            gibInvoiceNumber: providerRes.gibInvoiceNumber,
+            eInvoiceStatus: providerRes.eInvoiceStatus,
+            profileId: dto.profileId,
+            notes: standardNotes,
+          });
+          result.invoice.gibInvoiceNumber = providerRes.gibInvoiceNumber;
+          result.invoice.eInvoiceStatus = providerRes.eInvoiceStatus;
+          result.invoice.eInvoiceUuid = providerRes.eInvoiceUuid;
+        }
+      } catch (provErr) {
+        console.warn('E-Invoice provider call failed, falling back to local queue:', provErr);
+      }
+    }
 
     // CREDIT LIMIT CHECK (Şartname Madde 28)
     if (result.creditLimit > 0 && result.newBalance > result.creditLimit) {

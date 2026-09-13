@@ -38,6 +38,10 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       gibInvoiceNumber: data.gibInvoiceNumber ?? undefined,
       eInvoiceStatus: data.eInvoiceStatus ?? undefined,
       eInvoiceUuid: data.eInvoiceUuid ?? undefined,
+      profileId: data.profileId ?? undefined,
+      invoiceTypeCode: data.invoiceTypeCode ?? 'SATIS',
+      notes: data.notes ?? undefined,
+      items: data.items,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       customer: data.customer,
@@ -55,6 +59,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       include: {
         customer: true,
         workOrder: { include: { items: true, vehicle: true } },
+        items: true,
         payments: { orderBy: { paymentDate: 'desc' } },
       },
     });
@@ -75,6 +80,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
             items: true,
           },
         },
+        items: true,
         payments: { orderBy: { paymentDate: 'desc' } },
       },
       orderBy: { issueDate: 'desc' },
@@ -149,10 +155,13 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       }
 
       // 2. If workOrderId is provided, verify workOrder strictly belongs to this tenant and has no active invoice
+      let linkedWorkOrder: any = null;
       if (invoice.workOrderId) {
         const workOrder = await tx.workOrder.findFirst({
           where: { id: invoice.workOrderId, tenantId: invoice.tenantId },
+          include: { items: true },
         });
+        linkedWorkOrder = workOrder;
 
         if (!workOrder) {
           throw new BadRequestException(
@@ -258,8 +267,36 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
           status: initialStatus,
           gibInvoiceNumber: finalGibInvoiceNumber,
           eInvoiceStatus: invoice.eInvoiceStatus || 'COMPLETED',
+          eInvoiceUuid: invoice.eInvoiceUuid,
+          profileId: invoice.profileId,
+          invoiceTypeCode: invoice.invoiceTypeCode || 'SATIS',
+          notes: invoice.notes,
         },
       });
+
+      // Snapshot items into InvoiceItem table for immutability and e-invoice integrity
+      const itemsToSnapshot =
+        invoice.items && invoice.items.length > 0
+          ? invoice.items
+          : linkedWorkOrder?.items || [];
+
+      if (itemsToSnapshot.length > 0) {
+        await tx.invoiceItem.createMany({
+          data: itemsToSnapshot.map((item: any) => ({
+            invoiceId: created.id,
+            itemType: item.itemType || 'SERVICE',
+            name: item.name || 'Hizmet / Kalem',
+            quantity: Number(item.quantity || 1),
+            unitPrice: Number(item.unitPrice || 0),
+            kdvRate: Number(item.kdvRate ?? 20),
+            totalPrice:
+              item.totalPrice !== undefined
+                ? Number(item.totalPrice)
+                : Number(item.quantity || 1) * Number(item.unitPrice || 0),
+            notes: item.notes || null,
+          })),
+        });
+      }
 
       if (advancePaid > 0) {
         await tx.payment.create({
@@ -452,5 +489,29 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
 
       return this.mapToEntity(cancelled);
     });
+  }
+
+  async updateEInvoiceDetails(
+    tenantId: string,
+    id: string,
+    data: {
+      eInvoiceUuid?: string;
+      gibInvoiceNumber?: string;
+      eInvoiceStatus?: string;
+      profileId?: string;
+      notes?: string;
+    },
+  ): Promise<InvoiceEntity> {
+    const updated = await this.prisma.invoice.update({
+      where: { id },
+      data,
+      include: {
+        customer: true,
+        workOrder: { include: { items: true, vehicle: true } },
+        items: true,
+        payments: { orderBy: { paymentDate: 'desc' } },
+      },
+    });
+    return this.mapToEntity(updated);
   }
 }

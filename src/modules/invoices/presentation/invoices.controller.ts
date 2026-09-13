@@ -62,6 +62,16 @@ export class InvoicesController {
     return this.getInvoicesUseCase.getById(tenantId, id);
   }
 
+  @Get(':id/pdf')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
+  @RequirePermission(Permission.INVOICE_VIEW)
+  @ApiOperation({
+    summary: 'Faturanın resmi GİB / E-Fatura sağlayıcı PDF çıktısını döner',
+  })
+  getPdf(@CurrentTenant() tenantId: string, @Param('id') id: string) {
+    return this.getInvoicesUseCase.getPdf(tenantId, id);
+  }
+
   @Post()
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
   @RequirePermission(Permission.INVOICE_CREATE)

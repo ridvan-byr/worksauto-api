@@ -1,6 +1,7 @@
 import {
   Injectable,
   Inject,
+  Optional,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -10,6 +11,7 @@ import {
 } from '../../domain/invoice.repository.interface';
 import { InvoiceEntity } from '../../domain/invoice.entity';
 import { AuditService } from '../../../audit/audit.service';
+import { EInvoiceProviderFactory } from '../../infrastructure/providers/einvoice-provider.factory';
 
 @Injectable()
 export class CancelInvoiceUseCase {
@@ -17,6 +19,8 @@ export class CancelInvoiceUseCase {
     @Inject(INVOICE_REPOSITORY)
     private readonly invoiceRepository: IInvoiceRepository,
     private readonly auditService: AuditService,
+    @Optional()
+    private readonly providerFactory?: EInvoiceProviderFactory,
   ) {}
 
   async execute(
@@ -58,6 +62,16 @@ export class CancelInvoiceUseCase {
       id,
       reason.trim(),
     );
+
+    // E-Fatura sağlayıcısında resmi iptal talebi oluşturma
+    if (this.providerFactory && inv.eInvoiceUuid) {
+      try {
+        const provider = await this.providerFactory.getProvider(tenantId);
+        await provider.cancelInvoice(inv.eInvoiceUuid, reason.trim());
+      } catch (provErr) {
+        console.warn('Provider cancellation sync error:', provErr);
+      }
+    }
 
     try {
       await this.auditService.log({

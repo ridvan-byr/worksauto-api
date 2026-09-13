@@ -18,6 +18,10 @@ export interface InvoiceProps {
   gibInvoiceNumber?: string;
   eInvoiceStatus?: string;
   eInvoiceUuid?: string;
+  profileId?: string;
+  invoiceTypeCode?: string;
+  notes?: string;
+  items?: any[];
   createdAt?: Date;
   updatedAt?: Date;
   customer?: any;
@@ -42,6 +46,10 @@ export class InvoiceEntity {
   public gibInvoiceNumber?: string;
   public eInvoiceStatus?: string;
   public eInvoiceUuid?: string;
+  public profileId?: string;
+  public invoiceTypeCode?: string;
+  public notes?: string;
+  public items?: any[];
   public readonly createdAt?: Date;
   public readonly updatedAt?: Date;
   public customer?: any;
@@ -65,6 +73,10 @@ export class InvoiceEntity {
     this.gibInvoiceNumber = props.gibInvoiceNumber;
     this.eInvoiceStatus = props.eInvoiceStatus;
     this.eInvoiceUuid = props.eInvoiceUuid;
+    this.profileId = props.profileId;
+    this.invoiceTypeCode = props.invoiceTypeCode || 'SATIS';
+    this.notes = props.notes;
+    this.items = props.items;
     this.createdAt = props.createdAt;
     this.updatedAt = props.updatedAt;
     this.customer = props.customer;

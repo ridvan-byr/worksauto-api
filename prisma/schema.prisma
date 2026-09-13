@@ -119,6 +119,13 @@ enum NotificationChannel {
   SMS
 }
 
+enum InvoiceProviderType {
+  INTERNAL
+  PARASUT
+  NILVERA
+  BIZIMHESAP
+}
+
 // -------------------------------------------------------------
 // CORE ORGANIZATIONAL ENTITIES
 // -------------------------------------------------------------
@@ -176,6 +183,7 @@ model Tenant {
   workshopBays    WorkshopBay[]
   tenantConsents  TenantConsent[]
   notificationSettings TenantNotificationSetting?
+  invoiceSettings TenantInvoiceSetting?
 
   @@map("tenants")
 }
@@ -587,15 +595,36 @@ model Invoice {
   eInvoiceUuid     String? @map("e_invoice_uuid")
   eInvoiceStatus   String? @map("e_invoice_status")
   gibInvoiceNumber String? @map("gib_invoice_number")
+  profileId        String? @map("profile_id")
+  invoiceTypeCode  String? @default("SATIS") @map("invoice_type_code")
+  notes            String?
 
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   workOrder WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
   customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Restrict)
   payments  Payment[]
+  items     InvoiceItem[]
 
   @@unique([tenantId, invoiceNumber])
   @@index([tenantId, status])
   @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String            @id @default(uuid()) @db.Uuid
+  invoiceId   String            @map("invoice_id") @db.Uuid
+  itemType    WorkOrderItemType @default(SERVICE) @map("item_type")
+  name        String
+  quantity    Int               @default(1)
+  unitPrice   Decimal           @map("unit_price") @db.Decimal(10, 2)
+  kdvRate     Decimal           @default(20) @map("kdv_rate") @db.Decimal(4, 2)
+  totalPrice  Decimal           @map("total_price") @db.Decimal(12, 2)
+  notes       String?
+
+  invoice     Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
 }
 
 model Payment {
@@ -871,5 +900,30 @@ model TenantNotificationSetting {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("tenant_notification_settings")
+}
+
+// -------------------------------------------------------------
+// MULTI-PROVIDER E-INVOICE & ACCOUNTING SETTINGS (TENANT LEVEL)
+// -------------------------------------------------------------
+
+model TenantInvoiceSetting {
+  id                    String              @id @default(uuid()) @db.Uuid
+  tenantId              String              @unique @map("tenant_id") @db.Uuid
+  provider              InvoiceProviderType @default(INTERNAL)
+  encryptedApiKey       String?             @map("encrypted_api_key")
+  encryptedApiSecret    String?             @map("encrypted_api_secret")
+  encryptedUsername     String?             @map("encrypted_username")
+  encryptedPassword     String?             @map("encrypted_password")
+  companyTaxId          String?             @map("company_tax_id")
+  taxOffice             String?             @map("tax_office")
+  seriesPrefix          String?             @default("ATW") @map("series_prefix")
+  isTestMode            Boolean             @default(false) @map("is_test_mode")
+  autoSendOnCompletion  Boolean             @default(false) @map("auto_send_on_completion")
+  createdAt             DateTime            @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt             DateTime            @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  tenant                Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_invoice_settings")
 }
 
