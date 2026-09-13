@@ -251,6 +251,9 @@ model Customer {
   email        String?
   taxNumber    String?      @map("tax_number")
   taxOffice    String?      @map("tax_office")
+  address      String?
+  city         String?
+  district     String?
   creditLimit  Decimal      @default(0) @map("credit_limit") @db.Decimal(12, 2)
   notes        String?
   isAnonymized Boolean      @default(false) @map("is_anonymized")

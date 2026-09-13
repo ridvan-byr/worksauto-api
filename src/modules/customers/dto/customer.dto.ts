@@ -54,6 +54,21 @@ export class CreateCustomerDto {
   @IsString()
   taxOffice?: string;
 
+  @ApiPropertyOptional({ example: 'İstanbul' })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional({ example: 'Kadıköy' })
+  @IsOptional()
+  @IsString()
+  district?: string;
+
+  @ApiPropertyOptional({ example: 'Moda Cad. No: 12' })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
   @ApiPropertyOptional({ example: 10000 })
   @IsOptional()
   @IsNumber()
@@ -131,6 +146,15 @@ export class BatchImportRowDto {
 
   @ApiPropertyOptional()
   taxOffice?: string;
+
+  @ApiPropertyOptional()
+  city?: string;
+
+  @ApiPropertyOptional()
+  district?: string;
+
+  @ApiPropertyOptional()
+  address?: string;
 
   @ApiPropertyOptional()
   notes?: string;

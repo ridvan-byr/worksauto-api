@@ -14,6 +14,9 @@ export interface CreateCustomerInput {
   email?: string;
   taxNumber?: string;
   taxOffice?: string;
+  address?: string;
+  city?: string;
+  district?: string;
   creditLimit?: number;
   notes?: string;
   isLead?: boolean;
@@ -52,6 +55,9 @@ export class CreateCustomerUseCase {
       email: dto.email?.trim(),
       taxNumber: dto.taxNumber?.trim(),
       taxOffice: dto.taxOffice?.trim(),
+      address: dto.address?.trim(),
+      city: dto.city?.trim(),
+      district: dto.district?.trim(),
       creditLimit: dto.creditLimit ?? 0,
       notes: dto.notes?.trim(),
       isLead: dto.isLead ?? false,

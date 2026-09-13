@@ -11,6 +11,9 @@ export interface CustomerProps {
   email?: string;
   taxNumber?: string;
   taxOffice?: string;
+  address?: string;
+  city?: string;
+  district?: string;
   creditLimit?: number;
   notes?: string;
   isLead?: boolean;
@@ -35,6 +38,9 @@ export class CustomerEntity {
   public email?: string;
   public taxNumber?: string;
   public taxOffice?: string;
+  public address?: string;
+  public city?: string;
+  public district?: string;
   public creditLimit: number;
   public notes?: string;
   public isLead: boolean;
@@ -58,6 +64,9 @@ export class CustomerEntity {
     this.email = props.email;
     this.taxNumber = props.taxNumber;
     this.taxOffice = props.taxOffice;
+    this.address = props.address;
+    this.city = props.city;
+    this.district = props.district;
     this.creditLimit = props.creditLimit ?? 0;
     this.notes = props.notes;
     this.isLead = props.isLead ?? false;
