@@ -5,6 +5,8 @@ import { IEInvoiceProvider } from '../../domain/einvoice-provider.interface';
 import { InternalDraftProvider } from './internal-draft.provider';
 import { ParasutProvider } from './parasut.provider';
 import { NilveraProvider } from './nilvera.provider';
+import { BizimHesapProvider } from './bizimhesap.provider';
+import { KolayBiProvider } from './kolaybi.provider';
 import { InvoiceProviderType } from '@prisma/client';
 
 @Injectable()
@@ -28,33 +30,28 @@ export class EInvoiceProviderFactory {
     const decryptedUsername = this.cryptoService.decrypt(config.encryptedUsername) || undefined;
     const decryptedPassword = this.cryptoService.decrypt(config.encryptedPassword) || undefined;
 
+    const creds = {
+      apiKey: decryptedApiKey,
+      apiSecret: decryptedApiSecret,
+      username: decryptedUsername,
+      password: decryptedPassword,
+      companyTaxId: config.companyTaxId || undefined,
+      seriesPrefix: config.seriesPrefix || undefined,
+      isTestMode: config.isTestMode,
+    };
+
     switch (config.provider) {
       case InvoiceProviderType.PARASUT:
-        return new ParasutProvider(
-          {
-            apiKey: decryptedApiKey,
-            apiSecret: decryptedApiSecret,
-            username: decryptedUsername,
-            password: decryptedPassword,
-            companyTaxId: config.companyTaxId || undefined,
-            seriesPrefix: config.seriesPrefix || undefined,
-            isTestMode: config.isTestMode,
-          },
-          config.isTestMode,
-        );
+        return new ParasutProvider(creds, config.isTestMode);
 
       case InvoiceProviderType.NILVERA:
-        return new NilveraProvider(
-          {
-            apiKey: decryptedApiKey,
-            username: decryptedUsername,
-            password: decryptedPassword,
-            companyTaxId: config.companyTaxId || undefined,
-            seriesPrefix: config.seriesPrefix || undefined,
-            isTestMode: config.isTestMode,
-          },
-          config.isTestMode,
-        );
+        return new NilveraProvider(creds, config.isTestMode);
+
+      case InvoiceProviderType.BIZIMHESAP:
+        return new BizimHesapProvider(creds, config.isTestMode);
+
+      case InvoiceProviderType.KOLAYBI:
+        return new KolayBiProvider(creds, config.isTestMode);
 
       default:
         return new InternalDraftProvider(tenantId);
@@ -79,6 +76,10 @@ export class EInvoiceProviderFactory {
         return new ParasutProvider(credentials, credentials.isTestMode);
       case InvoiceProviderType.NILVERA:
         return new NilveraProvider(credentials, credentials.isTestMode);
+      case InvoiceProviderType.BIZIMHESAP:
+        return new BizimHesapProvider(credentials, credentials.isTestMode);
+      case InvoiceProviderType.KOLAYBI:
+        return new KolayBiProvider(credentials, credentials.isTestMode);
       default:
         return new InternalDraftProvider('temp');
     }

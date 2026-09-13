@@ -5,13 +5,10 @@ import {
   Post,
   Body,
   Param,
-  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { CurrentTenant } from '../../../shared/decorators/current-tenant.decorator';
 import { Roles } from '../../../shared/decorators/roles.decorator';
-import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { UserRole } from '@prisma/client';
 import { InvoiceSettingsService } from '../application/invoice-settings.service';
 import {
@@ -21,7 +18,6 @@ import {
 
 @ApiTags('Invoices & E-Invoice Settings (E-Fatura Entegrasyon Ayarları)')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('settings/invoice')
 export class InvoiceSettingsController {
   constructor(
@@ -29,14 +25,14 @@ export class InvoiceSettingsController {
   ) {}
 
   @Get()
-  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
   @ApiOperation({ summary: 'Servisin e-fatura sağlayıcı ayarlarını getirir' })
   getSettings(@CurrentTenant() tenantId: string) {
     return this.invoiceSettingsService.getSettings(tenantId);
   }
 
   @Put()
-  @Roles(UserRole.OWNER)
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
   @ApiOperation({
     summary: 'Servisin e-fatura sağlayıcı ve API anahtarlarını günceller',
   })

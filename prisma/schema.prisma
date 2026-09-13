@@ -124,6 +124,8 @@ enum InvoiceProviderType {
   PARASUT
   NILVERA
   BIZIMHESAP
+  KOLAYBI
+  QNB_EFINANS
 }
 
 // -------------------------------------------------------------
