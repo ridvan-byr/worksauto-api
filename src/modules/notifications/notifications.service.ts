@@ -131,37 +131,96 @@ export class NotificationsService {
         this.eventsGateway.emitToAdmin('notification:new', primaryNotif || dto);
       }
 
-      // 4. Asenkron Arka Plan Bildirim Kuyruğu (BullMQ)
+      // 4. Asenkron Arka Plan Bildirim Kuyruğu (BullMQ) & Kanal Tercihleri
+      let tenantSettings: any = null;
+      if (dto.tenantId) {
+        try {
+          tenantSettings = await this.prisma.tenantNotificationSetting.findUnique({
+            where: { tenantId: dto.tenantId },
+          });
+        } catch (e: any) {
+          this.logger.debug(`Could not load tenant notification settings: ${e.message}`);
+        }
+      }
+
+      // Kanal bazlı aktiflik kontrolü (Atölye panelindeki doğrudan tercihlere %100 uyar)
+      const canSendWhatsApp =
+        dto.sendWhatsApp && (tenantSettings ? tenantSettings.whatsappEnabled : true);
+      const canSendSms =
+        dto.sendSms && (tenantSettings ? tenantSettings.smsEnabled : true);
+      const canSendEmail =
+        dto.sendEmail && (tenantSettings ? tenantSettings.emailEnabled : true);
+
+      // DND (Do Not Disturb): Gece 21:30 - 08:30 arası dış müşteri bildirimlerini sabah 09:00'a ertele
+      let nightDelayMs = 0;
+      if (dto.customerMessage && dto.recipientPhone) {
+        const now = new Date();
+        const localHour = (now.getUTCHours() + 3) % 24; // Türkiye Saati (UTC+3)
+        const localMinute = now.getUTCMinutes();
+        const currentTotalMinutes = localHour * 60 + localMinute;
+        const nightStartMinutes = 21 * 60 + 30; // 21:30
+        const morningEndMinutes = 8 * 60 + 30; // 08:30
+
+        const isNightTime =
+          currentTotalMinutes >= nightStartMinutes || currentTotalMinutes < morningEndMinutes;
+
+        if (isNightTime) {
+          let minutesUntilNineAm = 0;
+          if (currentTotalMinutes >= nightStartMinutes) {
+            minutesUntilNineAm = 24 * 60 - currentTotalMinutes + 9 * 60;
+          } else {
+            minutesUntilNineAm = 9 * 60 - currentTotalMinutes;
+          }
+          nightDelayMs = minutesUntilNineAm * 60 * 1000;
+          this.logger.log(
+            `🌙 DND (Gece Koruması) Aktif: Müşteri bildirimi sabah 09:00 için kuyruğa ertelendi (${minutesUntilNineAm} dk gecikme)`,
+          );
+        }
+      }
+
+      const queueOpts = nightDelayMs > 0 ? { delay: nightDelayMs } : undefined;
       const outgoingMessage =
         dto.customerMessage || `${dto.title}: ${dto.message}`;
 
-      if (dto.sendSms && dto.recipientPhone) {
-        await this.queueService.addNotificationJob('send-sms', {
-          to: dto.recipientPhone,
-          message: outgoingMessage,
-          tenantId: dto.tenantId,
-          metadata: dto.metadata,
-        });
+      if (canSendSms && dto.recipientPhone) {
+        await this.queueService.addNotificationJob(
+          'send-sms',
+          {
+            to: dto.recipientPhone,
+            message: outgoingMessage,
+            tenantId: dto.tenantId,
+            metadata: dto.metadata,
+          },
+          queueOpts,
+        );
       }
 
-      if (dto.sendWhatsApp && dto.recipientPhone) {
-        await this.queueService.addNotificationJob('send-whatsapp', {
-          to: dto.recipientPhone,
-          message: outgoingMessage,
-          tenantId: dto.tenantId,
-          metadata: dto.metadata,
-        });
+      if (canSendWhatsApp && dto.recipientPhone) {
+        await this.queueService.addNotificationJob(
+          'send-whatsapp',
+          {
+            to: dto.recipientPhone,
+            message: outgoingMessage,
+            tenantId: dto.tenantId,
+            metadata: dto.metadata,
+          },
+          queueOpts,
+        );
       }
 
-      if (dto.sendEmail && dto.recipientEmail) {
-        await this.queueService.addNotificationJob('send-email', {
-          to: dto.recipientEmail,
-          subject: dto.title,
-          message: outgoingMessage,
-          html: dto.customerHtml,
-          tenantId: dto.tenantId,
-          metadata: dto.metadata,
-        });
+      if (canSendEmail && dto.recipientEmail) {
+        await this.queueService.addNotificationJob(
+          'send-email',
+          {
+            to: dto.recipientEmail,
+            subject: dto.title,
+            message: outgoingMessage,
+            html: dto.customerHtml,
+            tenantId: dto.tenantId,
+            metadata: dto.metadata,
+          },
+          queueOpts,
+        );
       }
 
       return primaryNotif;

@@ -44,6 +44,50 @@ export class GetPublicWorkOrderTrackUseCase {
     const customerFullName = rawName ? this.maskName(rawName) : 'Değerli Müşterimiz';
     const phoneMasked = this.maskPhone(wo.customer?.phone);
 
+    // 7-day retention check for COMPLETED, 24-hour retention check for CANCELLED
+    const now = Date.now();
+    const completedTime = wo.completedAt
+      ? new Date(wo.completedAt).getTime()
+      : new Date(wo.updatedAt || wo.createdAt).getTime();
+    const completedDiffMs = now - completedTime;
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const isCompletedExpired =
+      wo.status === 'COMPLETED' && completedDiffMs > SEVEN_DAYS_MS;
+
+    const cancelledTime = new Date(wo.updatedAt || wo.createdAt).getTime();
+    const cancelledDiffMs = now - cancelledTime;
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const isCancelledExpired =
+      wo.status === 'CANCELLED' && cancelledDiffMs > ONE_DAY_MS;
+
+    if (isCompletedExpired || isCancelledExpired) {
+      return {
+        expired: true,
+        status: wo.status,
+        workOrderNumber: wo.workOrderNumber,
+        completedAt: wo.completedAt,
+        expiredDays: wo.status === 'COMPLETED' ? 7 : 1,
+        expiredReason:
+          wo.status === 'COMPLETED'
+            ? 'COMPLETED_RETENTION_EXPIRED'
+            : 'CANCELLED_RETENTION_EXPIRED',
+        message:
+          wo.status === 'COMPLETED'
+            ? 'Bu araca ait servis işlemleri tamamlanmış olup, güvenlik ve KVKK gizlilik politikaları gereğince canlı takip bağlantısı 7 günlük arşiv süresinin ardından erişime kapatılmıştır.'
+            : 'Bu iş emri iptal edilmiş olup takip bağlantısı erişime kapatılmıştır.',
+        vehicle: {
+          plate: wo.vehicle?.plate || 'Plaka Belirtilmedi',
+          brand: wo.vehicle?.brand || '',
+          model: wo.vehicle?.model || '',
+        },
+        customer: {
+          name: customerFullName,
+          phone: phoneMasked,
+        },
+        tenant: wo.tenant,
+      };
+    }
+
     const services = (wo.items || [])
       .filter((i) => i.itemType === 'SERVICE')
       .map((s) => ({
@@ -87,6 +131,8 @@ export class GetPublicWorkOrderTrackUseCase {
     );
 
     return {
+      expired: false,
+      isArchiveMode: wo.status === 'COMPLETED',
       workOrderNumber: wo.workOrderNumber,
       status: wo.status,
       createdAt: wo.createdAt,
