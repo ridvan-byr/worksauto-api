@@ -72,6 +72,7 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     return this.prisma.workOrder.findFirst({
       where: { id, tenantId },
       include: {
+        tenant: true,
         customer: true,
         vehicle: true,
         assignedMechanic: { include: { user: true } },
@@ -247,6 +248,7 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
       return tx.workOrder.findUnique({
         where: { id: workOrder.id },
         include: {
+          tenant: true,
           customer: true,
           vehicle: true,
           assignedMechanic: { include: { user: true } },

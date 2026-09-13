@@ -106,7 +106,7 @@ export class NotificationTemplateService {
   }): string {
     const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
-    return `${greeting}, ${plateStr}aracınızın servis kabulü yapılmıştır (İş Emri: ${params.workOrderNumber}). Yapılan işlemleri ve hasar/onarım fotoğraflarını anlık canlı takip etmek için: ${params.trackingUrl} - ${params.tenantTitle}`;
+    return `${greeting}, ${plateStr}aracınızın servis kabulü yapılmıştır (İş Emri: ${params.workOrderNumber}).\n\nYapılan işlemleri ve hasar/onarım fotoğraflarını anlık canlı takip etmek için:\n${params.trackingUrl}\n\n${params.tenantTitle}`;
   }
 
   /**
@@ -123,7 +123,7 @@ export class NotificationTemplateService {
     const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
     const statusTr = this.getWorkOrderStatusLabel(params.status);
-    return `${greeting}, ${plateStr}aracınız "${statusTr}" aşamasına alınmıştır. Güncel durumu canlı takip etmek için: ${params.trackingUrl} - ${params.tenantTitle}`;
+    return `${greeting}, ${plateStr}aracınız "${statusTr}" aşamasına alınmıştır.\n\nGüncel durumu canlı takip etmek için:\n${params.trackingUrl}\n\n${params.tenantTitle}`;
   }
 
   /**
@@ -138,7 +138,7 @@ export class NotificationTemplateService {
   }): string {
     const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
-    return `${greeting}, ${plateStr}aracınızın tüm servis ve onarım işlemleri başarıyla tamamlanmış ve teslime hazır hale getirilmiştir. Detaylar: ${params.trackingUrl} - ${params.tenantTitle}`;
+    return `${greeting}, ${plateStr}aracınızın tüm servis ve onarım işlemleri başarıyla tamamlanmış ve teslime hazır hale getirilmiştir.\n\nDetaylar:\n${params.trackingUrl}\n\n${params.tenantTitle}`;
   }
 
   /**
@@ -156,7 +156,7 @@ export class NotificationTemplateService {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    return `${greeting}, ${params.invoiceNumber} numaralı servis faturanız düzenlenmiştir (Tutar: ${amountStr} ₺). Kredi kartı ile güvenli ve hızlı ödemek için: ${params.paymentUrl} - ${params.tenantTitle}`;
+    return `${greeting}, ${params.invoiceNumber} numaralı servis faturanız düzenlenmiştir (Tutar: ${amountStr} ₺).\n\nKredi kartı ile güvenli ve hızlı ödemek için:\n${params.paymentUrl}\n\n${params.tenantTitle}`;
   }
 
   /**
@@ -168,7 +168,7 @@ export class NotificationTemplateService {
     tenantTitle: string;
   }): string {
     const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
-    return `${greeting}, ${params.tenantTitle} servis kayıt ve KVKK aydınlatma onayınızı tamamlamak için linke tıklayınız: ${params.consentUrl}`;
+    return `${greeting},\n\n${params.tenantTitle} servis kayıt ve KVKK aydınlatma onayınızı tamamlamak için linke tıklayınız:\n${params.consentUrl}`;
   }
 
   /**
@@ -229,7 +229,7 @@ export class NotificationTemplateService {
   }): string {
     const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
-    return `${greeting}, ${plateStr}aracınıza ait ${params.workOrderNumber} numaralı servis iş emri iptal edilmiştir. Detaylar ve iletişim: ${params.trackingUrl} - ${params.tenantTitle}`;
+    return `${greeting}, ${plateStr}aracınıza ait ${params.workOrderNumber} numaralı servis iş emri iptal edilmiştir.\n\nDetaylar ve iletişim:\n${params.trackingUrl}\n\n${params.tenantTitle}`;
   }
 
   /**
