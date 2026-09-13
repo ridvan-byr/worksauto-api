@@ -26,6 +26,7 @@ import { AdminUsersService } from './services/admin-users.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { UpdateTenantStatusDto } from './dto/update-tenant-status.dto';
 import { CreateTenantDto } from './dto/create-tenant.dto';
+import { UpdateTenantAdminDto } from './dto/update-tenant-admin.dto';
 import {
   CreateSuperAdminDto,
   UpdateSuperAdminStatusDto,
@@ -170,6 +171,21 @@ export class AdminController {
     @CurrentUser() user: any,
   ) {
     return this.adminTenantService.updateTenantStatus(id, dto, user?.id);
+  }
+
+  @Patch('tenants/:id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({
+    summary: 'Super Admin: Servis profil ve vergi bilgilerini günceller',
+  })
+  updateTenant(
+    @Param('id') id: string,
+    @Body() dto: UpdateTenantAdminDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.adminTenantService.updateTenant(id, dto, user?.id);
   }
 
   @Get('audit-logs')

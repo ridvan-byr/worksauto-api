@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import { UpdateTenantStatusDto } from '../dto/update-tenant-status.dto';
 import { CreateTenantDto } from '../dto/create-tenant.dto';
+import { UpdateTenantAdminDto } from '../dto/update-tenant-admin.dto';
 import { UserRole } from '@prisma/client';
 
 @Injectable()
@@ -192,6 +193,72 @@ export class AdminTenantService {
       message: dto.isActive
         ? 'Servis lisansı onaylandı ve aktif edildi.'
         : 'Servis hesabı donduruldu.',
+      tenant: updated,
+    };
+  }
+
+  /**
+   * Super Admin Tarafından Servis Bilgilerini Güncelleme
+   */
+  async updateTenant(
+    tenantId: string,
+    dto: UpdateTenantAdminDto,
+    adminUserId?: string,
+  ) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Servis kaydı bulunamadı.');
+    }
+
+    const data: any = {};
+    if (dto.title !== undefined) data.title = dto.title.trim();
+    if (dto.legalName !== undefined) data.legalName = dto.legalName.trim();
+    if (dto.phone !== undefined) data.phone = dto.phone.trim();
+    if (dto.email !== undefined) data.email = dto.email.trim().toLowerCase();
+    if (dto.city !== undefined) data.city = dto.city?.trim() || null;
+    if (dto.district !== undefined) data.district = dto.district?.trim() || null;
+    if (dto.address !== undefined) data.address = dto.address?.trim() || null;
+    if (dto.taxNumber !== undefined) data.taxNumber = dto.taxNumber?.trim() || null;
+    if (dto.taxOffice !== undefined) data.taxOffice = dto.taxOffice?.trim() || null;
+
+    const updated = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data,
+    });
+
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId: adminUserId || null,
+          action: 'TENANT_UPDATED',
+          entityName: 'Tenant',
+          entityId: tenantId,
+          changesBefore: {
+            title: tenant.title,
+            legalName: tenant.legalName,
+            phone: tenant.phone,
+            email: tenant.email,
+            taxOffice: tenant.taxOffice,
+            taxNumber: tenant.taxNumber,
+          },
+          changesAfter: {
+            ...data,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      });
+    } catch (e) {
+      this.logger.warn(`Audit log yazılamadı: ${e}`);
+    }
+
+    this.logger.log(`✏️ Servis Bilgileri Güncellendi -> ${updated.title} (ID: ${tenantId})`);
+
+    return {
+      success: true,
+      message: 'Servis bilgileri başarıyla güncellendi.',
       tenant: updated,
     };
   }

@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsOptional,
   IsBoolean,
+  Matches,
 } from 'class-validator';
 
 export class CreateTenantDto {
@@ -53,15 +54,18 @@ export class CreateTenantDto {
   @IsOptional()
   address?: string;
 
-  @ApiPropertyOptional({ example: '1234567890' })
+  @ApiProperty({ example: '1234567890', description: '10 haneli VKN veya 11 haneli şahıs TCKN' })
   @IsString()
-  @IsOptional()
-  taxNumber?: string;
+  @IsNotEmpty({ message: 'Vergi numarası / TCKN zorunludur.' })
+  @Matches(/^\d{10,11}$/, {
+    message: 'Vergi numarası 10 haneli VKN veya 11 haneli TCKN olmalıdır.',
+  })
+  taxNumber: string;
 
-  @ApiPropertyOptional({ example: 'Ostim Vergi Dairesi' })
+  @ApiProperty({ example: 'Ostim Vergi Dairesi', description: 'Bağlı olunan Vergi Dairesi' })
   @IsString()
-  @IsOptional()
-  taxOffice?: string;
+  @IsNotEmpty({ message: 'Vergi dairesi zorunludur.' })
+  taxOffice: string;
 
   @ApiPropertyOptional({ example: true })
   @IsBoolean()
