@@ -149,15 +149,22 @@ export class MediaController {
       return (file.stream as any).pipe(res);
     }
 
-    // 2. Servis/İş emri özel fotoğrafları için Token Doğrulaması
+    // 2. Servis/İş emri fotoğrafları için Doğrulama
     const authHeader = req.headers['authorization'];
+    const queryToken =
+      (req.query?.token as string) || (req.query?.access_token as string) || null;
+    const cookieToken =
+      (req.cookies ? req.cookies['worksauto_access_token'] : null) ||
+      (req.cookies ? req.cookies['refreshToken'] : null);
+
     const token =
       (authHeader &&
       typeof authHeader === 'string' &&
       authHeader.startsWith('Bearer ')
         ? authHeader.slice(7)
         : null) ||
-      (req.cookies ? req.cookies['worksauto_access_token'] : null);
+      queryToken ||
+      cookieToken;
 
     let requestingTenantId = '';
     if (token) {
@@ -167,19 +174,33 @@ export class MediaController {
         });
         requestingTenantId = payload.tenantId;
       } catch {
-        // invalid token
+        // Token invalid or expired
       }
     }
 
     const fileTenantId = objectKey.split('/')[0];
-    if (!requestingTenantId || requestingTenantId !== fileTenantId) {
+    let isAuthorized = Boolean(
+      requestingTenantId && requestingTenantId === fileTenantId,
+    );
+
+    // 3. Fallback: Browser <img> tags or public tracking without headers
+    // Check if the file is an active registered work order photo
+    if (!isAuthorized) {
+      const photoExists =
+        await this.mediaService.verifyWorkOrderPhotoExists(objectKey);
+      if (photoExists) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
       throw new ForbiddenException(
         'Bu medyaya erişim yetkiniz bulunmamaktadır.',
       );
     }
 
     const file = await this.mediaService.getFileStream(
-      requestingTenantId,
+      fileTenantId,
       objectKey,
     );
     res.set({

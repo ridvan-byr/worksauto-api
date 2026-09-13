@@ -326,4 +326,15 @@ export class MediaService implements OnModuleInit {
       contentLength: response.ContentLength,
     };
   }
+
+  /**
+   * Check if an objectKey is a registered work order photo
+   */
+  async verifyWorkOrderPhotoExists(objectKey: string): Promise<boolean> {
+    const photo = await this.prisma.workOrderPhoto.findFirst({
+      where: { url: objectKey },
+      select: { id: true },
+    });
+    return Boolean(photo);
+  }
 }
