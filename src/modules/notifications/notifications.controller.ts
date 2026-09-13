@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Query,
+  Body,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -106,6 +107,39 @@ export class NotificationsController {
   })
   markAllAsRead(@CurrentUser() user: any) {
     return this.notificationsService.markAllAsRead(user?.tenantId, user?.id);
+  }
+
+  @Get('whatsapp/status')
+  @ApiOperation({ summary: 'WhatsApp bağlı cihaz durumunu sorgular' })
+  getWhatsAppStatus(@CurrentUser() user: any) {
+    return this.notificationsService.getWhatsAppStatus(user?.tenantId);
+  }
+
+  @Get('whatsapp/qr')
+  @ApiOperation({ summary: 'WhatsApp eşleştirmesi için QR kod verisi alır' })
+  getWhatsAppQr(@CurrentUser() user: any) {
+    return this.notificationsService.getWhatsAppQr(user?.tenantId);
+  }
+
+  @Post('whatsapp/disconnect')
+  @ApiOperation({ summary: 'WhatsApp cihaz oturumunu sonlandırır' })
+  disconnectWhatsApp(@CurrentUser() user: any) {
+    return this.notificationsService.disconnectWhatsApp(user?.tenantId);
+  }
+
+  @Post('whatsapp/test-message')
+  @ApiOperation({
+    summary: 'Girilen telefon numarasına anlık test WhatsApp mesajı gönderir',
+  })
+  sendWhatsAppTestMessage(
+    @CurrentUser() user: any,
+    @Body() body: { phone: string; message?: string },
+  ) {
+    return this.notificationsService.sendWhatsAppTestMessage(
+      body.phone,
+      body.message,
+      user?.tenantId,
+    );
   }
 
   @Delete(':id')

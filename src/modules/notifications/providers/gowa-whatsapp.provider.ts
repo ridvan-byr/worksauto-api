@@ -7,6 +7,8 @@ import {
   NotificationProvider,
   SendNotificationOptions,
   NotificationResult,
+  WhatsAppDeviceStatus,
+  WhatsAppQrResult,
 } from './notification-provider.interface';
 
 @Injectable()
@@ -52,28 +54,151 @@ export class GowaWhatsAppProvider implements NotificationProvider {
   }
 
   /**
-   * Orijinal marka logosu dosya yolunu bulur
+   * Telefon numarasını WhatsApp/E.164 uluslararası formatına (örn: 905xxxxxxxxx) normalize eder
    */
-  private resolveLogoPath(): string | null {
+  public formatPhoneNumber(phone: string): string {
+    let clean = (phone || '').replace(/\D/g, '');
+    if (!clean) return '';
+
+    // 05xx xxx xx xx (11 haneli yerel TR) -> 905xx xxx xx xx
+    if (clean.startsWith('0') && clean.length === 11 && clean.charAt(1) === '5') {
+      clean = '90' + clean.substring(1);
+    }
+    // 5xx xxx xx xx (10 haneli başında 0 olmayan TR) -> 905xx xxx xx xx
+    else if (clean.length === 10 && clean.startsWith('5')) {
+      clean = '90' + clean;
+    }
+    return clean;
+  }
+
+  /**
+   * GOWA üzerinde cihaz kaydının (slotunun) varlığını garanti eder, yoksa POST /devices ile oluşturur
+   */
+  public async ensureDeviceExists(deviceId: string = 'default'): Promise<boolean> {
     try {
-      const candidates = [
-        path.join(__dirname, '../../../../assets/brand/worksauto-logo-dark.png'),
-        path.join(process.cwd(), 'assets/brand/worksauto-logo-dark.png'),
-        path.join(process.cwd(), '../assets/brand/worksauto-logo-dark.png'),
-        path.join(
-          process.cwd(),
-          'worksauto-api/assets/brand/worksauto-logo-dark.png',
-        ),
-        path.join(
-          process.cwd(),
-          'worksauto-web/public/brand/worksauto-logo-dark.png',
-        ),
-      ];
-      for (const p of candidates) {
-        if (fs.existsSync(p)) return p;
+      const res = await fetch(`${this.gowaBaseUrl}/devices`, { method: 'GET' });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const list = Array.isArray(data.results) ? data.results : [];
+        const exists = list.some((d: any) => d.id === deviceId);
+        if (exists) return true;
       }
-    } catch {}
-    return null;
+
+      // Slot oluştur
+      const createRes = await fetch(`${this.gowaBaseUrl}/devices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: deviceId }),
+      });
+      return createRes.ok;
+    } catch (err: any) {
+      this.logger.warn(`GOWA ensureDeviceExists hatası: ${err.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * Cihazın canlı WhatsApp bağlantı durumunu sorgular
+   */
+  async getWhatsAppStatus(deviceId: string = 'default'): Promise<WhatsAppDeviceStatus> {
+    try {
+      await this.ensureDeviceExists(deviceId);
+      const res = await fetch(
+        `${this.gowaBaseUrl}/devices/${encodeURIComponent(deviceId)}/status`,
+      );
+      if (!res.ok) {
+        return {
+          connected: false,
+          state: 'disconnected',
+          error: `GOWA status HTTP ${res.status}`,
+        };
+      }
+      const data = await res.json().catch(() => ({}));
+      const results = data.results || {};
+      const isConnected = results.state === 'connected' || !!results.jid;
+
+      return {
+        connected: isConnected,
+        state: results.state || (isConnected ? 'connected' : 'disconnected'),
+        jid: results.jid,
+        displayName: results.display_name,
+      };
+    } catch (err: any) {
+      return {
+        connected: false,
+        state: 'unreachable',
+        error: `GOWA servisine ulaşılamadı: ${err.message}`,
+      };
+    }
+  }
+
+  /**
+   * WhatsApp eşleştirmesi için QR kod alır
+   */
+  async getWhatsAppQr(deviceId: string = 'default'): Promise<WhatsAppQrResult> {
+    try {
+      await this.ensureDeviceExists(deviceId);
+      const res = await fetch(
+        `${this.gowaBaseUrl}/devices/${encodeURIComponent(deviceId)}/login`,
+      );
+      if (!res.ok) {
+        const errText = await res.text();
+        return {
+          success: false,
+          error: `QR kod alınamadı (${res.status}): ${errText}`,
+        };
+      }
+      const data = await res.json().catch(() => ({}));
+      const results = data.results || {};
+      let qrBase64: string | undefined = undefined;
+
+      if (results.qr_link) {
+        try {
+          const imgRes = await fetch(results.qr_link);
+          if (imgRes.ok) {
+            const buf = await imgRes.arrayBuffer();
+            qrBase64 = `data:image/png;base64,${Buffer.from(buf).toString('base64')}`;
+          }
+        } catch {
+          // fallback to qr_link directly
+        }
+      }
+
+      return {
+        success: true,
+        qrLink: results.qr_link,
+        qrBase64,
+        qrDuration: results.qr_duration || 30,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: `GOWA servisiyle bağlantı kurulamadı: ${err.message}`,
+      };
+    }
+  }
+
+  /**
+   * WhatsApp cihaz oturumunu kapatır
+   */
+  async disconnectWhatsApp(
+    deviceId: string = 'default',
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const res = await fetch(
+        `${this.gowaBaseUrl}/devices/${encodeURIComponent(deviceId)}/logout`,
+        {
+          method: 'POST',
+        },
+      );
+      if (!res.ok) {
+        const errText = await res.text();
+        return { success: false, error: errText };
+      }
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   }
 
   /**
@@ -83,19 +208,23 @@ export class GowaWhatsAppProvider implements NotificationProvider {
     options: SendNotificationOptions,
   ): Promise<NotificationResult> {
     try {
-      const cleanPhone = options.to.replace(/\D/g, '');
+      const cleanPhone = this.formatPhoneNumber(options.to);
+      const deviceId =
+        options.metadata?.deviceId ||
+        process.env.WHATSAPP_DEVICE_ID ||
+        'default';
+
+      await this.ensureDeviceExists(deviceId);
+
       const url = `${this.gowaBaseUrl}/send/message`;
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'X-Device-Id':
-          options.metadata?.deviceId ||
-          process.env.WHATSAPP_DEVICE_ID ||
-          'default',
+        'X-Device-Id': deviceId,
       };
 
       this.logger.log(
-        `💬 [GOWA WhatsApp Gönderim] -> ${cleanPhone} | Tenant: ${options.tenantId || 'global'}`,
+        `💬 [GOWA WhatsApp Gönderim] -> ${cleanPhone} (Orj: ${options.to}) | Tenant: ${options.tenantId || 'global'}`,
       );
 
       const controller = new AbortController();

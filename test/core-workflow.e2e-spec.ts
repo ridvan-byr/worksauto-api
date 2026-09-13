@@ -358,6 +358,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const paymentRes = await request(app.getHttpServer())
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', `e2e-payment-${Date.now()}`)
       .send({
         invoiceId,
         amount: 1200,

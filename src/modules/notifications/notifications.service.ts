@@ -1,8 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { EventsGateway } from '../events/events.gateway';
 import { QueueService } from '../queues/queue.service';
 import { NotificationType } from '@prisma/client';
+import {
+  NOTIFICATION_PROVIDER,
+  NotificationProvider,
+} from './providers/notification-provider.interface';
 
 export interface CreateNotificationDto {
   tenantId?: string;
@@ -38,6 +42,8 @@ export class NotificationsService {
     private readonly prisma: PrismaService,
     private readonly eventsGateway: EventsGateway,
     private readonly queueService: QueueService,
+    @Inject(NOTIFICATION_PROVIDER)
+    private readonly provider: NotificationProvider,
   ) {}
 
   /**
@@ -316,5 +322,56 @@ export class NotificationsService {
 
     const count = await this.prisma.notification.count({ where });
     return { count, unreadCount: count };
+  }
+
+  /**
+   * WhatsApp Gateway Cihaz Durumunu Sorgular
+   */
+  async getWhatsAppStatus(tenantId?: string) {
+    if (this.provider.getWhatsAppStatus) {
+      return this.provider.getWhatsAppStatus('default');
+    }
+    return { connected: false, state: 'not_supported' };
+  }
+
+  /**
+   * WhatsApp Eşleştirmesi İçin Yeni QR Kod İster
+   */
+  async getWhatsAppQr(tenantId?: string) {
+    if (this.provider.getWhatsAppQr) {
+      return this.provider.getWhatsAppQr('default');
+    }
+    return { success: false, error: 'QR kod desteklenmiyor' };
+  }
+
+  /**
+   * WhatsApp Cihaz Bağlantısını Keser / Oturumu Kapatır
+   */
+  async disconnectWhatsApp(tenantId?: string) {
+    if (this.provider.disconnectWhatsApp) {
+      return this.provider.disconnectWhatsApp('default');
+    }
+    return { success: false, error: 'Çıkış desteklenmiyor' };
+  }
+
+  /**
+   * Belirtilen telefona anlık canlı test mesajı gönderir
+   */
+  async sendWhatsAppTestMessage(
+    phone: string,
+    message?: string,
+    tenantId?: string,
+  ) {
+    const msg =
+      message ||
+      '🚗 WorksAuto WhatsApp Bildirim Testi: Bu mesaj sisteminizin başarıyla bağlandığını doğrulamaktadır. İyi çalışmalar dileriz!';
+
+    const result = await this.provider.sendWhatsApp({
+      to: phone,
+      message: msg,
+      tenantId,
+    });
+
+    return result;
   }
 }
