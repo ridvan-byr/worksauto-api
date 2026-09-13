@@ -135,6 +135,8 @@ model Tenant {
   address     String?
   city        String?
   district    String?
+  latitude    Float?
+  longitude   Float?
   logoUrl     String?
   isActive    Boolean  @default(true)
   autoInvoiceOnComplete Boolean @default(false) @map("auto_invoice_on_complete")

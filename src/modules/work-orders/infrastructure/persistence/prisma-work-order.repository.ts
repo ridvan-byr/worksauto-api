@@ -823,6 +823,8 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
             address: true,
             city: true,
             district: true,
+            latitude: true,
+            longitude: true,
             logoUrl: true,
           },
         },

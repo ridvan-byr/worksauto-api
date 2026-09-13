@@ -61,4 +61,20 @@ export class UpdateTenantDto {
   @IsOptional()
   @IsBoolean()
   autoInvoiceOnComplete?: boolean;
+
+  @ApiProperty({
+    required: false,
+    example: 41.0082,
+    description: 'İşletme harita enlem koordinatı (GPS)',
+  })
+  @IsOptional()
+  latitude?: number;
+
+  @ApiProperty({
+    required: false,
+    example: 28.9784,
+    description: 'İşletme harita boylam koordinatı (GPS)',
+  })
+  @IsOptional()
+  longitude?: number;
 }

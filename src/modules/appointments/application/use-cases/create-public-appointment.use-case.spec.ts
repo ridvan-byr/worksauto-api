@@ -41,10 +41,16 @@ describe('CreatePublicAppointmentUseCase', () => {
       emitToTenant: vi.fn(),
     };
 
+    const mockTemplateService: any = {
+      formatAppointmentCreatedCustomerMessage: vi.fn().mockReturnValue('mesaj'),
+      generateBrandedHtmlEmail: vi.fn().mockReturnValue('<p>html</p>'),
+    };
+
     useCase = new CreatePublicAppointmentUseCase(
       mockRepo,
       mockNotifications,
       mockEvents,
+      mockTemplateService,
     );
   });
 
