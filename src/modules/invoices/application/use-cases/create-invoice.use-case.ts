@@ -7,8 +7,6 @@ import { InvoiceEntity } from '../../domain/invoice.entity';
 import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
 import { NotificationType } from '@prisma/client';
-
-import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
 import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
 
 export interface CreateInvoiceInput {
@@ -30,7 +28,6 @@ export class CreateInvoiceUseCase {
     private readonly invoiceRepository: IInvoiceRepository,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
-    private readonly prisma: PrismaService,
     private readonly templateService: NotificationTemplateService,
   ) {}
 
@@ -105,21 +102,8 @@ export class CreateInvoiceUseCase {
 
     // Müşteriye Fatura & Online Ödeme Linki Bildirimi (E-Posta, SMS, WhatsApp)
     try {
-      const [customer, tenant] = await Promise.all([
-        this.prisma.customer.findUnique({
-          where: { id: dto.customerId },
-          select: { firstName: true, lastName: true, email: true, phone: true },
-        }),
-        this.prisma.tenant.findUnique({
-          where: { id: tenantId },
-          select: { title: true },
-        }),
-      ]);
-
-      const customerName = customer
-        ? `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Değerli Müşterimiz'
-        : 'Değerli Müşterimiz';
-      const tenantTitle = tenant?.title || 'WorksAuto Servis';
+      const customerName = result.customerName || 'Değerli Müşterimiz';
+      const tenantTitle = result.tenantTitle || 'WorksAuto Servis';
       const paymentUrl = this.templateService.getPaymentUrl(result.invoice.id);
 
       const customerMsg = this.templateService.formatInvoiceCreatedCustomerMessage({
@@ -153,13 +137,13 @@ export class CreateInvoiceUseCase {
         title: `Faturanız Düzenlendi (#${result.invoice.invoiceNumber})`,
         message: `${result.invoice.invoiceNumber} nolu servis faturanız düzenlenmiştir (Tutar: ${dto.grandTotal.toLocaleString('tr-TR')} ₺).`,
         link: `/invoices`,
-        recipientPhone: customer?.phone || undefined,
-        recipientEmail: customer?.email || undefined,
+        recipientPhone: result.customerPhone || undefined,
+        recipientEmail: result.customerEmail || undefined,
         customerMessage: customerMsg,
         customerHtml,
-        sendSms: !!customer?.phone,
-        sendWhatsApp: !!customer?.phone,
-        sendEmail: !!customer?.email,
+        sendSms: !!result.customerPhone,
+        sendWhatsApp: !!result.customerPhone,
+        sendEmail: !!result.customerEmail,
       });
     } catch (notifErr) {
       console.warn('Invoice customer notification error:', notifErr);

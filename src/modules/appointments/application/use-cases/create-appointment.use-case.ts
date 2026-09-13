@@ -14,7 +14,6 @@ import { NotificationsService } from '../../../notifications/notifications.servi
 import { EventsGateway } from '../../../events/events.gateway';
 import { QueueService } from '../../../queues/queue.service';
 import { NotificationType } from '@prisma/client';
-import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
 import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
 
 export interface CreateAppointmentInput {
@@ -38,7 +37,6 @@ export class CreateAppointmentUseCase {
     private readonly notificationsService: NotificationsService,
     private readonly eventsGateway: EventsGateway,
     private readonly queueService: QueueService,
-    private readonly prisma: PrismaService,
     private readonly templateService: NotificationTemplateService,
   ) {}
 
@@ -137,27 +135,21 @@ export class CreateAppointmentUseCase {
 
     // In-app & Customer Notifications (Email, SMS, WhatsApp)
     try {
-      const [customer, vehicle, tenant] = await Promise.all([
-        this.prisma.customer.findUnique({
-          where: { id: dto.customerId },
-          select: { firstName: true, lastName: true, email: true, phone: true },
-        }),
-        this.prisma.vehicle.findUnique({
-          where: { id: dto.vehicleId },
-          select: { plate: true },
-        }),
-        this.prisma.tenant.findUnique({
-          where: { id: tenantId },
-          select: { title: true },
-        }),
-      ]);
+      const { customerName, email, phone, plate, tenantTitle } =
+        this.appointmentRepository.getNotificationContext
+          ? await this.appointmentRepository.getNotificationContext(
+              tenantId,
+              dto.customerId,
+              dto.vehicleId,
+            )
+          : {
+              customerName: 'Değerli Müşterimiz',
+              email: undefined,
+              phone: undefined,
+              plate: 'Belirtilmedi',
+              tenantTitle: 'WorksAuto Servis',
+            };
 
-      const customerName = customer
-        ? `${customer.firstName || ''} ${customer.lastName || ''}`.trim() ||
-          'Değerli Müşterimiz'
-        : 'Değerli Müşterimiz';
-      const tenantTitle = tenant?.title || 'WorksAuto Servis';
-      const plate = vehicle?.plate || 'Belirtilmedi';
       const appointmentDate = new Date(dto.slotStartTime).toLocaleDateString(
         'tr-TR',
         {
@@ -209,13 +201,13 @@ export class CreateAppointmentUseCase {
         message: `${created.slotDate ? new Date(created.slotDate).toLocaleDateString('tr-TR') : ''} tarihine yeni randevu kaydı oluşturuldu (${plate}).`,
         link: '/appointments',
         metadata: { appointmentId: created.id },
-        recipientPhone: customer?.phone,
-        recipientEmail: customer?.email || undefined,
+        recipientPhone: phone || undefined,
+        recipientEmail: email || undefined,
         customerMessage: customerMsg,
         customerHtml,
-        sendSms: !!customer?.phone,
-        sendWhatsApp: !!customer?.phone,
-        sendEmail: !!customer?.email,
+        sendSms: !!phone,
+        sendWhatsApp: !!phone,
+        sendEmail: !!email,
       });
     } catch (notifErr) {
       console.error(

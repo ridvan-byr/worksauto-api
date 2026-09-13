@@ -2,6 +2,14 @@ import { AppointmentEntity } from './appointment.entity';
 
 export const APPOINTMENT_REPOSITORY = 'IAppointmentRepository';
 
+export interface AppointmentNotificationContext {
+  customerName: string;
+  email?: string | null;
+  phone?: string | null;
+  plate?: string | null;
+  tenantTitle: string;
+}
+
 export interface IAppointmentRepository {
   findById(tenantId: string, id: string): Promise<AppointmentEntity | null>;
   findAll(tenantId: string, date?: string): Promise<AppointmentEntity[]>;
@@ -39,4 +47,9 @@ export interface IAppointmentRepository {
     plate: string,
     brandModel?: string,
   ): Promise<any>;
+  getNotificationContext?(
+    tenantId: string,
+    customerId: string,
+    vehicleId?: string,
+  ): Promise<AppointmentNotificationContext>;
 }

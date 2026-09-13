@@ -557,4 +557,41 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
 
     return vehicle;
   }
+
+  async getNotificationContext(
+    tenantId: string,
+    customerId: string,
+    vehicleId?: string,
+  ) {
+    const [customer, vehicle, tenant] = await Promise.all([
+      this.prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { firstName: true, lastName: true, companyTitle: true, email: true, phone: true },
+      }),
+      vehicleId
+        ? this.prisma.vehicle.findUnique({
+            where: { id: vehicleId },
+            select: { plate: true },
+          })
+        : Promise.resolve(null),
+      this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { title: true },
+      }),
+    ]);
+
+    const customerName = customer
+      ? customer.companyTitle ||
+        `${customer.firstName || ''} ${customer.lastName || ''}`.trim() ||
+        'Değerli Müşterimiz'
+      : 'Değerli Müşterimiz';
+
+    return {
+      customerName,
+      email: customer?.email,
+      phone: customer?.phone,
+      plate: vehicle?.plate || 'Belirtilmedi',
+      tenantTitle: tenant?.title || 'WorksAuto Servis',
+    };
+  }
 }

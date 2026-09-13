@@ -7,6 +7,9 @@ export interface CreateInvoiceTransactionResult {
   newBalance: number;
   creditLimit: number;
   customerName: string;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  tenantTitle?: string | null;
 }
 
 export interface IInvoiceRepository {

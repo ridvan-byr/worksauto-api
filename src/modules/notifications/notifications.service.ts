@@ -327,7 +327,7 @@ export class NotificationsService {
   /**
    * WhatsApp Gateway Cihaz Durumunu Sorgular
    */
-  async getWhatsAppStatus(tenantId?: string) {
+  async getWhatsAppStatus(_tenantId?: string) {
     if (this.provider.getWhatsAppStatus) {
       return this.provider.getWhatsAppStatus('default');
     }
@@ -337,7 +337,7 @@ export class NotificationsService {
   /**
    * WhatsApp Eşleştirmesi İçin Yeni QR Kod İster
    */
-  async getWhatsAppQr(tenantId?: string) {
+  async getWhatsAppQr(_tenantId?: string) {
     if (this.provider.getWhatsAppQr) {
       return this.provider.getWhatsAppQr('default');
     }
@@ -347,7 +347,7 @@ export class NotificationsService {
   /**
    * WhatsApp Cihaz Bağlantısını Keser / Oturumu Kapatır
    */
-  async disconnectWhatsApp(tenantId?: string) {
+  async disconnectWhatsApp(_tenantId?: string) {
     if (this.provider.disconnectWhatsApp) {
       return this.provider.disconnectWhatsApp('default');
     }

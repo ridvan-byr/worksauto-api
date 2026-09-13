@@ -29,33 +29,19 @@ describe('CreateAppointmentUseCase', () => {
       findActiveOnlineBays: vi.fn(),
       findOrCreateCustomerForPublic: vi.fn(),
       findOrCreateVehicleForPublic: vi.fn(),
+      getNotificationContext: vi.fn().mockResolvedValue({
+        customerName: 'Ahmet Yılmaz',
+        email: 'ahmet@example.com',
+        phone: '05551112233',
+        plate: '34ABC123',
+        tenantTitle: 'Örnek Oto Servis',
+      }),
     };
 
     mockAudit = { log: vi.fn() } as any;
     mockNotifications = { createNotification: vi.fn().mockResolvedValue({}) } as any;
     mockEvents = { emitToTenant: vi.fn() } as any;
     mockQueue = { scheduleAppointmentReminder: vi.fn() } as any;
-
-    const mockPrisma: any = {
-      customer: {
-        findUnique: vi.fn().mockResolvedValue({
-          firstName: 'Ahmet',
-          lastName: 'Yılmaz',
-          email: 'ahmet@example.com',
-          phone: '05551112233',
-        }),
-      },
-      vehicle: {
-        findUnique: vi.fn().mockResolvedValue({
-          plate: '34ABC123',
-        }),
-      },
-      tenant: {
-        findUnique: vi.fn().mockResolvedValue({
-          title: 'Örnek Oto Servis',
-        }),
-      },
-    };
 
     const mockTemplateService: any = {
       formatAppointmentCreatedCustomerMessage: vi.fn().mockReturnValue('mesaj'),
@@ -68,7 +54,6 @@ describe('CreateAppointmentUseCase', () => {
       mockNotifications,
       mockEvents,
       mockQueue,
-      mockPrisma,
       mockTemplateService,
     );
   });

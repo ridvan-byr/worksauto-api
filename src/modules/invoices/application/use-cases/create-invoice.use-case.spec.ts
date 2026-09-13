@@ -4,6 +4,7 @@ import { IInvoiceRepository } from '../../domain/invoice.repository.interface';
 import { InvoiceEntity } from '../../domain/invoice.entity';
 import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
 
 describe('CreateInvoiceUseCase', () => {
   let useCase: CreateInvoiceUseCase;
@@ -32,31 +33,16 @@ describe('CreateInvoiceUseCase', () => {
       createNotification: vi.fn().mockResolvedValue({}),
     } as any;
 
-    const mockPrisma = {
-      customer: {
-        findUnique: vi.fn().mockResolvedValue({
-          firstName: 'Ahmet',
-          lastName: 'Yılmaz',
-          email: 'ahmet@example.com',
-          phone: '05551112233',
-        }),
-      },
-      tenant: {
-        findUnique: vi.fn().mockResolvedValue({
-          title: 'WorksAuto Servis',
-        }),
-      },
-    } as any;
-
     const mockTemplateService = {
       generateBrandedHtmlEmail: vi.fn().mockReturnValue('<p>email</p>'),
+      formatInvoiceCreatedCustomerMessage: vi.fn().mockReturnValue('mesaj'),
+      getPaymentUrl: vi.fn().mockReturnValue('https://pay.example.com'),
     } as any;
 
     useCase = new CreateInvoiceUseCase(
       mockRepo,
       mockAudit,
       mockNotifications,
-      mockPrisma,
       mockTemplateService,
     );
   });
@@ -95,7 +81,9 @@ describe('CreateInvoiceUseCase', () => {
     expect(mockAudit.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'invoice.created' }),
     );
-    expect(mockNotifications.createNotification).not.toHaveBeenCalled();
+    expect(mockNotifications.createNotification).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: NotificationType.WARNING }),
+    );
   });
 
   it('should trigger credit limit notification if new balance exceeds credit limit', async () => {

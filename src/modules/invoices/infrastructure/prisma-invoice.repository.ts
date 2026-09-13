@@ -137,6 +137,8 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
           lastName: true,
           companyTitle: true,
           creditLimit: true,
+          email: true,
+          phone: true,
         },
       });
 
@@ -314,6 +316,11 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         });
       }
 
+      const tenant = await tx.tenant.findUnique({
+        where: { id: invoice.tenantId },
+        select: { title: true },
+      });
+
       const customerName =
         customer?.companyTitle ||
         `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
@@ -327,6 +334,9 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         newBalance,
         creditLimit,
         customerName,
+        customerEmail: customer?.email,
+        customerPhone: customer?.phone,
+        tenantTitle: tenant?.title || 'WorksAuto Servis',
       };
     });
   }
