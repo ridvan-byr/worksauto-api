@@ -63,7 +63,7 @@ export class WorkOrdersController {
   ) {}
 
   @Public()
-  @Throttle({ default: { limit: 15, ttl: 60000 } })
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @Get('public/track/:token')
   @ApiOperation({
     summary:

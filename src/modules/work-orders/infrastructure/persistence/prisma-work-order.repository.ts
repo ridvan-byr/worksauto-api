@@ -44,6 +44,7 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
           assignedMechanic: { include: { user: true } },
           items: true,
           photos: true,
+          invoice: true,
         },
         orderBy: { createdAt: 'desc' },
         take: safeLimit,
