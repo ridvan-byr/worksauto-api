@@ -10,6 +10,10 @@ export interface FindVehiclesOptions {
 export interface IVehicleRepository {
   findById(tenantId: string, id: string): Promise<VehicleEntity | null>;
   findByPlate(tenantId: string, plate: string): Promise<VehicleEntity | null>;
+  findByPlateAny(
+    tenantId: string,
+    plate: string,
+  ): Promise<VehicleEntity | null>;
   findAll(
     tenantId: string,
     options?: FindVehiclesOptions,
@@ -17,4 +21,10 @@ export interface IVehicleRepository {
   save(vehicle: VehicleEntity): Promise<VehicleEntity>;
   update(vehicle: VehicleEntity): Promise<VehicleEntity>;
   softDelete(tenantId: string, id: string): Promise<void>;
+  transferOwnership(
+    tenantId: string,
+    vehicleId: string,
+    newCustomerId: string,
+  ): Promise<VehicleEntity>;
 }
+

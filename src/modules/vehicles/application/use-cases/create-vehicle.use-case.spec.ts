@@ -12,14 +12,17 @@ describe('CreateVehicleUseCase', () => {
     mockRepo = {
       findById: vi.fn(),
       findByPlate: vi.fn(),
+      findByPlateAny: vi.fn(),
       findAll: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
       softDelete: vi.fn(),
+      transferOwnership: vi.fn(),
     };
 
     useCase = new CreateVehicleUseCase(mockRepo);
   });
+
 
   it('should throw ConflictException if vehicle with plate already exists', async () => {
     const existing = new VehicleEntity({
@@ -32,7 +35,7 @@ describe('CreateVehicleUseCase', () => {
       year: 2022,
     });
 
-    vi.mocked(mockRepo.findByPlate).mockResolvedValue(existing);
+    vi.mocked(mockRepo.findByPlateAny).mockResolvedValue(existing);
 
     await expect(
       useCase.execute('t-1', {
@@ -46,7 +49,7 @@ describe('CreateVehicleUseCase', () => {
   });
 
   it('should throw BadRequestException if vehicle year is invalid', async () => {
-    vi.mocked(mockRepo.findByPlate).mockResolvedValue(null);
+    vi.mocked(mockRepo.findByPlateAny).mockResolvedValue(null);
 
     await expect(
       useCase.execute('t-1', {
@@ -60,7 +63,7 @@ describe('CreateVehicleUseCase', () => {
   });
 
   it('should create and save vehicle successfully', async () => {
-    vi.mocked(mockRepo.findByPlate).mockResolvedValue(null);
+    vi.mocked(mockRepo.findByPlateAny).mockResolvedValue(null);
 
     const saved = new VehicleEntity({
       id: 'v-2',

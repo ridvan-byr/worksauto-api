@@ -11,6 +11,7 @@ import { UpdateCustomerUseCase } from './application/use-cases/update-customer.u
 import { QuickLeadUseCase } from './application/use-cases/quick-lead.use-case';
 import { BatchImportCustomersUseCase } from './application/use-cases/batch-import-customers.use-case';
 import { AnonymizeCustomerUseCase } from './application/use-cases/anonymize-customer.use-case';
+import { RestoreCustomerUseCase } from './application/use-cases/restore-customer.use-case';
 
 import { ConsentPublicController } from './presentation/consent-public.controller';
 import { ManageConsentUseCase } from './application/use-cases/manage-consent.use-case';
@@ -33,6 +34,7 @@ import { ManageConsentUseCase } from './application/use-cases/manage-consent.use
     QuickLeadUseCase,
     BatchImportCustomersUseCase,
     AnonymizeCustomerUseCase,
+    RestoreCustomerUseCase,
     ManageConsentUseCase,
   ],
   exports: [
@@ -44,6 +46,7 @@ import { ManageConsentUseCase } from './application/use-cases/manage-consent.use
     QuickLeadUseCase,
     BatchImportCustomersUseCase,
     AnonymizeCustomerUseCase,
+    RestoreCustomerUseCase,
     ManageConsentUseCase,
   ],
 })

@@ -44,7 +44,12 @@ export interface ICustomerRepository {
   create(customer: CustomerEntity): Promise<CustomerEntity>;
   save(customer: CustomerEntity): Promise<CustomerEntity>;
   softDelete(tenantId: string, id: string): Promise<CustomerEntity>;
+  restore(tenantId: string, id: string): Promise<CustomerEntity>;
   findByPhone(tenantId: string, phone: string): Promise<CustomerEntity | null>;
+  findDeletedByPhone(
+    tenantId: string,
+    phone: string,
+  ): Promise<CustomerEntity | null>;
   getCustomerStats(tenantId: string, id: string): Promise<CustomerStatsResult>;
   quickLead(
     tenantId: string,
@@ -62,3 +67,4 @@ export interface ICustomerRepository {
     legalRef: string,
   ): Promise<CustomerEntity>;
 }
+

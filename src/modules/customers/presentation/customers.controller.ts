@@ -28,6 +28,7 @@ import { UpdateCustomerUseCase } from '../application/use-cases/update-customer.
 import { QuickLeadUseCase } from '../application/use-cases/quick-lead.use-case';
 import { BatchImportCustomersUseCase } from '../application/use-cases/batch-import-customers.use-case';
 import { AnonymizeCustomerUseCase } from '../application/use-cases/anonymize-customer.use-case';
+import { RestoreCustomerUseCase } from '../application/use-cases/restore-customer.use-case';
 import { ManageConsentUseCase } from '../application/use-cases/manage-consent.use-case';
 
 @ApiTags('Customers (Müşteriler)')
@@ -42,6 +43,7 @@ export class CustomersController {
     private readonly quickLeadUseCase: QuickLeadUseCase,
     private readonly batchImportCustomersUseCase: BatchImportCustomersUseCase,
     private readonly anonymizeCustomerUseCase: AnonymizeCustomerUseCase,
+    private readonly restoreCustomerUseCase: RestoreCustomerUseCase,
     private readonly manageConsentUseCase: ManageConsentUseCase,
   ) {}
 
@@ -55,6 +57,24 @@ export class CustomersController {
   @ApiOperation({ summary: 'Tenant altındaki müşterileri listeler veya arar' })
   findAll(@CurrentTenant() tenantId: string, @Query('search') search?: string) {
     return this.getCustomersUseCase.execute(tenantId, search);
+  }
+
+  @Get('check-phone')
+  @Roles(
+    UserRole.OWNER,
+    UserRole.SERVICE_MANAGER,
+    UserRole.CASHIER,
+    UserRole.TECHNICIAN,
+  )
+  @ApiOperation({
+    summary:
+      'Telefon numarasının aktif veya silinmiş/arşivde olup olmadığını kontrol eder',
+  })
+  checkPhone(
+    @CurrentTenant() tenantId: string,
+    @Query('phone') phone: string,
+  ) {
+    return this.restoreCustomerUseCase.checkPhone(tenantId, phone || '');
   }
 
   @Get(':id/stats')
@@ -135,6 +155,13 @@ export class CustomersController {
   @ApiOperation({ summary: 'Müşteriyi arşivler (Soft Delete)' })
   remove(@CurrentTenant() tenantId: string, @Param('id') id: string) {
     return this.getCustomersUseCase.softDelete(tenantId, id);
+  }
+
+  @Post(':id/restore')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Arşivlenmiş müşteriyi ve araçlarını geri yükler' })
+  restore(@CurrentTenant() tenantId: string, @Param('id') id: string) {
+    return this.restoreCustomerUseCase.execute(tenantId, id);
   }
 
   @Post(':id/anonymize')

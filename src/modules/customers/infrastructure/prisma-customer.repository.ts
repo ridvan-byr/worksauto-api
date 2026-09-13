@@ -132,6 +132,21 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     return customer ? this.mapToEntity(customer) : null;
   }
 
+  async findDeletedByPhone(
+    tenantId: string,
+    phone: string,
+  ): Promise<CustomerEntity | null> {
+    const customer = await this.prisma.customer.findFirst({
+      where: { tenantId, phone, deletedAt: { not: null } },
+      include: {
+        vehicles: true,
+        currentAccount: true,
+      },
+      orderBy: { deletedAt: 'desc' },
+    });
+    return customer ? this.mapToEntity(customer) : null;
+  }
+
   async findAll(tenantId: string, search?: string): Promise<CustomerEntity[]> {
     let searchCondition: any = undefined;
 
@@ -310,6 +325,34 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       return cust;
     });
     return this.mapToEntity(updated);
+  }
+
+  async restore(tenantId: string, id: string): Promise<CustomerEntity> {
+    const existing = await this.prisma.customer.findFirst({
+      where: { id, tenantId, deletedAt: { not: null } },
+      include: { vehicles: true },
+    });
+    if (!existing) {
+      throw new NotFoundException(
+        'Arşivlenmiş müşteri bulunamadı veya bu işletmeye ait değil.',
+      );
+    }
+
+    const restored = await this.prisma.$transaction(async (tx) => {
+      const cust = await tx.customer.update({
+        where: { id },
+        data: { deletedAt: null },
+      });
+      // Ayrıca müşterinin daha önce silinmiş olan araçlarını da geri aktif et
+      await tx.vehicle.updateMany({
+        where: { customerId: id, deletedAt: { not: null } },
+        data: { deletedAt: null },
+      });
+      return cust;
+    });
+
+    const fullCustomer = await this.findById(tenantId, restored.id);
+    return fullCustomer || this.mapToEntity(restored);
   }
 
   async getCustomerStats(

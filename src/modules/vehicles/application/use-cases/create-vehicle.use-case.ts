@@ -29,6 +29,7 @@ export interface CreateVehicleInput {
   inspectionValidUntil?: Date;
   insuranceValidUntil?: Date;
   kaskoValidUntil?: Date;
+  transferIfExists?: boolean;
 }
 
 @Injectable()
@@ -47,11 +48,22 @@ export class CreateVehicleUseCase {
       throw new BadRequestException('Araç plakası zorunludur.');
     }
 
-    const existing = await this.vehicleRepository.findByPlate(
+    const existingAny = await this.vehicleRepository.findByPlateAny(
       tenantId,
       normalizedPlate,
     );
-    if (existing) {
+
+    if (existingAny) {
+      if (dto.transferIfExists && existingAny.id) {
+        // Eğer kullanıcı veya sistem devretmeyi onayladıysa sahipliği aktar
+        return await this.vehicleRepository.transferOwnership(
+          tenantId,
+          existingAny.id,
+          dto.customerId,
+        );
+      }
+
+      // Eğer araç silinmiş bir müşteriye aitse veya arşivdeyse ve transfer onaylanmamışsa
       throw new ConflictException(
         'Bu plaka ile kayıtlı bir araç zaten mevcut.',
       );

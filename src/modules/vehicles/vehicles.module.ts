@@ -8,6 +8,7 @@ import { GetVehicleByIdUseCase } from './application/use-cases/get-vehicle-by-id
 import { CreateVehicleUseCase } from './application/use-cases/create-vehicle.use-case';
 import { UpdateVehicleUseCase } from './application/use-cases/update-vehicle.use-case';
 import { DeleteVehicleUseCase } from './application/use-cases/delete-vehicle.use-case';
+import { TransferVehicleUseCase } from './application/use-cases/transfer-vehicle.use-case';
 
 @Module({
   controllers: [VehiclesController],
@@ -22,6 +23,7 @@ import { DeleteVehicleUseCase } from './application/use-cases/delete-vehicle.use
     CreateVehicleUseCase,
     UpdateVehicleUseCase,
     DeleteVehicleUseCase,
+    TransferVehicleUseCase,
   ],
   exports: [
     VEHICLE_REPOSITORY,
@@ -30,6 +32,8 @@ import { DeleteVehicleUseCase } from './application/use-cases/delete-vehicle.use
     CreateVehicleUseCase,
     UpdateVehicleUseCase,
     DeleteVehicleUseCase,
+    TransferVehicleUseCase,
   ],
 })
 export class VehiclesModule {}
+

@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import {
   IVehicleRepository,
@@ -87,6 +87,24 @@ export class PrismaVehicleRepository implements IVehicleRepository {
 
     return record ? this.mapToEntity(record) : null;
   }
+
+  async findByPlateAny(
+    tenantId: string,
+    plate: string,
+  ): Promise<VehicleEntity | null> {
+    const cleanPlate = VehicleEntity.normalizePlate(plate);
+    const record = await this.prisma.vehicle.findFirst({
+      where: {
+        tenantId,
+        plate: cleanPlate,
+      },
+      include: { customer: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return record ? this.mapToEntity(record) : null;
+  }
+
 
   async findAll(
     tenantId: string,
@@ -265,4 +283,38 @@ export class PrismaVehicleRepository implements IVehicleRepository {
       data: { deletedAt: new Date() },
     });
   }
+
+  async transferOwnership(
+    tenantId: string,
+    vehicleId: string,
+    newCustomerId: string,
+  ): Promise<VehicleEntity> {
+    const targetCustomer = await this.prisma.customer.findFirst({
+      where: { id: newCustomerId, tenantId, deletedAt: null },
+    });
+    if (!targetCustomer) {
+      throw new BadRequestException(
+        'Devralacak müşteri bulunamadı veya silinmiş.',
+      );
+    }
+
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: { id: vehicleId, tenantId },
+    });
+    if (!vehicle) {
+      throw new NotFoundException('Devredilecek araç bulunamadı.');
+    }
+
+    const updated = await this.prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: {
+        customerId: newCustomerId,
+        deletedAt: null, // Eğer arşivdeyse aktifleştir
+      },
+      include: { customer: true },
+    });
+
+    return this.mapToEntity(updated);
+  }
 }
+

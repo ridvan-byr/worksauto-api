@@ -20,6 +20,7 @@ import { GetVehicleByIdUseCase } from './application/use-cases/get-vehicle-by-id
 import { CreateVehicleUseCase } from './application/use-cases/create-vehicle.use-case';
 import { UpdateVehicleUseCase } from './application/use-cases/update-vehicle.use-case';
 import { DeleteVehicleUseCase } from './application/use-cases/delete-vehicle.use-case';
+import { TransferVehicleUseCase } from './application/use-cases/transfer-vehicle.use-case';
 
 @ApiTags('Vehicles (Araçlar)')
 @ApiBearerAuth('JWT-auth')
@@ -32,7 +33,25 @@ export class VehiclesController {
     private readonly createVehicleUseCase: CreateVehicleUseCase,
     private readonly updateVehicleUseCase: UpdateVehicleUseCase,
     private readonly deleteVehicleUseCase: DeleteVehicleUseCase,
+    private readonly transferVehicleUseCase: TransferVehicleUseCase,
   ) {}
+
+  @Get('check-plate')
+  @Roles(
+    UserRole.OWNER,
+    UserRole.SERVICE_MANAGER,
+    UserRole.TECHNICIAN,
+    UserRole.CASHIER,
+  )
+  @ApiOperation({
+    summary: 'Plakanın sistemde kayıtlı veya başka bir müşteride olup olmadığını kontrol eder',
+  })
+  checkPlate(
+    @CurrentTenant() tenantId: string,
+    @Query('plate') plate: string,
+  ) {
+    return this.transferVehicleUseCase.checkPlate(tenantId, plate || '');
+  }
 
   @Get()
   @Roles(
@@ -77,6 +96,17 @@ export class VehiclesController {
     return this.updateVehicleUseCase.execute(tenantId, id, dto);
   }
 
+  @Post(':id/transfer')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Aracın sahipliğini başka bir müşteriye devreder' })
+  transfer(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @Body('newCustomerId') newCustomerId: string,
+  ) {
+    return this.transferVehicleUseCase.execute(tenantId, id, newCustomerId);
+  }
+
   @Delete(':id')
   @Roles(UserRole.OWNER)
   @ApiOperation({ summary: 'Aracı arşivler (Soft Delete)' })
@@ -84,3 +114,4 @@ export class VehiclesController {
     return this.deleteVehicleUseCase.execute(tenantId, id);
   }
 }
+
