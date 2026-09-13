@@ -29,10 +29,36 @@ describe('CreateInvoiceUseCase', () => {
     } as any;
 
     mockNotifications = {
-      createNotification: vi.fn(),
+      createNotification: vi.fn().mockResolvedValue({}),
     } as any;
 
-    useCase = new CreateInvoiceUseCase(mockRepo, mockAudit, mockNotifications);
+    const mockPrisma = {
+      customer: {
+        findUnique: vi.fn().mockResolvedValue({
+          firstName: 'Ahmet',
+          lastName: 'Yılmaz',
+          email: 'ahmet@example.com',
+          phone: '05551112233',
+        }),
+      },
+      tenant: {
+        findUnique: vi.fn().mockResolvedValue({
+          title: 'WorksAuto Servis',
+        }),
+      },
+    } as any;
+
+    const mockTemplateService = {
+      generateBrandedHtmlEmail: vi.fn().mockReturnValue('<p>email</p>'),
+    } as any;
+
+    useCase = new CreateInvoiceUseCase(
+      mockRepo,
+      mockAudit,
+      mockNotifications,
+      mockPrisma,
+      mockTemplateService,
+    );
   });
 
   it('should create an invoice and record audit log', async () => {

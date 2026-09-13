@@ -826,7 +826,7 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
             latitude: true,
             longitude: true,
             logoUrl: true,
-          },
+          } as any,
         },
         customer: {
           select: {
