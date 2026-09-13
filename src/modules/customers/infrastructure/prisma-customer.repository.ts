@@ -18,6 +18,27 @@ export class PrismaCustomerRepository implements ICustomerRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   private mapToEntity(data: any): CustomerEntity {
+    const vehiclesMapped = data.vehicles
+      ? data.vehicles.map((v: any) => {
+          let lastServiceDate: string | null = null;
+          let lastServiceStatus: string | null = null;
+          if (v.workOrders && v.workOrders.length > 0) {
+            const completedWo = v.workOrders.find(
+              (w: any) => w.status === 'COMPLETED',
+            );
+            const targetWo = completedWo || v.workOrders[0];
+            const d = targetWo.completedAt || targetWo.createdAt;
+            lastServiceDate = d ? new Date(d).toISOString() : null;
+            lastServiceStatus = v.workOrders[0]?.status || null;
+          }
+          return {
+            ...v,
+            lastServiceDate,
+            lastServiceStatus,
+          };
+        })
+      : data.vehicles;
+
     return new CustomerEntity({
       id: data.id,
       tenantId: data.tenantId,
@@ -38,7 +59,7 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       isAnonymized: Boolean(data.isAnonymized),
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
-      vehicles: data.vehicles,
+      vehicles: vehiclesMapped,
       currentAccount: data.currentAccount,
       appointments: data.appointments,
       workOrders: data.workOrders,
@@ -50,12 +71,51 @@ export class PrismaCustomerRepository implements ICustomerRepository {
     const customer = await this.prisma.customer.findFirst({
       where: { id, tenantId, deletedAt: null },
       include: {
-        vehicles: { where: { deletedAt: null } },
+        vehicles: {
+          where: { deletedAt: null },
+          include: {
+            workOrders: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                workOrderNumber: true,
+                status: true,
+                createdAt: true,
+                completedAt: true,
+                initialKm: true,
+              },
+            },
+          },
+        },
         currentAccount: {
           include: { movements: { orderBy: { date: 'desc' }, take: 20 } },
         },
-        workOrders: { orderBy: { createdAt: 'desc' }, take: 10 },
-        invoices: { orderBy: { issueDate: 'desc' }, take: 10 },
+        appointments: {
+          orderBy: { slotDate: 'desc' },
+          take: 20,
+          include: {
+            service: true,
+            vehicle: true,
+            assignedMechanic: { include: { user: true } },
+          },
+        },
+        workOrders: {
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          include: {
+            vehicle: true,
+            assignedMechanic: { include: { user: true } },
+            items: { select: { name: true, itemType: true } },
+          },
+        },
+        invoices: {
+          orderBy: { issueDate: 'desc' },
+          take: 10,
+          include: {
+            workOrder: { include: { vehicle: true } },
+          },
+        },
       },
     });
 
@@ -309,8 +369,8 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       attendanceScore,
       riskCategory,
       balance,
-      totalDebits: 0,
-      totalCredits: 0,
+      totalDebits: customer.currentAccount?.totalDebits ? Number(customer.currentAccount.totalDebits) : 0,
+      totalCredits: customer.currentAccount?.totalCredits ? Number(customer.currentAccount.totalCredits) : 0,
       creditLimit,
       limitExceeded: creditLimit > 0 && balance > creditLimit,
     };

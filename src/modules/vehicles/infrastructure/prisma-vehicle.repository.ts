@@ -16,6 +16,19 @@ export class PrismaVehicleRepository implements IVehicleRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   private mapToEntity(data: any): VehicleEntity {
+    let lastServiceDate: string | null = null;
+    let lastServiceStatus: string | null = null;
+
+    if (data.workOrders && data.workOrders.length > 0) {
+      const completedWo = data.workOrders.find(
+        (w: any) => w.status === 'COMPLETED',
+      );
+      const targetWo = completedWo || data.workOrders[0];
+      const d = targetWo.completedAt || targetWo.createdAt;
+      lastServiceDate = d ? new Date(d).toISOString() : null;
+      lastServiceStatus = data.workOrders[0]?.status || null;
+    }
+
     return new VehicleEntity({
       id: data.id,
       tenantId: data.tenantId,
@@ -39,6 +52,8 @@ export class PrismaVehicleRepository implements IVehicleRepository {
       customer: data.customer,
       appointments: data.appointments,
       workOrders: data.workOrders,
+      lastServiceDate,
+      lastServiceStatus,
     });
   }
 
@@ -133,7 +148,21 @@ export class PrismaVehicleRepository implements IVehicleRepository {
 
     const records = await this.prisma.vehicle.findMany({
       where,
-      include: { customer: true },
+      include: {
+        customer: true,
+        workOrders: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          select: {
+            id: true,
+            workOrderNumber: true,
+            status: true,
+            createdAt: true,
+            completedAt: true,
+            initialKm: true,
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 

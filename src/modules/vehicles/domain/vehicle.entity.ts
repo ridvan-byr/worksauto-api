@@ -25,6 +25,8 @@ export interface VehicleProps {
   customer?: any;
   appointments?: any[];
   workOrders?: any[];
+  lastServiceDate?: string | null;
+  lastServiceStatus?: string | null;
 }
 
 export class VehicleEntity {
@@ -50,6 +52,8 @@ export class VehicleEntity {
   public customer?: any;
   public appointments?: any[];
   public workOrders?: any[];
+  public lastServiceDate?: string | null;
+  public lastServiceStatus?: string | null;
 
   constructor(props: VehicleProps) {
     this.id = props.id;
@@ -76,6 +80,8 @@ export class VehicleEntity {
     this.customer = props.customer;
     this.appointments = props.appointments;
     this.workOrders = props.workOrders;
+    this.lastServiceDate = props.lastServiceDate ?? null;
+    this.lastServiceStatus = props.lastServiceStatus ?? null;
 
     this.validateDomainRules();
   }
