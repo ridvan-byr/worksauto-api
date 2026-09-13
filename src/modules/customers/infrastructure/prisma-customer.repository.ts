@@ -238,9 +238,16 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       );
     }
 
-    const updated = await this.prisma.customer.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const cust = await tx.customer.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+      await tx.vehicle.updateMany({
+        where: { customerId: id, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
+      return cust;
     });
     return this.mapToEntity(updated);
   }

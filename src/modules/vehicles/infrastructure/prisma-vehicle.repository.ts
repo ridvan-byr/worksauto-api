@@ -44,7 +44,7 @@ export class PrismaVehicleRepository implements IVehicleRepository {
 
   async findById(tenantId: string, id: string): Promise<VehicleEntity | null> {
     const record = await this.prisma.vehicle.findFirst({
-      where: { id, tenantId, deletedAt: null },
+      where: { id, tenantId, deletedAt: null, customer: { deletedAt: null } },
       include: {
         customer: true,
         workOrders: { orderBy: { createdAt: 'desc' }, take: 10 },
@@ -65,6 +65,7 @@ export class PrismaVehicleRepository implements IVehicleRepository {
         tenantId,
         plate: cleanPlate,
         deletedAt: null,
+        customer: { deletedAt: null },
       },
       include: { customer: true },
     });
@@ -122,6 +123,7 @@ export class PrismaVehicleRepository implements IVehicleRepository {
     const where: any = {
       tenantId,
       deletedAt: null,
+      customer: { deletedAt: null },
       ...searchCondition,
     };
 
