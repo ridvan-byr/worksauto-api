@@ -11,10 +11,12 @@ describe('GetVehiclesUseCase', () => {
     mockRepo = {
       findById: vi.fn(),
       findByPlate: vi.fn(),
+      findByPlateAny: vi.fn(),
       findAll: vi.fn(),
       save: vi.fn(),
       update: vi.fn(),
       softDelete: vi.fn(),
+      transferOwnership: vi.fn(),
     };
 
     useCase = new GetVehiclesUseCase(mockRepo);
