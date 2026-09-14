@@ -56,12 +56,12 @@ async function main() {
     update: {},
     create: {
       tenantId: tenant.id,
-      email: 'ridvan@worksauto.com',
+      email: 'ridvanemrebayar@gmail.com',
       passwordHash,
       firstName: 'Rıdvan',
       lastName: 'Bayar',
       roleId: adminRole.id,
-      phone: '+90 532 123 4567',
+      phone: '+905523741500',
     },
   });
   console.log(`✅ Admin user created: ${adminUser.firstName} ${adminUser.lastName} (${adminUser.email})`);
