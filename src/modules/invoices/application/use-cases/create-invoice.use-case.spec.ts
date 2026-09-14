@@ -23,6 +23,7 @@ describe('CreateInvoiceUseCase', () => {
       }),
       createWithCariMovement: vi.fn(),
       cancelWithCariReversal: vi.fn(),
+      updateEInvoiceDetails: vi.fn(),
     };
 
     mockAudit = {

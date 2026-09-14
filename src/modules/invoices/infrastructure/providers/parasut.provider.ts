@@ -41,26 +41,64 @@ export class ParasutProvider implements IEInvoiceProvider {
       };
     }
 
-    // Gerçek ortamda OAuth token doğrulaması
-    try {
-      // Paraşüt OAuth2 Endpoint simülasyonu / doğrulaması
-      if (this.credentials.apiKey && this.credentials.apiSecret) {
+    // Gerçek ortamda canlı Paraşüt OAuth2 doğrulaması
+    if (this.credentials.apiKey && this.credentials.apiSecret) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch('https://api.parasut.com/oauth/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            client_id: this.credentials.apiKey,
+            client_secret: this.credentials.apiSecret,
+            username: this.credentials.username,
+            password: this.credentials.password,
+            grant_type: 'password',
+            redirect_uri: 'urn:ietf:wg:oauth:2.0:oob',
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          return {
+            success: true,
+            message: 'Paraşüt canlı API hesabına başarıyla bağlanıldı ve yetkilendirildi.',
+            balance: data.balance || 250,
+          };
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          const errMsg =
+            errData.error_description ||
+            errData.error ||
+            `HTTP ${res.status} ${res.statusText}`;
+          return {
+            success: false,
+            message: `Paraşüt Doğrulama Başarısız: ${errMsg}`,
+          };
+        }
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          return {
+            success: false,
+            message: 'Paraşüt sunucusu zaman aşımına uğradı (6s).',
+          };
+        }
         return {
-          success: true,
-          message: 'Paraşüt API hesabına başarıyla bağlanıldı.',
-          balance: 250,
+          success: false,
+          message: `Paraşüt bağlantı hatası: ${error?.message || 'Bilinmeyen hata'}`,
         };
       }
-      return {
-        success: false,
-        message: 'Paraşüt kimlik doğrulama başarısız oldu.',
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        message: `Paraşüt bağlantı hatası: ${error?.message || 'Bilinmeyen hata'}`,
-      };
     }
+
+    return {
+      success: false,
+      message: 'Paraşüt API Anahtarı (Client ID) ve Gizli Anahtar (Client Secret) gereklidir.',
+    };
   }
 
   async checkCustomerTaxType(taxNumber: string): Promise<CustomerTaxType> {
