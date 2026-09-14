@@ -40,8 +40,8 @@ describe('EInvoiceProviderFactory', () => {
     const provider = await factory.getProvider('tenant-1');
     expect(provider.providerName).toBe('PARASUT');
     const testResult = await provider.testConnection();
-    expect(testResult.success).toBe(true);
-    expect(testResult.message).toContain('Sandbox');
+    expect(testResult.success).toBe(false);
+    expect(testResult.message).toContain('henüz');
   });
 
   it('should return NilveraProvider if tenant has NILVERA config', async () => {
@@ -55,6 +55,6 @@ describe('EInvoiceProviderFactory', () => {
     const provider = await factory.getProvider('tenant-1');
     expect(provider.providerName).toBe('NILVERA');
     const testResult = await provider.testConnection();
-    expect(testResult.success).toBe(true);
+    expect(testResult.success).toBe(false);
   });
 });

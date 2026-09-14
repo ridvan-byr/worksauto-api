@@ -1,3 +1,6 @@
+import { randomUUID } from 'crypto';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+export { CreatePaymentDto } from './dto/create-payment.dto';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import {
@@ -11,19 +14,12 @@ import { EventsGateway } from '../events/events.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { QueueService } from '../queues/queue.service';
 
-import { PayTrService, PayTrWebhookPayload } from './infrastructure/paytr.service';
+import {
+  PayTrService,
+  PayTrWebhookPayload,
+} from './infrastructure/paytr.service';
 
 import { NotificationTemplateService } from '../notifications/services/notification-template.service';
-
-export interface CreatePaymentDto {
-  invoiceId?: string;
-  customerId?: string;
-  amount: number;
-  paymentMethod?: PaymentMethod;
-  method?: PaymentMethod;
-  posSlipNo?: string;
-  notes?: string;
-}
 
 @Injectable()
 export class PaymentsService {
@@ -74,13 +70,28 @@ export class PaymentsService {
     dto: CreatePaymentDto,
     cashierName: string,
     actorUserId?: string,
+    gatewayAttemptId?: string,
   ) {
-    if (!dto.amount || dto.amount <= 0) {
+    if (
+      !Number.isFinite(dto.amount) ||
+      dto.amount <= 0 ||
+      Math.abs(dto.amount * 100 - Math.round(dto.amount * 100)) > 0.000001
+    ) {
       throw new BadRequestException(
         'Tahsilat tutarı 0 dan büyük bir değer olmalıdır.',
       );
     }
 
+    if (gatewayAttemptId) {
+      const existing = await this.prisma.payment.findFirst({
+        where: {
+          tenantId,
+          gatewayProvider: 'PAYTR',
+          transactionId: gatewayAttemptId,
+        },
+      });
+      if (existing) return existing;
+    }
     let customerId = dto.customerId;
     const paymentMethod = dto.paymentMethod || dto.method || PaymentMethod.CASH;
 
@@ -151,6 +162,32 @@ export class PaymentsService {
     }
 
     const createdPayment = await this.prisma.$transaction(async (tx) => {
+      // All monetary writes for a customer share this transaction lock.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenantId + ':' + customerId}))`;
+      if (gatewayAttemptId) {
+        const existing = await tx.payment.findFirst({
+          where: {
+            tenantId,
+            gatewayProvider: 'PAYTR',
+            transactionId: gatewayAttemptId,
+          },
+        });
+        if (existing) return existing;
+      }
+      if (dto.invoiceId) {
+        const current = await tx.invoice.findFirst({
+          where: { id: dto.invoiceId, tenantId },
+        });
+        if (
+          !current ||
+          current.status === InvoiceStatus.CANCELLED ||
+          dto.amount > Number(current.remainingAmount)
+        ) {
+          throw new BadRequestException(
+            'Fatura bakiyesi değişti. Lütfen güncel bakiyeyi kontrol ediniz.',
+          );
+        }
+      }
       const payment = await tx.payment.create({
         data: {
           tenantId,
@@ -161,6 +198,9 @@ export class PaymentsService {
           cashierName,
           posSlipNo: dto.posSlipNo,
           notes: dto.notes,
+          ...(gatewayAttemptId
+            ? { gatewayProvider: 'PAYTR', transactionId: gatewayAttemptId }
+            : {}),
         },
       });
 
@@ -170,7 +210,8 @@ export class PaymentsService {
           where: { id: dto.invoiceId, tenantId },
         });
         if (invoice) {
-          const newPaid = Number(invoice.paidAmount) + dto.amount;
+          const newPaid =
+            Math.round((Number(invoice.paidAmount) + dto.amount) * 100) / 100;
           const newRemaining = Number(invoice.grandTotal) - newPaid;
           const newStatus =
             newRemaining <= 0
@@ -247,6 +288,11 @@ export class PaymentsService {
         console.error('Audit log failed for payment.created:', err);
       }
 
+      if (gatewayAttemptId)
+        await tx.paymentAttempt.update({
+          where: { id: gatewayAttemptId },
+          data: { status: 'PAID' },
+        });
       return payment;
     });
 
@@ -293,12 +339,13 @@ export class PaymentsService {
         invoiceNumber = inv?.invoiceNumber;
       }
 
-      const customerMsg = this.templateService.formatPaymentReceivedCustomerMessage({
-        customerName,
-        amount: dto.amount,
-        invoiceNumber,
-        tenantTitle,
-      });
+      const customerMsg =
+        this.templateService.formatPaymentReceivedCustomerMessage({
+          customerName,
+          amount: dto.amount,
+          invoiceNumber,
+          tenantTitle,
+        });
 
       const customerHtml = this.templateService.generateBrandedHtmlEmail({
         title: 'Ödemeniz Başarıyla Alınmıştır',
@@ -310,7 +357,7 @@ export class PaymentsService {
           'Ödeme Yöntemi': paymentMethod,
           ...(invoiceNumber ? { 'Fatura No': invoiceNumber } : {}),
           'İşlem Tarihi': new Date().toLocaleDateString('tr-TR'),
-          'Durum': 'Tahsil Edildi (Başarılı)',
+          Durum: 'Tahsil Edildi (Başarılı)',
         },
       });
 
@@ -348,6 +395,7 @@ export class PaymentsService {
       where: {
         tenantId,
         paymentDate: { gte: startOfDay, lte: endOfDay },
+        paymentMethod: { not: PaymentMethod.ADVANCE_OFFSET },
       },
     });
 
@@ -400,7 +448,10 @@ export class PaymentsService {
       throw new BadRequestException('Fatura bulunamadı.');
     }
 
-    if (invoice.status === InvoiceStatus.PAID) {
+    if (
+      invoice.status === InvoiceStatus.CANCELLED ||
+      invoice.status === InvoiceStatus.PAID
+    ) {
       throw new BadRequestException('Bu fatura zaten tamamen ödenmiştir.');
     }
 
@@ -410,30 +461,46 @@ export class PaymentsService {
       throw new BadRequestException('Ödenecek kalan bakiye bulunmuyor.');
     }
 
-    const basketItems = (invoice.workOrder?.items || []).map((item: any) => ({
-      name: item.name,
-      price: Number(item.unitPrice).toFixed(2),
-      quantity: Number(item.quantity) || 1,
-    }));
-
-    if (basketItems.length === 0) {
-      basketItems.push({
-        name: `Servis Bedeli (${invoice.invoiceNumber})`,
+    if (
+      !invoice.customer?.email ||
+      !invoice.customer?.phone ||
+      !invoice.customer?.address
+    ) {
+      throw new BadRequestException(
+        'Online ödeme için müşteri e-posta, telefon ve adres bilgileri gereklidir.',
+      );
+    }
+    const basketItems = [
+      {
+        name: `Fatura kalan bakiyesi (${invoice.invoiceNumber})`,
         price: remainingAmount.toFixed(2),
         quantity: 1,
-      });
-    }
+      },
+    ];
 
     const customerName = invoice.customer
-      ? `${invoice.customer.firstName || ''} ${invoice.customer.lastName || ''}`.trim() || 'Değerli Müşterimiz'
+      ? `${invoice.customer.firstName || ''} ${invoice.customer.lastName || ''}`.trim() ||
+        'Değerli Müşterimiz'
       : 'Değerli Müşterimiz';
 
+    const attempt = await this.prisma.paymentAttempt.create({
+      data: {
+        id: randomUUID().replace(/-/g, ''),
+        tenantId: invoice.tenantId,
+        invoiceId: invoice.id,
+        amount: remainingAmount,
+      },
+    });
+    const returnUrl = `${process.env.APP_BASE_URL || process.env.WEB_URL || 'http://localhost:3000'}/pay/${invoice.id}`;
     const paytrRes = await this.payTrService.createIframeToken({
-      merchantOid: invoice.id,
-      email: invoice.customer?.email || 'musteri@worksauto.com',
+      merchantOid: attempt.id,
+      userAddress: invoice.customer?.address || undefined,
+      merchantOkUrl: returnUrl,
+      merchantFailUrl: returnUrl,
+      email: invoice.customer.email,
       paymentAmount: remainingAmount,
       userName: customerName,
-      userPhone: invoice.customer?.phone || '5550000000',
+      userPhone: invoice.customer.phone,
       userIp: clientIp || '127.0.0.1',
       basket: basketItems,
     });
@@ -460,21 +527,27 @@ export class PaymentsService {
       throw new BadRequestException('PAYTR_SIGNATURE_INVALID');
     }
 
-    const invoiceId = payload.merchant_oid;
+    const attempt = await this.prisma.paymentAttempt.findUnique({
+      where: { id: payload.merchant_oid },
+    });
+    if (!attempt) throw new BadRequestException('Unknown payment attempt.');
+    if (attempt.status === 'PAID') return 'OK';
+    const invoiceId = attempt.invoiceId;
     const invoice = await this.prisma.invoice.findFirst({
       where: { id: invoiceId },
     });
 
-    if (!invoice) {
-      return 'OK';
-    }
-
-    if (invoice.status === InvoiceStatus.PAID) {
-      return 'OK';
+    if (!invoice)
+      throw new BadRequestException('Payment invoice was not found.');
+    // A second successful attempt needs reconciliation; never acknowledge it as recorded.
+    if (payload.status === 'success' && invoice.status === InvoiceStatus.PAID) {
+      throw new BadRequestException('PAYMENT_RECONCILIATION_REQUIRED');
     }
 
     if (payload.status === 'success') {
       const paidTl = Number(payload.total_amount) / 100;
+      if (paidTl !== Number(attempt.amount))
+        throw new BadRequestException('PAYMENT_AMOUNT_MISMATCH');
       await this.create(
         invoice.tenantId,
         {
@@ -485,6 +558,8 @@ export class PaymentsService {
           notes: `PayTR Online 3D-Secure Tahsilat (Sipariş: ${payload.merchant_oid})`,
         },
         'PayTR Sanal POS',
+        undefined,
+        attempt.id,
       );
     }
 

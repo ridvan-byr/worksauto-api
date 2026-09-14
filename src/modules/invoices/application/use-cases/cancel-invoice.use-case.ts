@@ -61,21 +61,24 @@ export class CancelInvoiceUseCase {
       }
     }
 
+    if (
+      this.providerFactory &&
+      inv.eInvoiceUuid &&
+      inv.eInvoiceStatus !== 'DRAFT'
+    ) {
+      const provider = await this.providerFactory.getProvider(tenantId);
+      const cancellation = await provider.cancelInvoice(
+        inv.eInvoiceUuid,
+        reason.trim(),
+      );
+      if (!cancellation.success)
+        throw new BadRequestException(cancellation.message);
+    }
     const cancelled = await this.invoiceRepository.cancelWithCariReversal(
       tenantId,
       id,
       reason.trim(),
     );
-
-    // E-Fatura sağlayıcısında resmi iptal talebi oluşturma
-    if (this.providerFactory && inv.eInvoiceUuid) {
-      try {
-        const provider = await this.providerFactory.getProvider(tenantId);
-        await provider.cancelInvoice(inv.eInvoiceUuid, reason.trim());
-      } catch (provErr) {
-        console.warn('Provider cancellation sync error:', provErr);
-      }
-    }
 
     try {
       await this.auditService.log({

@@ -2,13 +2,16 @@ name: API CI / CD & Quality Gate
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, fix/production-safety-and-test-isolation]
   pull_request:
     branches: [main, master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  NOTIFICATION_DELIVERY_MODE: disabled
 
 jobs:
   lint-and-typecheck:
@@ -35,6 +38,9 @@ jobs:
 
       - name: Validate TypeScript Compilation
         run: npx tsc --noEmit
+
+      - name: Run Unit Tests
+        run: npm test
 
       - name: Verify Clean Architecture Boundaries (Linter)
         run: node scripts/verify-architecture.js
@@ -82,13 +88,13 @@ jobs:
       - name: Run E2E Integration Tests
         env:
           DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/worksauto_test?schema=public"
+          REDIS_PORT: "6379"
           REDIS_URL: "redis://localhost:6379"
           JWT_SECRET: "test_super_secret_jwt_key_2026_worksauto_e2e_pass"
           NODE_ENV: "development"
           ENABLE_DEV_OTP_BYPASS: "true"
         run: |
-          npx prisma db push --skip-generate
-          npm run test:e2e
+          bash scripts/verify-remediation.sh
 
   build:
     name: Production Build Verification
@@ -145,8 +151,9 @@ jobs:
           script: |
             cd /opt/worksauto/worksauto-api
             git pull origin main
-            npm ci --omit=dev
-            npx prisma migrate deploy
+            npm ci
             npm run build
+            npx prisma migrate deploy
+            npm prune --omit=dev
             pm2 reload worksauto-api || pm2 start dist/main.js --name worksauto-api
 

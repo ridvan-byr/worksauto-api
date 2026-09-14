@@ -1,0 +1,61 @@
+# WorksAuto DEV compose: kaynak kod bind mount ile canlı yansıma (live reload).
+# Prod dosyası (docker-compose.yml) aynen kalır; sadece api + web + admin override edilir.
+#
+# Kullanım:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# Kod değişikliği otomatik yansır (api: nest --watch, web/admin: next dev).
+# package.json değişirse --build ile yeniden kur. Durdurma: ... down
+
+services:
+  # --- Backend API: NestJS watch mode ---
+  api:
+    build:
+      context: ./worksauto-api
+      dockerfile: Dockerfile
+      target: development
+    # Entrypoint (migrate deploy + dev seed) aynen çalışır, ardından watch başlar.
+    # prisma generate: bind mount edilen schema.prisma değişirse client güncel kalır.
+    command: sh -c "npx prisma generate && npm run start:dev"
+    environment:
+      NODE_ENV: development
+      # Dev girişi için sabit OTP (123456) çalışsın diye; prod compose'a asla ekleme
+      ENABLE_DEV_OTP_BYPASS: "true"
+    volumes:
+      - ./worksauto-api:/app
+      - /app/node_modules # container içi kurulumu koru (host node_modules ezmesin)
+      - /app/dist # watch çıktısı host dist klasörüne yazılmasın
+
+  # --- Frontend: Next.js dev server ---
+  web:
+    build:
+      context: ./worksauto-web
+      dockerfile: Dockerfile
+      target: development
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      # Tarayıcı host'tan API'ye doğrudan erişir (prod'daki /api/v1 göreli yolu değil)
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    volumes:
+      - ./worksauto-web:/app
+      - /app/node_modules
+      - /app/.next
+
+  # --- Super Admin Panel: Next.js dev server (ayrı repo: worksauto-admin) ---
+  admin:
+    build:
+      context: ./worksauto-admin
+      dockerfile: Dockerfile
+      target: development
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    volumes:
+      - ./worksauto-admin:/app
+      - /app/node_modules
+      - /app/.next

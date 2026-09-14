@@ -7,10 +7,22 @@ describe('GowaWhatsAppProvider', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('VITEST', '');
+    vi.stubEnv('CI', '');
+    vi.stubEnv('NOTIFICATION_DELIVERY_MODE', 'allowlist');
+    vi.stubEnv('SMTP_HOST', '');
+    vi.stubEnv('NETGSM_USERCODE', '');
+    vi.stubEnv('NETGSM_PASSWORD', '');
+    vi.stubEnv('SMS_API_URL', '');
+    global.fetch = vi
+      .fn()
+      .mockRejectedValue(new Error('Unexpected network request'));
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
+    vi.unstubAllEnvs();
   });
 
   it('should instantiate successfully with default settings', () => {
@@ -19,29 +31,29 @@ describe('GowaWhatsAppProvider', () => {
   });
 
   describe('sendEmail', () => {
-    it('should fallback gracefully when SMTP is not configured in dev/test', async () => {
+    it('should explicitly fail when SMTP is not configured', async () => {
       provider = new GowaWhatsAppProvider();
       const result = await provider.sendEmail({
-        to: 'musteri@example.com',
+        to: 'ridvanemrebayar@gmail.com',
         subject: 'Faturanız',
         message: 'Faturanız hazır.',
       });
 
-      expect(result.success).toBe(true);
-      expect(result.messageId).toBeDefined();
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('SMTP');
     });
   });
 
   describe('sendSms', () => {
-    it('should log and simulate SMS in dev environment when no SMS gateway env is set', async () => {
+    it('should explicitly fail when no SMS gateway is configured', async () => {
       provider = new GowaWhatsAppProvider();
       const result = await provider.sendSms({
-        to: '05551112233',
+        to: '05523741500',
         message: 'Randevunuz onaylandı.',
       });
 
-      expect(result.success).toBe(true);
-      expect(result.messageId).toContain('sms-sim');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('SMS provider');
     });
 
     it('should send SMS via Netgsm when Netgsm credentials are present', async () => {
@@ -54,7 +66,7 @@ describe('GowaWhatsAppProvider', () => {
 
       provider = new GowaWhatsAppProvider();
       const result = await provider.sendSms({
-        to: '05551112233',
+        to: '05523741500',
         message: 'Test SMS',
       });
 
@@ -75,7 +87,7 @@ describe('GowaWhatsAppProvider', () => {
 
       provider = new GowaWhatsAppProvider();
       const result = await provider.sendSms({
-        to: '05551112233',
+        to: '05523741500',
         message: 'Test SMS',
       });
 
@@ -96,7 +108,7 @@ describe('GowaWhatsAppProvider', () => {
 
       provider = new GowaWhatsAppProvider();
       const result = await provider.sendWhatsApp({
-        to: '905551112233',
+        to: '905523741500',
         message: 'Merhaba, aracınız servise alındı.',
       });
 
@@ -113,7 +125,7 @@ describe('GowaWhatsAppProvider', () => {
 
       provider = new GowaWhatsAppProvider();
       const result = await provider.sendWhatsApp({
-        to: '905551112233',
+        to: '905523741500',
         message: 'Merhaba',
       });
 

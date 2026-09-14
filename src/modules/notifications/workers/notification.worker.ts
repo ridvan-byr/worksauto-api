@@ -1,3 +1,4 @@
+import { suppressNotificationDelivery } from '../providers/delivery-policy';
 import {
   Injectable,
   OnModuleInit,
@@ -27,6 +28,7 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
+    if (suppressNotificationDelivery()) return;
     const host = process.env.REDIS_HOST || 'localhost';
     const port = Number(process.env.REDIS_PORT) || 6379;
     const password = process.env.REDIS_PASSWORD || undefined;
@@ -73,6 +75,8 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async processJob(job: Job) {
+    if (suppressNotificationDelivery())
+      return { success: true, suppressed: true };
     const { name, data } = job;
     this.logger.log(
       `Processing background notification job [${name}] (ID: ${job.id})`,
@@ -107,6 +111,8 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
       );
     }
 
+    if (result && !result.success)
+      throw new Error(result.error || 'Notification delivery failed');
     return result;
   }
 
@@ -148,12 +154,14 @@ export class NotificationWorker implements OnModuleInit, OnModuleDestroy {
 
     if (phone) {
       const message = `Sayın ${appt.customer?.firstName || 'Müşterimiz'}, ${plate} plakalı aracınızın ${dateStr} tarihindeki servis randevusunu hatırlatırız. İyi günler dileriz. - ${tenantTitle}`;
-      await this.provider.sendSms({
+      const delivery = await this.provider.sendSms({
         to: phone,
         recipientName: `${appt.customer?.firstName} ${appt.customer?.lastName}`,
         message,
         tenantId: appt.tenantId,
       });
+      if (!delivery.success)
+        throw new Error(delivery.error || 'Reminder delivery failed');
     }
 
     // Uygulama içine hatırlatma bildirimi kaydet ve WebSocket yayını yap

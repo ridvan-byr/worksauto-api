@@ -8,21 +8,12 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Observable, of, throwError } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { mergeMap, catchError } from 'rxjs/operators';
 import * as crypto from 'crypto';
 import { RedisService } from '../infrastructure/redis/redis.service';
 
-/**
- * Stripe-Grade In-Flight Protected Idempotency Interceptor
- *
- * Guarantees zero double-charging and race-condition immunity:
- * 1. Atomically claims "PROCESSING:{hash}" with 60s TTL via Redis SET NX EX 60.
- * 2. Returns 409 Conflict if another in-flight request with the same key is running.
- * 3. Returns 409 Conflict if key is reused with a different request body.
- * 4. Unlocks immediately (DEL) on server/validation errors so users can retry without waiting 60s.
- * 5. Returns cached response with X-Cache-Lookup: HIT if key is repeated with identical payload.
- * 6. Financial routes (/payments, /invoices, /current-accounts) FAIL-CLOSED on Redis failure.
- */
+/** Redis request deduplication. Durable business-level constraints are still
+ * required across cache expiry, process crashes and external side effects. */
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
   private readonly logger = new Logger(IdempotencyInterceptor.name);
@@ -57,10 +48,16 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const bodyStr = JSON.stringify(request.body || {});
     const payloadHash = crypto
       .createHash('sha256')
-      .update(bodyStr)
+      .update(
+        JSON.stringify([
+          request.method,
+          request.originalUrl || request.url,
+          bodyStr,
+        ]),
+      )
       .digest('hex');
 
-    const redisKey = `idempotency:${tenantId}:${keyStr}`;
+    const redisKey = `idempotency:${tenantId}:${request.user?.id || request.user?.sub || 'public'}:${keyStr}`;
 
     // Financial routes require strict fail-closed consistency to eliminate double-charges
     const reqUrl = request.url || '';
@@ -152,9 +149,14 @@ export class IdempotencyInterceptor implements NestInterceptor {
       }
     }
 
+    if (lockResult !== 'OK')
+      throw new ConflictException(
+        'İşlem kilidi doğrulanamadı; aynı anahtarla tekrar deneyiniz.',
+      );
+
     // 5. Execution Pipeline with Unlock-on-Error & 24h Response Caching
     return next.handle().pipe(
-      tap(async (responseBody) => {
+      mergeMap(async (responseBody) => {
         try {
           const statusCode = response.statusCode || 200;
           const cacheData = JSON.stringify({
@@ -170,6 +172,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
             `Failed to cache idempotency result: ${cacheErr.message}`,
           );
         }
+        return responseBody;
       }),
       catchError((error) => {
         // Critical: Unlock on error immediately so client can fix issues and retry

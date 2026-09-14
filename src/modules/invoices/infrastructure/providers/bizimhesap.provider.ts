@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import {
   IEInvoiceProvider,
   ConnectionTestResult,
@@ -26,25 +25,10 @@ export class BizimHesapProvider implements IEInvoiceProvider {
   ) {}
 
   async testConnection(): Promise<ConnectionTestResult> {
-    if (!this.credentials.apiKey && !this.credentials.username) {
-      return {
-        success: false,
-        message: 'BizimHesap API Token veya Kullanıcı Adı eksik.',
-      };
-    }
-
-    if (this.isTestMode) {
-      return {
-        success: true,
-        message: 'BizimHesap Test Ortamı bağlantısı başarılı (Aktif).',
-        balance: 500,
-      };
-    }
-
     return {
-      success: true,
-      message: 'BizimHesap API hesabı doğrulandı.',
-      balance: 350,
+      success: false,
+      message:
+        'Bu sağlayıcının canlı e-fatura entegrasyonu henüz kullanıma hazır değil.',
     };
   }
 
@@ -55,45 +39,36 @@ export class BizimHesapProvider implements IEInvoiceProvider {
     return 'E_ARSIV';
   }
 
-  async createInvoice(payload: CreateEInvoicePayload): Promise<EInvoiceResult> {
-    const eInvoiceUuid = randomUUID();
-    const prefix = this.credentials.seriesPrefix || payload.seriesPrefix || 'BZH';
-    const year = new Date().getFullYear();
-    const randomSeq = Math.floor(100000000 + Math.random() * 900000000);
-    const gibInvoiceNumber = `${prefix}${year}${randomSeq}`;
-
+  async createInvoice(
+    _payload: CreateEInvoicePayload,
+  ): Promise<EInvoiceResult> {
     return {
-      success: true,
-      provider: 'BIZIMHESAP',
-      eInvoiceUuid,
-      gibInvoiceNumber,
-      eInvoiceStatus: 'QUEUED',
-      pdfUrl: `/api/v1/invoices/${payload.invoiceId}/pdf`,
-      rawResponse: {
-        bizimHesapId: randomSeq,
-        status: 'queued',
-        timestamp: new Date().toISOString(),
-      },
+      success: false,
+      provider: this.providerName,
+      eInvoiceUuid: '',
+      gibInvoiceNumber: '',
+      eInvoiceStatus: 'FAILED',
+      errorMessage:
+        'Live invoice submission is not implemented for this provider.',
     };
   }
 
   async cancelInvoice(
-    eInvoiceUuid: string,
-    reason: string,
+    _eInvoiceUuid: string,
+    _reason: string,
   ): Promise<{ success: boolean; message: string }> {
     return {
-      success: true,
-      message: `BizimHesap Fatura iptali bildirildi. UUID: ${eInvoiceUuid} - Gerekçe: ${reason}`,
+      success: false,
+      message:
+        'Live invoice cancellation is not implemented for this provider.',
     };
   }
 
-  async getInvoicePdf(eInvoiceUuid: string): Promise<{
-    pdfBuffer?: Buffer;
-    pdfUrl?: string;
-    htmlContent?: string;
-  }> {
-    return {
-      pdfUrl: `https://bizimhesap.com/einvoice/view/${eInvoiceUuid}`,
-    };
+  async getInvoicePdf(
+    _eInvoiceUuid: string,
+  ): Promise<{ pdfBuffer?: Buffer; pdfUrl?: string; htmlContent?: string }> {
+    throw new Error(
+      'Bu sağlayıcı için doğrulanmış e-fatura PDF indirme desteği henüz hazır değil.',
+    );
   }
 }

@@ -1,3 +1,5 @@
+import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
+import { validateAccessIdentity } from '../../shared/security/access-identity';
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -25,7 +27,10 @@ export class EventsGateway
 
   private readonly logger = new Logger(EventsGateway.name);
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   afterInit(_server: Server) {
     this.logger.log(
@@ -58,7 +63,15 @@ export class EventsGateway
         secret: jwtSecret,
       });
 
-      const userId = payload.sub || payload.id;
+      await validateAccessIdentity(this.prisma, payload);
+      const userId = payload.sub;
+      const remainingMs = payload.exp * 1000 - Date.now();
+      const expiry = setTimeout(
+        () => client.disconnect(true),
+        Math.max(0, remainingMs),
+      );
+      expiry.unref();
+      client.once('disconnect', () => clearTimeout(expiry));
       const tenantId = payload.tenantId;
       const role = payload.role;
 

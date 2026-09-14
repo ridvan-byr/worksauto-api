@@ -1,0 +1,32 @@
+{
+    admin off
+}
+
+{$SITE_ADDRESS:http://localhost} {
+    encode gzip zstd
+
+    # NestJS REST API endpoints
+    handle /api/v1/* {
+        reverse_proxy api:4000
+    }
+
+    # Swagger OpenAPI documentation
+    handle /api/docs* {
+        reverse_proxy api:4000
+    }
+
+    # WebSocket gateway (Socket.IO)
+    handle /socket.io/* {
+        reverse_proxy api:4000
+    }
+
+    # Super Admin Panel (standalone worksauto-admin app, same /admin paths)
+    handle /admin* {
+        reverse_proxy admin:3001
+    }
+
+    # Next.js Frontend App
+    handle {
+        reverse_proxy web:3000
+    }
+}

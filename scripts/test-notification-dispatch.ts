@@ -1,3 +1,4 @@
+import { isAutomatedTest, TEST_EMAIL, TEST_PHONE } from '../src/modules/notifications/providers/delivery-policy';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as nodemailer from 'nodemailer';
@@ -26,8 +27,11 @@ const templateService = new NotificationTemplateService();
 
 
 async function main() {
-  const targetEmail = process.argv[2] || process.env.TEST_EMAIL || 'test@example.com';
-  const targetPhone = process.argv[3] || process.env.TEST_PHONE || '905550001122';
+  if (isAutomatedTest() || process.env.NOTIFICATION_DELIVERY_MODE !== 'allowlist') {
+    throw new Error('Manual delivery requires NOTIFICATION_DELIVERY_MODE=allowlist outside automated tests.');
+  }
+  const targetEmail = TEST_EMAIL;
+  const targetPhone = TEST_PHONE;
 
   console.log('\n=============================================================');
   console.log('🚀 WorksAuto Bildirim ve Mesajlaşma Canlı Doğrulama Testi');

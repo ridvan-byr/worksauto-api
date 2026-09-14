@@ -19,6 +19,8 @@ async function bootstrap() {
 
   if (process.env.NODE_ENV === 'production') {
     if (
+      process.env.JWT_SECRET.length < 32 ||
+      process.env.JWT_SECRET === 'super-secret-jwt-key-min-32-chars' ||
       process.env.JWT_SECRET.includes(
         'super_secret_jwt_key_2026_production_grade',
       )

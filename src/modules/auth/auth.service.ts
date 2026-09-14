@@ -1,3 +1,8 @@
+import { Inject, ServiceUnavailableException } from '@nestjs/common';
+import {
+  NOTIFICATION_PROVIDER,
+  NotificationProvider,
+} from '../notifications/providers/notification-provider.interface';
 import {
   Injectable,
   UnauthorizedException,
@@ -24,6 +29,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly redis: RedisService,
+    @Inject(NOTIFICATION_PROVIDER)
+    private readonly notificationProvider: NotificationProvider,
   ) {}
 
   /**
@@ -120,6 +127,18 @@ export class AuthService {
     // Redis üzerinde 3 dakika (180 saniye) geçerli olarak sakla
     const redisKey = `otp:${normalizedPhone}`;
     await this.redis.set(redisKey, otpCode, 180);
+
+    const delivery = await this.notificationProvider.sendSms({
+      to: normalizedPhone,
+      message: `WorksAuto doğrulama kodunuz: ${otpCode}. Kod 3 dakika geçerlidir.`,
+      tenantId: user.tenantId || undefined,
+    });
+    if (!delivery.success) {
+      await this.redis.del(redisKey);
+      throw new ServiceUnavailableException(
+        'Doğrulama kodu gönderilemedi. Lütfen tekrar deneyiniz.',
+      );
+    }
 
     // Cooldown (60s) ve saatlik sayacı (3600s) set et
     await this.redis.set(cooldownKey, '1', 60);
@@ -311,9 +330,12 @@ export class AuthService {
    */
   async refreshToken(dto: RefreshTokenDto) {
     try {
-      this.jwtService.verify(dto.refreshToken, {
+      const refreshClaims = this.jwtService.verify(dto.refreshToken, {
         secret: process.env.JWT_SECRET,
       });
+
+      if (refreshClaims.tokenType !== 'refresh')
+        throw new UnauthorizedException('A refresh token is required.');
 
       const hashedToken = crypto
         .createHash('sha256')
@@ -335,7 +357,7 @@ export class AuthService {
       }
 
       // REUSE DETECTION (Çalınma Tespiti)
-      if (tokenRecord.isRevoked) {
+      if (tokenRecord.isRevoked || tokenRecord.expiresAt <= new Date()) {
         this.logger.warn(
           `Güvenlik Uyarısı: İptal edilmiş token tekrar kullanılmaya çalışıldı (${tokenRecord.userId}). Tüm aile oturumları kapatılıyor.`,
         );
@@ -349,10 +371,12 @@ export class AuthService {
       }
 
       // Token rotasyonu
-      await this.prisma.refreshToken.update({
-        where: { id: tokenRecord.id },
+      const claimed = await this.prisma.refreshToken.updateMany({
+        where: { id: tokenRecord.id, isRevoked: false },
         data: { isRevoked: true },
       });
+      if (claimed.count !== 1)
+        throw new UnauthorizedException('Refresh token already used.');
 
       const user = await this.prisma.user.findUnique({
         where: { id: tokenRecord.userId },
@@ -426,15 +450,19 @@ export class AuthService {
       name: `${user.name} ${user.surname}`,
     };
 
+    const familyId = existingFamilyId || uuidv4();
+
     // 1 saatlik hızlı erişim anahtarı
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' });
+    const accessToken = this.jwtService.sign(
+      { ...payload, tokenType: 'access', familyId },
+      { expiresIn: '15m' },
+    );
     // 30 GÜNLÜK kalıcı yenileme anahtarı (benzersiz jti ile üretilir, eşzamanlı istek çakışması engellenir)
     const refreshToken = this.jwtService.sign(
-      { ...payload, jti: uuidv4() },
+      { ...payload, tokenType: 'refresh', familyId, jti: uuidv4() },
       { expiresIn: '30d' },
     );
 
-    const familyId = existingFamilyId || uuidv4();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30); // 30 Gün
 
@@ -455,7 +483,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 3600, // 1 saat
+      expiresIn: 900, // 15 minutes
     };
   }
 

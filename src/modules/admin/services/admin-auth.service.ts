@@ -86,6 +86,7 @@ export class AdminAuthService {
     }
 
     const payload = {
+      tokenType: 'access',
       sub: user.id,
       email: user.email,
       name: user.name,

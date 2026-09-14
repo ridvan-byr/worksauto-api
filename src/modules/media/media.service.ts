@@ -1,3 +1,4 @@
+import { validateAccessIdentity } from '../../shared/security/access-identity';
 import {
   Injectable,
   Logger,
@@ -33,6 +34,10 @@ export class MediaService implements OnModuleInit {
   private readonly logger = new Logger(MediaService.name);
   private readonly s3Client: S3Client;
   private readonly bucketName: string;
+
+  async validateAccess(payload: unknown) {
+    return validateAccessIdentity(this.prisma, payload);
+  }
 
   constructor(
     private readonly configService: ConfigService,

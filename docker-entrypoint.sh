@@ -2,16 +2,16 @@
 set -e
 
 echo "⏳ Waiting for PostgreSQL and applying database migrations..."
-until npx prisma migrate deploy; do
-  echo "PostgreSQL is not ready or migration failed - retrying in 2 seconds..."
-  sleep 2
-done
+DATABASE_URL="${MIGRATION_DATABASE_URL:-$DATABASE_URL}" npx prisma migrate deploy
+if [ -n "${MIGRATION_DATABASE_URL:-}" ]; then
+  node scripts/provision-runtime-role.cjs
+fi
 
 echo "✅ Database migrations applied cleanly."
 
 if [ "$NODE_ENV" != "production" ] || [ "$RUN_SEED" = "true" ]; then
   echo "🌱 Checking/Applying initial seed data..."
-  node prisma/seed.cjs || echo "Seed completed."
+  DATABASE_URL="${MIGRATION_DATABASE_URL:-$DATABASE_URL}" node prisma/seed.cjs
 else
   echo "🔒 Production mode detected: Automated database seeding skipped for security hardening."
 fi

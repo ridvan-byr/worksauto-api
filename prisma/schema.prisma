@@ -95,6 +95,7 @@ enum InvoiceStatus {
 }
 
 enum PaymentMethod {
+  ADVANCE_OFFSET
   CASH
   POS
   BANK_TRANSFER
@@ -186,6 +187,7 @@ model Tenant {
   tenantConsents  TenantConsent[]
   notificationSettings TenantNotificationSetting?
   invoiceSettings TenantInvoiceSetting?
+  paymentAttempts PaymentAttempt[]
 
   @@map("tenants")
 }
@@ -606,6 +608,7 @@ model Invoice {
   customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Restrict)
   payments  Payment[]
   items     InvoiceItem[]
+  paymentAttempts PaymentAttempt[]
 
   @@unique([tenantId, invoiceNumber])
   @@index([tenantId, status])
@@ -647,6 +650,7 @@ model Payment {
   invoice  Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
+  @@unique([tenantId, gatewayProvider, transactionId])
   @@index([tenantId, paymentDate])
   @@map("payments")
 }
@@ -929,3 +933,16 @@ model TenantInvoiceSetting {
   @@map("tenant_invoice_settings")
 }
 
+
+model PaymentAttempt {
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  id String @id
+  tenantId String @map("tenant_id") @db.Uuid
+  invoiceId String @map("invoice_id") @db.Uuid
+  amount Decimal @db.Decimal(12, 2)
+  status String @default("PENDING")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([tenantId, invoiceId])
+  @@map("payment_attempts")
+}

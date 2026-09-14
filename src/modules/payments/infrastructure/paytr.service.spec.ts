@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { createHmac } from 'crypto';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PayTrService } from './paytr.service';
 import { ConfigService } from '@nestjs/config';
 
@@ -6,7 +7,19 @@ describe('PayTrService', () => {
   let service: PayTrService;
   let mockConfig: Partial<ConfigService>;
 
+  afterEach(() => vi.unstubAllGlobals());
+
   beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          status: 'success',
+          token: 'provider-issued-token',
+        }),
+      }),
+    );
     mockConfig = {
       get: (key: string) => {
         if (key === 'PAYTR_MERCHANT_ID') return '123456';
@@ -28,6 +41,9 @@ describe('PayTrService', () => {
       userName: 'Ahmet Yılmaz',
       userPhone: '5551234567',
       userIp: '127.0.0.1',
+      userAddress: 'Test address',
+      merchantOkUrl: 'https://example.invalid/ok',
+      merchantFailUrl: 'https://example.invalid/fail',
       basket: [{ name: 'Periyodik Bakım', price: '1500.00', quantity: 1 }],
     });
 
@@ -36,7 +52,7 @@ describe('PayTrService', () => {
     expect(result.isTest).toBe(true);
   });
 
-  it('should verify test hash successfully in test mode', () => {
+  it('should reject the legacy signature bypass even in test mode', () => {
     const isValid = service.verifyWebhook({
       merchant_oid: 'INV-2026-001',
       status: 'success',
@@ -44,7 +60,21 @@ describe('PayTrService', () => {
       hash: 'test_valid_hash_xyz',
     });
 
-    expect(isValid).toBe(true);
+    expect(isValid).toBe(false);
+  });
+
+  it('accepts a valid provider signature', () => {
+    const hash = createHmac('sha256', 'test_secret_key_123')
+      .update('order123test_salt_456success150000')
+      .digest('base64');
+    expect(
+      service.verifyWebhook({
+        merchant_oid: 'order123',
+        status: 'success',
+        total_amount: '150000',
+        hash,
+      }),
+    ).toBe(true);
   });
 
   it('should reject invalid webhook payloads with missing fields', () => {

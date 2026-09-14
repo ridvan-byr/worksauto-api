@@ -1,91 +1,95 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+import { ClsService } from 'nestjs-cls';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { PrismaService } from '../src/shared/infrastructure/prisma/prisma.service';
 
-describe('PostgreSQL Native Row-Level Security (RLS) Integration', () => {
-  // Direct client connecting with NOBYPASSRLS application role
-  const appDbUrl =
-    'postgresql://worksauto_app:worksauto_secret_2026@localhost:5432/worksauto_db?schema=public';
-  let prisma: PrismaClient;
-
-  const TENANT_A = '13cf019b-9a00-4493-a68e-9c3049d8e878';
-  const TENANT_B = '22222222-2222-2222-2222-222222222222';
-
+// Only the disposable database configured by verify-remediation.sh is accepted.
+const url = process.env.RLS_DATABASE_URL;
+if (
+  !url ||
+  !/^\/worksauto_(?:(?:remediation|migration)_)?test$/.test(
+    new URL(url).pathname,
+  )
+) {
+  throw new Error('RLS_DATABASE_URL must point to an isolated test database.');
+}
+describe('Runtime role tenant isolation', () => {
+  const db = new PrismaClient({ datasources: { db: { url } } });
+  const cls = new ClsService(new AsyncLocalStorage());
+  const service = new PrismaService(cls);
+  const tenantA = randomUUID();
+  const tenantB = randomUUID();
   beforeAll(async () => {
-    prisma = new PrismaClient({ datasources: { db: { url: appDbUrl } } });
-    await prisma.$connect();
-  });
-
-  afterAll(async () => {
-    await prisma.$disconnect();
-  });
-
-  it('1. should return 0 rows when queried without any tenant session context (default denied)', async () => {
-    const customers = await prisma.customer.findMany({ take: 5 });
-    expect(customers.length).toBe(0);
-  });
-
-  it('2. should return only Tenant A records when SET LOCAL app.current_tenant_id is Tenant A', async () => {
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(
-        `SET LOCAL app.current_tenant_id = '${TENANT_A}'`,
-      );
-      return await tx.customer.findMany();
-    });
-
-    expect(result.length).toBeGreaterThan(0);
-    for (const c of result) {
-      expect(c.tenantId).toBe(TENANT_A);
+    const [role] = await db.$queryRaw<
+      Array<{ rolsuper: boolean; rolbypassrls: boolean }>
+    >`SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`;
+    expect(role).toEqual({ rolsuper: false, rolbypassrls: false });
+    await service.onModuleInit();
+    for (const id of [tenantA, tenantB]) {
+      await service.tenant.create({
+        data: {
+          id,
+          slug: `rls-${id}`,
+          title: 'RLS test',
+          phone: '05523741500',
+          email: 'ridvanemrebayar@gmail.com',
+        },
+      });
+      await service.customer.create({
+        data: {
+          tenantId: id,
+          firstName: 'RLS',
+          lastName: 'Test',
+          phone: '05523741500',
+          email: 'ridvanemrebayar@gmail.com',
+        },
+      });
     }
   });
-
-  it('3. should isolate raw SQL queries without WHERE clause (PostgreSQL Engine enforces RLS)', async () => {
-    const rawResult: any = await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(
-        `SET LOCAL app.current_tenant_id = '${TENANT_A}'`,
-      );
-      return await tx.$queryRawUnsafe(
-        'SELECT count(*)::int as count FROM customers',
-      );
+  afterAll(async () => {
+    await service.customer.deleteMany({
+      where: { tenantId: { in: [tenantA, tenantB] } },
     });
-
-    const tenantACount = rawResult[0].count;
-    expect(tenantACount).toBeGreaterThan(0);
-
-    const emptyResult: any = await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(
-        `SET LOCAL app.current_tenant_id = '${TENANT_B}'`,
-      );
-      return await tx.$queryRawUnsafe(
-        'SELECT count(*)::int as count FROM customers',
-      );
+    await service.tenant.deleteMany({
+      where: { id: { in: [tenantA, tenantB] } },
     });
-
-    expect(emptyResult[0].count).toBe(0);
+    await service.onModuleDestroy();
+    await db.$disconnect();
   });
-
-  it('4. should reject cross-tenant INSERT at PostgreSQL engine level', async () => {
-    await expect(
-      prisma.$transaction(async (tx) => {
-        await tx.$executeRawUnsafe(
-          `SET LOCAL app.current_tenant_id = '${TENANT_A}'`,
-        );
-        // Attempt to insert record belonging to Tenant B while session is Tenant A
-        await tx.$executeRawUnsafe(`
-          INSERT INTO customers (id, tenant_id, first_name, last_name, phone, "updatedAt")
-          VALUES (gen_random_uuid(), '${TENANT_B}', 'Malicious', 'Attempt', '5550009988', now())
-        `);
-      }),
-    ).rejects.toThrow(/row-level security policy/i);
+  it('denies direct queries with no database context', async () => {
+    expect(await db.customer.findMany()).toEqual([]);
   });
-
-  it('5. should allow super admin bypass when app.bypass_rls is on', async () => {
-    const bypassedResult: any = await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
-      return await tx.$queryRawUnsafe(
-        'SELECT count(*)::int as count FROM customers',
+  it('isolates regular delegates, interactive transactions and raw queries', async () => {
+    await cls.run(async () => {
+      cls.set('tenantId', tenantA);
+      cls.set('userRole', 'TENANT_ADMIN');
+      const rows = await service.customer.findMany();
+      expect(rows.map((row) => row.tenantId)).toEqual([tenantA]);
+      const raw = await service.$queryRaw<
+        Array<{ tenant_id: string }>
+      >`SELECT tenant_id FROM customers`;
+      expect(raw.map((row) => row.tenant_id)).toEqual([tenantA]);
+      const transactional = await service.$transaction((tx) =>
+        tx.customer.findMany(),
       );
+      expect(transactional.map((row) => row.tenantId)).toEqual([tenantA]);
+      await expect(
+        service.$transaction((tx) =>
+          tx.customer.create({
+            data: {
+              tenantId: tenantB,
+              firstName: 'Blocked',
+              lastName: 'Test',
+              phone: '05523741500',
+            },
+          }),
+        ),
+      ).rejects.toThrow();
     });
-
-    expect(bypassedResult[0].count).toBeGreaterThan(0);
+  });
+  it('does not leak transaction settings into the pool', async () => {
+    expect(await db.customer.findMany()).toEqual([]);
   });
 });

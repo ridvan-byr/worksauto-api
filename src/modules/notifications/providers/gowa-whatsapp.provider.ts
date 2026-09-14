@@ -1,3 +1,4 @@
+import { deliveryDecision } from './delivery-policy';
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
@@ -25,8 +26,7 @@ export class GowaWhatsAppProvider implements NotificationProvider {
     // Gerçek SMTP sunucusu yapılandırılmışsa Nodemailer'ı başlat
     if (process.env.SMTP_HOST) {
       const port = Number(process.env.SMTP_PORT) || 587;
-      const isSecure =
-        process.env.SMTP_SECURE === 'true' || port === 465;
+      const isSecure = process.env.SMTP_SECURE === 'true' || port === 465;
 
       this.mailTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
@@ -46,7 +46,7 @@ export class GowaWhatsAppProvider implements NotificationProvider {
       );
     } else {
       this.logger.warn(
-        '⚠️ [SMTP Eksik] SMTP_HOST ortam değişkeni tanımlanmamış. E-postalar konsola simüle edilecek.',
+        '⚠️ [SMTP Eksik] SMTP_HOST ortam değişkeni tanımlanmamış. E-posta gönderimi yapılandırma hatası döndürecek.',
       );
     }
   }
@@ -59,7 +59,11 @@ export class GowaWhatsAppProvider implements NotificationProvider {
     if (!clean) return '';
 
     // 05xx xxx xx xx (11 haneli yerel TR) -> 905xx xxx xx xx
-    if (clean.startsWith('0') && clean.length === 11 && clean.charAt(1) === '5') {
+    if (
+      clean.startsWith('0') &&
+      clean.length === 11 &&
+      clean.charAt(1) === '5'
+    ) {
       clean = '90' + clean.substring(1);
     }
     // 5xx xxx xx xx (10 haneli başında 0 olmayan TR) -> 905xx xxx xx xx
@@ -72,7 +76,9 @@ export class GowaWhatsAppProvider implements NotificationProvider {
   /**
    * GOWA üzerinde cihaz kaydının (slotunun) varlığını garanti eder, yoksa POST /devices ile oluşturur
    */
-  public async ensureDeviceExists(deviceId: string = 'default'): Promise<boolean> {
+  public async ensureDeviceExists(
+    deviceId: string = 'default',
+  ): Promise<boolean> {
     try {
       const res = await fetch(`${this.gowaBaseUrl}/devices`, { method: 'GET' });
       if (res.ok) {
@@ -98,7 +104,9 @@ export class GowaWhatsAppProvider implements NotificationProvider {
   /**
    * Cihazın canlı WhatsApp bağlantı durumunu sorgular
    */
-  async getWhatsAppStatus(deviceId: string = 'default'): Promise<WhatsAppDeviceStatus> {
+  async getWhatsAppStatus(
+    deviceId: string = 'default',
+  ): Promise<WhatsAppDeviceStatus> {
     try {
       await this.ensureDeviceExists(deviceId);
       const res = await fetch(
@@ -129,7 +137,9 @@ export class GowaWhatsAppProvider implements NotificationProvider {
           const listRes = await fetch(`${this.gowaBaseUrl}/devices`);
           if (listRes.ok) {
             const listData = await listRes.json().catch(() => ({}));
-            const matching = (listData.results || []).find((d: any) => d.id === deviceId);
+            const matching = (listData.results || []).find(
+              (d: any) => d.id === deviceId,
+            );
             if (matching) {
               jid = jid || matching.jid;
               displayName = displayName || matching.display_name;
@@ -142,7 +152,7 @@ export class GowaWhatsAppProvider implements NotificationProvider {
 
       return {
         connected: isConnected,
-        state: isConnected ? 'connected' : (results.state || 'disconnected'),
+        state: isConnected ? 'connected' : results.state || 'disconnected',
         jid,
         displayName,
       };
@@ -166,10 +176,14 @@ export class GowaWhatsAppProvider implements NotificationProvider {
       );
       if (!res.ok) {
         const errText = await res.text();
-        if (errText.includes('ALREADY_LOGGED_IN') || errText.includes('already logged in')) {
+        if (
+          errText.includes('ALREADY_LOGGED_IN') ||
+          errText.includes('already logged in')
+        ) {
           return {
             success: false,
-            error: 'WhatsApp hattınız zaten bağlı. Yeni eşleşme için önce "Hattı Ayır" butonuna basınız.',
+            error:
+              'WhatsApp hattınız zaten bağlı. Yeni eşleşme için önce "Hattı Ayır" butonuna basınız.',
           };
         }
         return {
@@ -181,7 +195,8 @@ export class GowaWhatsAppProvider implements NotificationProvider {
       if (data.code === 'ALREADY_LOGGED_IN') {
         return {
           success: false,
-          error: 'WhatsApp hattınız zaten bağlı. Yeni eşleşme için önce "Hattı Ayır" butonuna basınız.',
+          error:
+            'WhatsApp hattınız zaten bağlı. Yeni eşleşme için önce "Hattı Ayır" butonuna basınız.',
         };
       }
       const results = data.results || {};
@@ -242,6 +257,9 @@ export class GowaWhatsAppProvider implements NotificationProvider {
   async sendWhatsApp(
     options: SendNotificationOptions,
   ): Promise<NotificationResult> {
+    const decision = deliveryDecision(options.to, 'whatsapp');
+    if (decision) return decision;
+
     try {
       const cleanPhone = this.formatPhoneNumber(options.to);
       const deviceId =
@@ -296,17 +314,6 @@ export class GowaWhatsAppProvider implements NotificationProvider {
         `GOWA WhatsApp bağlantı hatası (${err.message}). WhatsApp servisi bağlı olmayabilir.`,
       );
 
-      // Sadece WHATSAPP_MOCK_MODE=true ise veya test ortamında sahte başarı dön
-      if (
-        process.env.WHATSAPP_MOCK_MODE === 'true' ||
-        process.env.NODE_ENV === 'test'
-      ) {
-        return {
-          success: true,
-          messageId: `gowa-mock-${Date.now()}`,
-        };
-      }
-
       return {
         success: false,
         error: `WhatsApp servisine (${this.gowaBaseUrl}) bağlanılamadı: ${err.message}`,
@@ -320,6 +327,9 @@ export class GowaWhatsAppProvider implements NotificationProvider {
   async sendEmail(
     options: SendNotificationOptions,
   ): Promise<NotificationResult> {
+    const decision = deliveryDecision(options.to, 'email');
+    if (decision) return decision;
+
     const subject = options.subject || 'WorksAuto Servis Bilgilendirme';
 
     if (this.mailTransporter) {
@@ -352,20 +362,16 @@ export class GowaWhatsAppProvider implements NotificationProvider {
       }
     }
 
-    // SMTP tanımlı değilse güvenli konsol logu (Dev / Simülasyon)
-    this.logger.log(
-      `📧 [E-Posta Simülasyonu] -> Alıcı: ${options.to} | Konu: "${subject}" | Metin: "${options.message.slice(0, 80)}..."`,
-    );
-    return {
-      success: true,
-      messageId: `email-sim-${Date.now()}`,
-    };
+    return { success: false, error: 'SMTP is not configured.' };
   }
 
   /**
    * SMS İletimi (Netgsm / Webhook veya Dev Simülasyonu)
    */
   async sendSms(options: SendNotificationOptions): Promise<NotificationResult> {
+    const decision = deliveryDecision(options.to, 'sms');
+    if (decision) return decision;
+
     const cleanPhone = options.to.replace(/\D/g, '');
 
     // 1. Netgsm SMS Entegrasyonu
@@ -459,14 +465,6 @@ export class GowaWhatsAppProvider implements NotificationProvider {
       }
     }
 
-    // 3. Simülasyon / Dev Modu
-    this.logger.log(
-      `📱 [SMS Simülasyonu] -> Alıcı: ${cleanPhone} | Mesaj: "${options.message}"`,
-    );
-    return {
-      success: true,
-      messageId: `sms-sim-${Date.now()}`,
-    };
+    return { success: false, error: 'SMS provider is not configured.' };
   }
 }
-

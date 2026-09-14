@@ -50,7 +50,7 @@ export interface EInvoiceResult {
   provider: string;
   eInvoiceUuid: string;
   gibInvoiceNumber: string;
-  eInvoiceStatus: 'QUEUED' | 'PENDING_GIB' | 'COMPLETED' | 'FAILED';
+  eInvoiceStatus: 'DRAFT' | 'QUEUED' | 'PENDING_GIB' | 'COMPLETED' | 'FAILED';
   pdfUrl?: string;
   rawResponse?: unknown;
   errorMessage?: string;

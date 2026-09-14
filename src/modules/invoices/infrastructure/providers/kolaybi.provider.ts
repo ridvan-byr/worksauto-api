@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import {
   IEInvoiceProvider,
   ConnectionTestResult,
@@ -26,17 +25,10 @@ export class KolayBiProvider implements IEInvoiceProvider {
   ) {}
 
   async testConnection(): Promise<ConnectionTestResult> {
-    if (!this.credentials.apiKey && !this.credentials.username) {
-      return {
-        success: false,
-        message: 'KolayBi API Anahtarı veya Kullanıcı Adı eksik.',
-      };
-    }
-
     return {
-      success: true,
-      message: 'KolayBi Ofis E-Dönüşüm API bağlantısı başarılı.',
-      balance: this.isTestMode ? 999 : 200,
+      success: false,
+      message:
+        'Bu sağlayıcının canlı e-fatura entegrasyonu henüz kullanıma hazır değil.',
     };
   }
 
@@ -47,40 +39,36 @@ export class KolayBiProvider implements IEInvoiceProvider {
     return 'E_ARSIV';
   }
 
-  async createInvoice(payload: CreateEInvoicePayload): Promise<EInvoiceResult> {
-    const eInvoiceUuid = randomUUID();
-    const prefix = this.credentials.seriesPrefix || payload.seriesPrefix || 'KLB';
-    const year = new Date().getFullYear();
-    const randomSeq = Math.floor(100000000 + Math.random() * 900000000);
-    const gibInvoiceNumber = `${prefix}${year}${randomSeq}`;
-
+  async createInvoice(
+    _payload: CreateEInvoicePayload,
+  ): Promise<EInvoiceResult> {
     return {
-      success: true,
-      provider: 'KOLAYBI',
-      eInvoiceUuid,
-      gibInvoiceNumber,
-      eInvoiceStatus: 'QUEUED',
-      pdfUrl: `/api/v1/invoices/${payload.invoiceId}/pdf`,
+      success: false,
+      provider: this.providerName,
+      eInvoiceUuid: '',
+      gibInvoiceNumber: '',
+      eInvoiceStatus: 'FAILED',
+      errorMessage:
+        'Live invoice submission is not implemented for this provider.',
     };
   }
 
   async cancelInvoice(
-    eInvoiceUuid: string,
-    reason: string,
+    _eInvoiceUuid: string,
+    _reason: string,
   ): Promise<{ success: boolean; message: string }> {
     return {
-      success: true,
-      message: `KolayBi fatura iptal talebi iletildi. UUID: ${eInvoiceUuid} - Gerekçe: ${reason}`,
+      success: false,
+      message:
+        'Live invoice cancellation is not implemented for this provider.',
     };
   }
 
-  async getInvoicePdf(eInvoiceUuid: string): Promise<{
-    pdfBuffer?: Buffer;
-    pdfUrl?: string;
-    htmlContent?: string;
-  }> {
-    return {
-      pdfUrl: `https://kolaybi.com/einvoice/download/${eInvoiceUuid}`,
-    };
+  async getInvoicePdf(
+    _eInvoiceUuid: string,
+  ): Promise<{ pdfBuffer?: Buffer; pdfUrl?: string; htmlContent?: string }> {
+    throw new Error(
+      'Bu sağlayıcı için doğrulanmış e-fatura PDF indirme desteği henüz hazır değil.',
+    );
   }
 }
