@@ -8,7 +8,10 @@ import { AuditService } from '../../../audit/audit.service';
 import { NotificationsService } from '../../../notifications/notifications.service';
 import { NotificationType } from '@prisma/client';
 import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
-import { EInvoiceProviderFactory } from '../../infrastructure/providers/einvoice-provider.factory';
+import {
+  IEInvoiceProviderFactory,
+  EINVOICE_PROVIDER_FACTORY,
+} from '../../domain/einvoice-provider-factory.interface';
 
 export interface CreateInvoiceInput {
   workOrderId?: string;
@@ -34,7 +37,8 @@ export class CreateInvoiceUseCase {
     private readonly notificationsService: NotificationsService,
     private readonly templateService: NotificationTemplateService,
     @Optional()
-    private readonly providerFactory?: EInvoiceProviderFactory,
+    @Inject(EINVOICE_PROVIDER_FACTORY)
+    private readonly providerFactory?: IEInvoiceProviderFactory,
   ) {}
 
   async execute(

@@ -4,7 +4,10 @@ import {
   INVOICE_REPOSITORY,
 } from '../../domain/invoice.repository.interface';
 import { InvoiceEntity } from '../../domain/invoice.entity';
-import { EInvoiceProviderFactory } from '../../infrastructure/providers/einvoice-provider.factory';
+import {
+  IEInvoiceProviderFactory,
+  EINVOICE_PROVIDER_FACTORY,
+} from '../../domain/einvoice-provider-factory.interface';
 
 @Injectable()
 export class GetInvoicesUseCase {
@@ -12,7 +15,8 @@ export class GetInvoicesUseCase {
     @Inject(INVOICE_REPOSITORY)
     private readonly invoiceRepository: IInvoiceRepository,
     @Optional()
-    private readonly providerFactory?: EInvoiceProviderFactory,
+    @Inject(EINVOICE_PROVIDER_FACTORY)
+    private readonly providerFactory?: IEInvoiceProviderFactory,
   ) {}
 
   async execute(tenantId: string, status?: string): Promise<InvoiceEntity[]> {

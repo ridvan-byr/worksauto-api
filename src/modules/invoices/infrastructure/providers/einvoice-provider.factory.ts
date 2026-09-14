@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
 import { CryptoService } from '../../../../shared/infrastructure/crypto/crypto.service';
 import { IEInvoiceProvider } from '../../domain/einvoice-provider.interface';
+import { IEInvoiceProviderFactory } from '../../domain/einvoice-provider-factory.interface';
 import { InternalDraftProvider } from './internal-draft.provider';
 import { ParasutProvider } from './parasut.provider';
 import { NilveraProvider } from './nilvera.provider';
@@ -10,7 +11,7 @@ import { KolayBiProvider } from './kolaybi.provider';
 import { InvoiceProviderType } from '@prisma/client';
 
 @Injectable()
-export class EInvoiceProviderFactory {
+export class EInvoiceProviderFactory implements IEInvoiceProviderFactory {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cryptoService: CryptoService,

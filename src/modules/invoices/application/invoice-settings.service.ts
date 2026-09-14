@@ -1,19 +1,31 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
-import { CryptoService } from '../../../shared/infrastructure/crypto/crypto.service';
-import { EInvoiceProviderFactory } from '../infrastructure/providers/einvoice-provider.factory';
+import { Injectable, Inject } from '@nestjs/common';
+import {
+  IInvoiceSettingsRepository,
+  INVOICE_SETTINGS_REPOSITORY,
+} from '../domain/invoice-settings.repository.interface';
+import {
+  ICryptoService,
+  CRYPTO_SERVICE,
+} from '../domain/crypto-service.interface';
+import {
+  IEInvoiceProviderFactory,
+  EINVOICE_PROVIDER_FACTORY,
+} from '../domain/einvoice-provider-factory.interface';
 import {
   UpdateInvoiceSettingsDto,
   TestInvoiceConnectionDto,
 } from '../dto/invoice-settings.dto';
-import { InvoiceProviderType } from '@prisma/client';
+import { InvoiceProviderType } from '../domain/invoice-provider-type.enum';
 
 @Injectable()
 export class InvoiceSettingsService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly cryptoService: CryptoService,
-    private readonly providerFactory: EInvoiceProviderFactory,
+    @Inject(INVOICE_SETTINGS_REPOSITORY)
+    private readonly settingsRepo: IInvoiceSettingsRepository,
+    @Inject(CRYPTO_SERVICE)
+    private readonly cryptoService: ICryptoService,
+    @Inject(EINVOICE_PROVIDER_FACTORY)
+    private readonly providerFactory: IEInvoiceProviderFactory,
   ) {}
 
   private maskString(val?: string | null): string | null {
@@ -23,9 +35,7 @@ export class InvoiceSettingsService {
   }
 
   async getSettings(tenantId: string) {
-    const config = await this.prisma.tenantInvoiceSetting.findUnique({
-      where: { tenantId },
-    });
+    const config = await this.settingsRepo.findByTenantId(tenantId);
 
     if (!config) {
       return {
@@ -61,9 +71,7 @@ export class InvoiceSettingsService {
   }
 
   async updateSettings(tenantId: string, dto: UpdateInvoiceSettingsDto) {
-    const existing = await this.prisma.tenantInvoiceSetting.findUnique({
-      where: { tenantId },
-    });
+    const existing = await this.settingsRepo.findByTenantId(tenantId);
 
     let encryptedApiKey = existing?.encryptedApiKey;
     if (dto.apiKey !== undefined) {
@@ -93,33 +101,17 @@ export class InvoiceSettingsService {
         : null;
     }
 
-    await this.prisma.tenantInvoiceSetting.upsert({
-      where: { tenantId },
-      create: {
-        tenantId,
-        provider: dto.provider,
-        encryptedApiKey,
-        encryptedApiSecret,
-        encryptedUsername,
-        encryptedPassword,
-        companyTaxId: dto.companyTaxId?.trim() || null,
-        taxOffice: dto.taxOffice?.trim() || null,
-        seriesPrefix: dto.seriesPrefix?.trim() || 'ATW',
-        isTestMode: dto.isTestMode ?? false,
-        autoSendOnCompletion: dto.autoSendOnCompletion ?? false,
-      },
-      update: {
-        provider: dto.provider,
-        encryptedApiKey,
-        encryptedApiSecret,
-        encryptedUsername,
-        encryptedPassword,
-        companyTaxId: dto.companyTaxId?.trim() || null,
-        taxOffice: dto.taxOffice?.trim() || null,
-        seriesPrefix: dto.seriesPrefix?.trim() || 'ATW',
-        isTestMode: dto.isTestMode ?? false,
-        autoSendOnCompletion: dto.autoSendOnCompletion ?? false,
-      },
+    await this.settingsRepo.upsert(tenantId, {
+      provider: dto.provider,
+      encryptedApiKey,
+      encryptedApiSecret,
+      encryptedUsername,
+      encryptedPassword,
+      companyTaxId: dto.companyTaxId?.trim() || null,
+      taxOffice: dto.taxOffice?.trim() || null,
+      seriesPrefix: dto.seriesPrefix?.trim() || 'ATW',
+      isTestMode: dto.isTestMode ?? false,
+      autoSendOnCompletion: dto.autoSendOnCompletion ?? false,
     });
 
     return this.getSettings(tenantId);
@@ -133,9 +125,7 @@ export class InvoiceSettingsService {
     let password = dto.password;
 
     if (!apiKey || !apiSecret) {
-      const existing = await this.prisma.tenantInvoiceSetting.findUnique({
-        where: { tenantId },
-      });
+      const existing = await this.settingsRepo.findByTenantId(tenantId);
       if (existing) {
         apiKey = apiKey || this.cryptoService.decrypt(existing.encryptedApiKey) || undefined;
         apiSecret = apiSecret || this.cryptoService.decrypt(existing.encryptedApiSecret) || undefined;
@@ -144,7 +134,7 @@ export class InvoiceSettingsService {
       }
     }
 
-    const provider = this.providerFactory.getProviderFromInput(dto.provider, {
+    const provider = this.providerFactory.getProviderFromInput(dto.provider as unknown as InvoiceProviderType, {
       apiKey,
       apiSecret,
       username,

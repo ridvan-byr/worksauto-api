@@ -11,7 +11,10 @@ import {
 } from '../../domain/invoice.repository.interface';
 import { InvoiceEntity } from '../../domain/invoice.entity';
 import { AuditService } from '../../../audit/audit.service';
-import { EInvoiceProviderFactory } from '../../infrastructure/providers/einvoice-provider.factory';
+import {
+  IEInvoiceProviderFactory,
+  EINVOICE_PROVIDER_FACTORY,
+} from '../../domain/einvoice-provider-factory.interface';
 
 @Injectable()
 export class CancelInvoiceUseCase {
@@ -20,7 +23,8 @@ export class CancelInvoiceUseCase {
     private readonly invoiceRepository: IInvoiceRepository,
     private readonly auditService: AuditService,
     @Optional()
-    private readonly providerFactory?: EInvoiceProviderFactory,
+    @Inject(EINVOICE_PROVIDER_FACTORY)
+    private readonly providerFactory?: IEInvoiceProviderFactory,
   ) {}
 
   async execute(
