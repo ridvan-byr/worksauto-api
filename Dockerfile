@@ -5,10 +5,9 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++ libc6-compat openssl
 
 COPY package.json package-lock.json .npmrc ./
-RUN npm install --no-audit --legacy-peer-deps
-
+# prisma/ install'dan ÖNCE kopyalanmalı: postinstall `prisma generate` çalıştırır ve schema ister
 COPY prisma ./prisma
-RUN npx prisma generate
+RUN --mount=type=cache,target=/root/.npm npm install --no-audit --legacy-peer-deps
 
 COPY . .
 RUN npm run build
@@ -37,3 +36,27 @@ EXPOSE 4000
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "dist/main.js"]
+
+# --- Dev Stage: Live Reload (used by docker-compose.dev.yml) ---
+FROM node:20-alpine AS development
+WORKDIR /app
+
+RUN apk add --no-cache python3 make g++ libc6-compat openssl curl
+
+COPY package.json package-lock.json .npmrc ./
+# prisma/ install'dan ÖNCE kopyalanmalı: postinstall `prisma generate` çalıştırır ve schema ister
+COPY prisma ./prisma
+RUN --mount=type=cache,target=/root/.npm npm install --no-audit --legacy-peer-deps
+
+COPY . .
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+
+RUN chmod +x ./docker-entrypoint.sh
+
+ENV NODE_ENV=development
+ENV PORT=4000
+
+EXPOSE 4000
+
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["npm", "run", "start:dev"]
