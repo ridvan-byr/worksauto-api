@@ -188,6 +188,7 @@ model Tenant {
   notificationSettings TenantNotificationSetting?
   invoiceSettings TenantInvoiceSetting?
   paymentAttempts PaymentAttempt[]
+  staffLeaves     StaffLeave[]
 
   @@map("tenants")
 }
@@ -227,6 +228,8 @@ model User {
   mechanic      Mechanic?
   notifications Notification[]
   signedTenantConsents TenantConsent[]
+  staffLeaves          StaffLeave[]
+  approvedLeaves       StaffLeave[] @relation("LeaveApprover")
 
   @@index([tenantId, phone])
   @@index([email])
@@ -261,7 +264,7 @@ model Customer {
   companyTitle String?      @map("company_title")
   phone        String
   email        String?
-  taxNumber    String?      @map("tax_number")
+  taxNumber    String?      @default("11111111111") @map("tax_number")
   taxOffice    String?      @map("tax_office")
   address      String?
   city         String?
@@ -357,6 +360,47 @@ model Mechanic {
   workOrders   WorkOrder[]
 
   @@map("mechanics")
+}
+
+// -------------------------------------------------------------
+// STAFF LEAVES & TIME OFF
+// -------------------------------------------------------------
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  COMPASSIONATE
+  UNPAID
+  OTHER
+}
+
+enum LeaveStatus {
+  APPROVED
+  PENDING
+  CANCELLED
+}
+
+model StaffLeave {
+  id           String      @id @default(uuid()) @db.Uuid
+  tenantId     String      @map("tenant_id") @db.Uuid
+  userId       String      @map("user_id") @db.Uuid
+  leaveType    LeaveType   @default(ANNUAL) @map("leave_type")
+  startDate    DateTime    @map("start_date") @db.Date
+  endDate      DateTime    @map("end_date") @db.Date
+  totalDays    Decimal     @default(1) @map("total_days") @db.Decimal(4, 1)
+  reason       String?
+  status       LeaveStatus @default(APPROVED)
+  approvedById String?     @map("approved_by_id") @db.Uuid
+  createdAt    DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime    @updatedAt @db.Timestamptz(6)
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy User?  @relation("LeaveApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, startDate, endDate])
+  @@index([userId, startDate, endDate])
+  @@map("staff_leaves")
 }
 
 // -------------------------------------------------------------

@@ -8,7 +8,8 @@ import {
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
-import { UserRole } from '@prisma/client';
+import { CreateStaffLeaveDto } from './dto/staff-leave.dto';
+import { UserRole, LeaveStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 
 @Injectable()
@@ -359,4 +360,199 @@ export class StaffService {
       };
     }
   }
+
+  async getLeaves(tenantId: string, userId?: string) {
+    const where: any = { tenantId };
+    if (userId) {
+      where.userId = userId;
+    }
+    return this.prisma.staffLeave.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            role: true,
+            phone: true,
+          },
+        },
+        approvedBy: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+          },
+        },
+      },
+      orderBy: { startDate: 'desc' },
+    });
+  }
+
+  async createLeave(
+    tenantId: string,
+    dto: CreateStaffLeaveDto,
+    actorUserId?: string,
+  ) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: dto.userId, tenantId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Personel bulunamadı.');
+    }
+
+    const start = new Date(dto.startDate);
+    const end = new Date(dto.endDate);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new BadRequestException('Geçersiz tarih formatı.');
+    }
+
+    if (start > end) {
+      throw new BadRequestException(
+        'Başlangıç tarihi bitiş tarihinden sonra olamaz.',
+      );
+    }
+
+    // Check overlapping leaves
+    const overlap = await this.prisma.staffLeave.findFirst({
+      where: {
+        tenantId,
+        userId: dto.userId,
+        status: { notIn: [LeaveStatus.CANCELLED] },
+        startDate: { lte: end },
+        endDate: { gte: start },
+      },
+    });
+
+    if (overlap) {
+      throw new ConflictException(
+        'Personelin bu tarih aralığında çakışan aktif bir izni zaten bulunmaktadır.',
+      );
+    }
+
+    const diffDays =
+      dto.totalDays !== undefined
+        ? dto.totalDays
+        : Math.max(
+            0.5,
+            Math.round(
+              (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+            ) + 1,
+          );
+
+    const leave = await this.prisma.staffLeave.create({
+      data: {
+        tenantId,
+        userId: dto.userId,
+        leaveType: dto.leaveType,
+        startDate: start,
+        endDate: end,
+        totalDays: diffDays,
+        reason: dto.reason || null,
+        status: LeaveStatus.APPROVED,
+        approvedById: actorUserId || null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    try {
+      await this.auditService.log({
+        tenantId,
+        userId: actorUserId,
+        action: 'staff.leave_created',
+        entityName: 'StaffLeave',
+        entityId: leave.id,
+        changesAfter: {
+          userName: `${user.name} ${user.surname || ''}`.trim(),
+          leaveType: dto.leaveType,
+          startDate: dto.startDate,
+          endDate: dto.endDate,
+          totalDays: diffDays,
+          reason: dto.reason,
+        },
+      });
+    } catch (err) {
+      console.error('Audit log failed for staff leave:', err);
+    }
+
+    return leave;
+  }
+
+  async cancelLeave(tenantId: string, leaveId: string, actorUserId?: string) {
+    const leave = await this.prisma.staffLeave.findFirst({
+      where: { id: leaveId, tenantId },
+      include: { user: true },
+    });
+
+    if (!leave) {
+      throw new NotFoundException('İzin kaydı bulunamadı.');
+    }
+
+    if (leave.status === LeaveStatus.CANCELLED) {
+      throw new BadRequestException('Bu izin zaten iptal edilmiş.');
+    }
+
+    const updated = await this.prisma.staffLeave.update({
+      where: { id: leaveId },
+      data: { status: LeaveStatus.CANCELLED },
+    });
+
+    try {
+      await this.auditService.log({
+        tenantId,
+        userId: actorUserId,
+        action: 'staff.leave_cancelled',
+        entityName: 'StaffLeave',
+        entityId: leaveId,
+        changesBefore: { status: leave.status },
+        changesAfter: { status: LeaveStatus.CANCELLED },
+      });
+    } catch (err) {
+      console.error('Audit log failed for staff leave cancel:', err);
+    }
+
+    return updated;
+  }
+
+  async getStaffAuditLogs(tenantId: string) {
+    const logs = await this.prisma.auditLog.findMany({
+      where: {
+        tenantId,
+        OR: [
+          { action: { startsWith: 'staff.' } },
+          { entityName: { in: ['User', 'StaffLeave', 'Mechanic'] } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+
+    const userIds = logs.map((l) => l.userId).filter(Boolean) as string[];
+    const users =
+      userIds.length > 0
+        ? await this.prisma.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, name: true, surname: true, role: true },
+          })
+        : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    return logs.map((log) => ({
+      ...log,
+      user: log.userId ? userMap.get(log.userId) || null : null,
+    }));
+  }
 }
+

@@ -53,7 +53,7 @@ export class CreateCustomerUseCase {
       companyTitle: dto.companyTitle?.trim(),
       phone: cleanPhone,
       email: dto.email?.trim(),
-      taxNumber: dto.taxNumber?.trim(),
+      taxNumber: dto.taxNumber?.trim() || '11111111111',
       taxOffice: dto.taxOffice?.trim(),
       address: dto.address?.trim(),
       city: dto.city?.trim(),

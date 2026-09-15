@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -13,6 +14,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { StaffService } from './staff.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
+import { CreateStaffLeaveDto } from './dto/staff-leave.dto';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
@@ -32,6 +34,45 @@ export class StaffController {
   })
   findAll(@CurrentTenant() tenantId: string) {
     return this.staffService.findAll(tenantId);
+  }
+
+  @Get('leaves')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
+  @ApiOperation({ summary: 'Personel izin kayıtlarını listeler' })
+  getLeaves(
+    @CurrentTenant() tenantId: string,
+    @Query('userId') userId?: string,
+  ) {
+    return this.staffService.getLeaves(tenantId, userId);
+  }
+
+  @Post('leaves')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Yeni personel izin kaydı oluşturur' })
+  createLeave(
+    @CurrentTenant() tenantId: string,
+    @Body() dto: CreateStaffLeaveDto,
+    @CurrentUser('id') actorUserId: string,
+  ) {
+    return this.staffService.createLeave(tenantId, dto, actorUserId);
+  }
+
+  @Patch('leaves/:id/cancel')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Personel iznini iptal eder' })
+  cancelLeave(
+    @CurrentTenant() tenantId: string,
+    @Param('id') id: string,
+    @CurrentUser('id') actorUserId: string,
+  ) {
+    return this.staffService.cancelLeave(tenantId, id, actorUserId);
+  }
+
+  @Get('audit-logs')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({ summary: 'Personel ve izin işlem geçmişini listeler' })
+  getAuditLogs(@CurrentTenant() tenantId: string) {
+    return this.staffService.getStaffAuditLogs(tenantId);
   }
 
   @Get(':id')
