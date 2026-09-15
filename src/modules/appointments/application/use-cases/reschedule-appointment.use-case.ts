@@ -71,6 +71,17 @@ export class RescheduleAppointmentUseCase {
       dto.assignedLift !== undefined ? dto.assignedLift : app.assignedLift;
 
     if (mechanicId) {
+      const onLeave = await this.appointmentRepository.checkMechanicOnLeave(
+        tenantId,
+        mechanicId,
+        start,
+      );
+      if (onLeave) {
+        throw new ConflictException(
+          'Seçilen teknisyen randevu tarihinde izinli veya raporludur.',
+        );
+      }
+
       const conflict = await this.appointmentRepository.checkMechanicConflict(
         tenantId,
         mechanicId,

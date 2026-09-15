@@ -13,6 +13,7 @@ import {
   AppointmentStatus,
   WorkOrderStatus,
   CustomerType,
+  LeaveStatus,
 } from '@prisma/client';
 
 @Injectable()
@@ -366,6 +367,31 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       },
     });
     return !!conflict;
+  }
+
+  async checkMechanicOnLeave(
+    tenantId: string,
+    mechanicId: string,
+    date: Date,
+  ): Promise<boolean> {
+    if (!mechanicId) return false;
+    const mechanic = await this.prisma.mechanic.findFirst({
+      where: { id: mechanicId, tenantId },
+      select: { userId: true },
+    });
+    if (!mechanic?.userId) return false;
+
+    const targetDay = new Date(date.toISOString().slice(0, 10));
+    const leave = await this.prisma.staffLeave.findFirst({
+      where: {
+        tenantId,
+        userId: mechanic.userId,
+        status: { not: LeaveStatus.CANCELLED },
+        startDate: { lte: targetDay },
+        endDate: { gte: targetDay },
+      },
+    });
+    return !!leave;
   }
 
   async checkLiftConflict(

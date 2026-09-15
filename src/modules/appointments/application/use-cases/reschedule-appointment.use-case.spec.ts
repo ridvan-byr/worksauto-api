@@ -25,6 +25,7 @@ describe('RescheduleAppointmentUseCase', () => {
       create: vi.fn(),
       save: vi.fn(),
       checkMechanicConflict: vi.fn().mockResolvedValue(false),
+      checkMechanicOnLeave: vi.fn().mockResolvedValue(false),
       checkLiftConflict: vi.fn().mockResolvedValue(false),
       cancelAppointmentAndWorkOrder: vi.fn(),
       findTenantBySlug: vi.fn(),
@@ -126,6 +127,31 @@ describe('RescheduleAppointmentUseCase', () => {
         slotEndTime: '2028-10-15T10:00:00.000Z',
       }),
     ).rejects.toThrow(ConflictException);
+  });
+
+  it('should throw ConflictException if mechanic is on leave', async () => {
+    const existing = new AppointmentEntity({
+      id: 'app-1',
+      tenantId: 'tenant-1',
+      customerId: 'cust-1',
+      vehicleId: 'veh-1',
+      assignedMechanicId: 'mech-1',
+      slotDate: new Date('2026-09-10'),
+      slotStartTime: new Date('2026-09-10T09:00:00.000Z'),
+      slotEndTime: new Date('2026-09-10T10:00:00.000Z'),
+      status: 'CONFIRMED',
+    });
+
+    vi.mocked(mockRepo.findById).mockResolvedValue(existing);
+    vi.mocked(mockRepo.checkMechanicOnLeave).mockResolvedValue(true);
+
+    await expect(
+      useCase.execute('tenant-1', 'app-1', {
+        slotDate: '2028-10-15',
+        slotStartTime: '2028-10-15T09:00:00.000Z',
+        slotEndTime: '2028-10-15T10:00:00.000Z',
+      }),
+    ).rejects.toThrow('Seçilen teknisyen randevu tarihinde izinli veya raporludur.');
   });
 
   it('should reschedule successfully and emit event', async () => {

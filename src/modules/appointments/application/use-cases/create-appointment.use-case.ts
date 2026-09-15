@@ -71,8 +71,20 @@ export class CreateAppointmentUseCase {
       );
     }
 
-    // Concurrency Check 1: Mechanic Double Booking Prevention
+    // Concurrency Check 1: Mechanic Leave & Double Booking Prevention
     if (dto.assignedMechanicId) {
+      const onLeave = await this.appointmentRepository.checkMechanicOnLeave(
+        tenantId,
+        dto.assignedMechanicId,
+        start,
+      );
+
+      if (onLeave) {
+        throw new ConflictException(
+          'Seçilen teknisyen randevu tarihinde izinli veya raporludur.',
+        );
+      }
+
       const mechanicConflict =
         await this.appointmentRepository.checkMechanicConflict(
           tenantId,
