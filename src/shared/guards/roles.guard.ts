@@ -11,6 +11,15 @@ import { PERMISSIONS_KEY } from '../decorators/require-permission.decorator';
 import { Permission } from '../constants/permissions.enum';
 import { getPermissionsForRole } from '../constants/role-permissions.map';
 
+const ROLE_LABELS_TR: Record<string, string> = {
+  OWNER: 'İşletme Sahibi',
+  SERVICE_MANAGER: 'Servis Müdürü',
+  TECHNICIAN: 'Teknisyen',
+  CASHIER: 'Veznedar',
+  WAREHOUSE_KEEPER: 'Depo Sorumlusu',
+  SUPER_ADMIN: 'Platform Yöneticisi',
+};
+
 /**
  * Hybrid Guard: Supports both legacy @Roles() and fine-grained @RequirePermission().
  * Automatically derives granular permissions from user's UserRole with zero regression.
@@ -49,8 +58,11 @@ export class RolesGuard implements CanActivate {
     if (requiredRoles && requiredRoles.length > 0) {
       const hasRole = requiredRoles.includes(user.role);
       if (!hasRole) {
+        const readableRoles = requiredRoles
+          .map((r) => ROLE_LABELS_TR[r] || r)
+          .join(', ');
         throw new ForbiddenException(
-          `Bu işlemi gerçekleştirmek için yetkiniz yok. Gerekli roller: ${requiredRoles.join(', ')}`,
+          `Bu işlemi gerçekleştirmek için yetkiniz yok. Gerekli roller: ${readableRoles}`,
         );
       }
     }
