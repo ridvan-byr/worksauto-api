@@ -10,6 +10,7 @@ export interface SendNotificationOptions {
 
 export interface NotificationResult {
   success: boolean;
+  suppressed?: boolean;
   messageId?: string;
   error?: string;
 }
@@ -37,7 +38,9 @@ export interface NotificationProvider {
   sendEmail(options: SendNotificationOptions): Promise<NotificationResult>;
   getWhatsAppStatus?(deviceId?: string): Promise<WhatsAppDeviceStatus>;
   getWhatsAppQr?(deviceId?: string): Promise<WhatsAppQrResult>;
-  disconnectWhatsApp?(deviceId?: string): Promise<{ success: boolean; error?: string }>;
+  disconnectWhatsApp?(
+    deviceId?: string,
+  ): Promise<{ success: boolean; error?: string }>;
 }
 
 export const NOTIFICATION_PROVIDER = 'NOTIFICATION_PROVIDER';

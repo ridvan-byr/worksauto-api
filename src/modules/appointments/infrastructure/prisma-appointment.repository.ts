@@ -178,7 +178,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
 
     return this.prisma.$transaction(async (tx) => {
       // Advisory transaction lock per resource & slot window to serialize concurrent requests
-      const lockResource = appointment.assignedLift || appointment.assignedMechanicId || 'slot';
+      const lockResource =
+        appointment.assignedLift || appointment.assignedMechanicId || 'slot';
       const lockKey = `${appointment.tenantId}:${lockResource}:${slotStartTime.toISOString()}`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
 
@@ -542,7 +543,9 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     } else {
       const updates: any = {};
       if (vehicle.customerId !== customerId) {
-        updates.customerId = customerId;
+        throw new BadRequestException(
+          'Araç bilgileri servis tarafından doğrulanmalıdır. Lütfen işletmeyle iletişime geçiniz.',
+        );
       }
       if (vehicle.deletedAt !== null) {
         updates.deletedAt = null;
@@ -566,7 +569,13 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     const [customer, vehicle, tenant] = await Promise.all([
       this.prisma.customer.findUnique({
         where: { id: customerId },
-        select: { firstName: true, lastName: true, companyTitle: true, email: true, phone: true },
+        select: {
+          firstName: true,
+          lastName: true,
+          companyTitle: true,
+          email: true,
+          phone: true,
+        },
       }),
       vehicleId
         ? this.prisma.vehicle.findUnique({

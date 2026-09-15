@@ -47,12 +47,12 @@ async function main() {
 
   // 2. Create Owner User (Rıdvan Bayar)
   const adminUser = await prisma.user.upsert({
-    where: { phone: '+905551112233' },
-    update: { role: UserRole.OWNER },
+    where: { phone: '+905523741500' },
+    update: { role: UserRole.OWNER, email: 'ridvanemrebayar@gmail.com' },
     create: {
       tenantId: tenant.id,
-      phone: '+905551112233',
-      email: 'ridvan@worksauto.com',
+      phone: '+905523741500',
+      email: 'ridvanemrebayar@gmail.com',
       name: 'Rıdvan',
       surname: 'Bayar',
       role: UserRole.OWNER,

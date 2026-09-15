@@ -90,6 +90,7 @@ export class DashboardService {
       // 5. Bugünkü kasa tahsilatları
       this.prisma.payment.aggregate({
         where: {
+          paymentMethod: { not: 'ADVANCE_OFFSET' },
           tenantId,
           paymentDate: { gte: today },
         },
@@ -99,6 +100,7 @@ export class DashboardService {
       // 6. Bu ayki toplam ciro
       this.prisma.payment.aggregate({
         where: {
+          paymentMethod: { not: 'ADVANCE_OFFSET' },
           tenantId,
           paymentDate: { gte: startOfMonth },
         },
@@ -132,7 +134,8 @@ export class DashboardService {
       if (remaining > 0) unpaidTotal += remaining;
     }
 
-    const activeWorkOrdersCount = inProgressWorkOrdersCount + queueWorkOrdersCount;
+    const activeWorkOrdersCount =
+      inProgressWorkOrdersCount + queueWorkOrdersCount;
 
     return {
       activeWorkOrdersCount,
@@ -422,6 +425,7 @@ export class DashboardService {
     // 4. Payments breakdown
     const payments = await this.prisma.payment.findMany({
       where: {
+        paymentMethod: { not: 'ADVANCE_OFFSET' },
         tenantId,
         paymentDate: { gte: startDate, lte: endDate },
       },

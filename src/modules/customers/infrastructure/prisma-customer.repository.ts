@@ -552,7 +552,10 @@ export class PrismaCustomerRepository implements ICustomerRepository {
                 companyTitle: row.companyTitle || undefined,
                 phone: standardPhone || rawPhone || '05000000000',
                 email: row.email || undefined,
-                taxNumber: row.taxNumber || undefined,
+                taxNumber:
+                  row.taxNumber && row.taxNumber.trim()
+                    ? row.taxNumber.trim()
+                    : '11111111111',
                 taxOffice: row.taxOffice || undefined,
                 notes: row.notes || undefined,
               },

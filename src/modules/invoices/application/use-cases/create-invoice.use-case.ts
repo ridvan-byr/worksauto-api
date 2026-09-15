@@ -66,7 +66,7 @@ export class CreateInvoiceUseCase {
       remainingAmount: dto.grandTotal,
       status: 'UNPAID',
       gibInvoiceNumber: dto.gibInvoiceNumber || 'PENDING',
-      eInvoiceStatus: 'QUEUED',
+      eInvoiceStatus: 'DRAFT',
       profileId: dto.profileId,
       notes: standardNotes,
       items: dto.items,
@@ -81,17 +81,18 @@ export class CreateInvoiceUseCase {
     if (this.providerFactory && result.invoice.id) {
       try {
         const provider = await this.providerFactory.getProvider(tenantId);
-        const invoiceItems = (result.invoice.items && result.invoice.items.length > 0)
-          ? result.invoice.items
-          : (dto.items || [
-              {
-                name: 'Genel Servis & Bakım Bedeli',
-                quantity: 1,
-                unitPrice: dto.subtotal,
-                kdvRate: 20,
-                totalPrice: dto.subtotal,
-              },
-            ]);
+        const invoiceItems =
+          result.invoice.items && result.invoice.items.length > 0
+            ? result.invoice.items
+            : dto.items || [
+                {
+                  name: 'Genel Servis & Bakım Bedeli',
+                  quantity: 1,
+                  unitPrice: dto.subtotal,
+                  kdvRate: 20,
+                  totalPrice: dto.subtotal,
+                },
+              ];
 
         const providerRes = await provider.createInvoice({
           invoiceId: result.invoice.id,
@@ -108,7 +109,10 @@ export class CreateInvoiceUseCase {
             quantity: Number(i.quantity || 1),
             unitPrice: Number(i.unitPrice || 0),
             kdvRate: Number(i.kdvRate ?? 20),
-            totalPrice: Number(i.totalPrice ?? (Number(i.quantity || 1) * Number(i.unitPrice || 0))),
+            totalPrice: Number(
+              i.totalPrice ??
+                Number(i.quantity || 1) * Number(i.unitPrice || 0),
+            ),
           })),
           subtotal: dto.subtotal,
           kdvAmount: dto.kdvAmount,
@@ -119,20 +123,30 @@ export class CreateInvoiceUseCase {
           profileId: dto.profileId,
         });
 
-        if (providerRes.success) {
-          await this.invoiceRepository.updateEInvoiceDetails(tenantId, result.invoice.id, {
-            eInvoiceUuid: providerRes.eInvoiceUuid,
-            gibInvoiceNumber: providerRes.gibInvoiceNumber,
-            eInvoiceStatus: providerRes.eInvoiceStatus,
-            profileId: dto.profileId,
-            notes: standardNotes,
-          });
+        if (providerRes.success || providerRes.eInvoiceStatus === 'FAILED') {
+          await this.invoiceRepository.updateEInvoiceDetails(
+            tenantId,
+            result.invoice.id,
+            {
+              eInvoiceUuid: providerRes.eInvoiceUuid,
+              gibInvoiceNumber: providerRes.gibInvoiceNumber,
+              eInvoiceStatus: providerRes.eInvoiceStatus,
+              profileId: dto.profileId,
+              notes: standardNotes,
+            },
+          );
           result.invoice.gibInvoiceNumber = providerRes.gibInvoiceNumber;
           result.invoice.eInvoiceStatus = providerRes.eInvoiceStatus;
           result.invoice.eInvoiceUuid = providerRes.eInvoiceUuid;
         }
       } catch (provErr) {
-        console.warn('E-Invoice provider call failed, falling back to local queue:', provErr);
+        await this.invoiceRepository.updateEInvoiceDetails(
+          tenantId,
+          result.invoice.id,
+          { eInvoiceStatus: 'FAILED' },
+        );
+        result.invoice.eInvoiceStatus = 'FAILED';
+        console.warn('E-Invoice provider call failed:', provErr);
       }
     }
 
@@ -185,13 +199,14 @@ export class CreateInvoiceUseCase {
       const tenantTitle = result.tenantTitle || 'WorksAuto Servis';
       const paymentUrl = this.templateService.getPaymentUrl(result.invoice.id);
 
-      const customerMsg = this.templateService.formatInvoiceCreatedCustomerMessage({
-        customerName,
-        invoiceNumber: result.invoice.invoiceNumber,
-        grandTotal: dto.grandTotal,
-        paymentUrl,
-        tenantTitle,
-      });
+      const customerMsg =
+        this.templateService.formatInvoiceCreatedCustomerMessage({
+          customerName,
+          invoiceNumber: result.invoice.invoiceNumber,
+          grandTotal: dto.grandTotal,
+          paymentUrl,
+          tenantTitle,
+        });
 
       const customerHtml = this.templateService.generateBrandedHtmlEmail({
         title: `Servis Faturanız Düzenlenmiştir (#${result.invoice.invoiceNumber})`,
@@ -203,8 +218,10 @@ export class CreateInvoiceUseCase {
         extraDetails: {
           'Fatura No': result.invoice.invoiceNumber,
           'Toplam Tutar': `${dto.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`,
-          'Vade Tarihi': dto.dueDate ? new Date(dto.dueDate).toLocaleDateString('tr-TR') : 'Peşin',
-          'Durum': 'Ödeme Bekliyor',
+          'Vade Tarihi': dto.dueDate
+            ? new Date(dto.dueDate).toLocaleDateString('tr-TR')
+            : 'Peşin',
+          Durum: 'Ödeme Bekliyor',
         },
       });
 

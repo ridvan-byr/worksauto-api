@@ -13,6 +13,7 @@ import {
   WorkOrderItemType,
   WorkOrderPhotoType,
   StockMovementType,
+  LeaveStatus,
 } from '@prisma/client';
 
 @Injectable()
@@ -137,14 +138,36 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
         throw new BadRequestException('Seçilen araç ile müşteri eşleşmiyor.');
       }
 
-      // 3. If mechanic assigned, verify mechanic belongs to this tenant
+      // 3. If mechanic assigned, verify mechanic belongs to this tenant and is not on leave
       if (data.assignedMechanicId) {
         const mechanic = await tx.mechanic.findFirst({
           where: { id: data.assignedMechanicId, tenantId: data.tenantId },
+          include: { user: true },
         });
         if (!mechanic) {
           throw new BadRequestException(
             'Seçilen teknisyen bulunamadı veya bu işletmeye ait değil.',
+          );
+        }
+        if (mechanic.user?.isActive === false) {
+          throw new BadRequestException(
+            'Seçilen personel pasif durumdadır, iş emrine atanamaz.',
+          );
+        }
+
+        const today = new Date();
+        const activeLeave = await tx.staffLeave.findFirst({
+          where: {
+            tenantId: data.tenantId,
+            userId: mechanic.userId,
+            status: { not: LeaveStatus.CANCELLED },
+            startDate: { lte: today },
+            endDate: { gte: today },
+          },
+        });
+        if (activeLeave) {
+          throw new BadRequestException(
+            `Seçilen teknisyen (${mechanic.user?.name} ${mechanic.user?.surname || ''}) şu anda izinli/raporlu olduğu için iş emrine atanamaz.`,
           );
         }
       }

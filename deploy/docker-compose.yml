@@ -1,0 +1,186 @@
+services:
+  # --- 1. Database: PostgreSQL 16 (btree_gist enabled) ---
+  postgres:
+    image: postgres:16-alpine
+    container_name: worksauto_postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-worksauto}
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}"
+      POSTGRES_DB: ${POSTGRES_DB:-worksauto_db}
+    command: postgres -c shared_preload_libraries=btree_gist
+    volumes:
+      - worksauto_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-worksauto} -d ${POSTGRES_DB:-worksauto_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- 2. Cache & Queues: Redis 7 (AOF Persistence) ---
+  redis:
+    image: redis:7-alpine
+    container_name: worksauto_redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - worksauto_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- 3. Object Storage: MinIO S3 ---
+  minio:
+    image: minio/minio:latest
+    container_name: worksauto_minio
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-worksauto_minio}
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD}"
+    command: server /data --console-address ":9001"
+    volumes:
+      - worksauto_miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- 3b. MinIO Setup: Bucket Creation & Policy ---
+  minio-init:
+    image: minio/mc:latest
+    container_name: worksauto_minio_init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      echo 'Waiting for MinIO server to respond...';
+      sleep 3;
+      mc alias set localminio http://minio:9000 ${MINIO_ROOT_USER:-worksauto_minio} ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD};
+      mc mb --ignore-existing localminio/worksauto-media;
+      mc anonymous set none localminio/worksauto-media;
+      echo '✅ MinIO bucket worksauto-media configured securely as private (Presigned URL required).';
+      exit 0;
+      "
+      
+  # --- 4. Backend API: NestJS 10 (Multi-stage Production) ---
+  api:
+    build:
+      context: ./worksauto-api
+      dockerfile: Dockerfile
+      target: production
+    container_name: worksauto_api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      MIGRATION_DATABASE_URL: "postgresql://${POSTGRES_USER:-worksauto}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-worksauto_db}?schema=public"
+      DATABASE_URL: "postgresql://worksauto_app:${RUNTIME_DATABASE_PASSWORD:?Set RUNTIME_DATABASE_PASSWORD}@postgres:5432/${POSTGRES_DB:-worksauto_db}?schema=public"
+      RUNTIME_DATABASE_PASSWORD: ${RUNTIME_DATABASE_PASSWORD:?Set RUNTIME_DATABASE_PASSWORD}
+      NOTIFICATION_DELIVERY_MODE: ${NOTIFICATION_DELIVERY_MODE:-disabled}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET}"
+      JWT_ACCESS_EXPIRATION: "15m"
+      JWT_REFRESH_EXPIRATION: "30d"
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-worksauto_minio}
+      S3_SECRET_KEY: "${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD}"
+      S3_BUCKET_NAME: worksauto-media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+
+  # --- 5. Frontend: Next.js 14 Standalone ---
+  web:
+    build:
+      context: ./worksauto-web
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+    container_name: worksauto_web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    depends_on:
+      - api
+
+
+  # --- 5b. Super Admin Panel: Next.js Standalone (ayrı repo: worksauto-admin) ---
+  admin:
+    build:
+      context: ./worksauto-admin
+      dockerfile: Dockerfile
+      target: production
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+    container_name: worksauto_admin
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    depends_on:
+      - api
+
+  # --- 6. Edge / Reverse Proxy: Caddy v2 (Single Origin & WebSocket Routing) ---
+  caddy:
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-http://localhost}
+    image: caddy:2-alpine
+    container_name: worksauto_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - worksauto_caddy_data:/data
+      - worksauto_caddy_config:/config
+    depends_on:
+      - web
+      - admin
+      - api
+
+  # --- 7. WhatsApp Multi-Device Gateway: GOWA (Go High-Performance REST API) ---
+  whatsapp:
+    image: aldinokemal2104/go-whatsapp-web-multidevice:latest
+    container_name: worksauto_whatsapp
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:3000"
+    environment:
+      WHATSAPP_PORT: 3000
+    volumes:
+      - worksauto_whatsapp_data:/app/storages
+
+volumes:
+  worksauto_pgdata:
+  worksauto_redisdata:
+  worksauto_miniodata:
+  worksauto_caddy_data:
+  worksauto_caddy_config:
+  worksauto_whatsapp_data:

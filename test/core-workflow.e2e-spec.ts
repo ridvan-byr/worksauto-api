@@ -1,3 +1,5 @@
+import * as crypto from 'node:crypto';
+import { MediaService } from '../src/modules/media/media.service';
 import 'dotenv/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -14,7 +16,12 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
   // Test Context
   const testRunId = Date.now();
   const testSlug = `e2e-test-tenant-${testRunId}`;
-  const testPhone = `+90555${Math.floor(1000000 + Math.random() * 9000000)}`;
+  // Sabit test numarası: rastgele numara gerçek kişilere WhatsApp/SMS gitmesine yol açıyordu.
+  // Tek müşteri + tek kullanıcı ve run sonu temizlik (afterAll) sayesinde çakışma olmaz.
+  const testPhone = '05523741500';
+  const slotStart = new Date(Date.now() + 3 * 86400000);
+  slotStart.setUTCHours(9, 0, 0, 0);
+  const slotEnd = new Date(slotStart.getTime() + 3600000);
   const testPlate = `34E2E${Math.floor(100 + Math.random() * 900)}`;
 
   let authToken: string;
@@ -29,7 +36,10 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(MediaService)
+      .useValue({ getPresignedUrl: async () => '' })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.setGlobalPrefix('api/v1');
@@ -37,6 +47,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
+        forbidNonWhitelisted: true,
         transform: true,
         transformOptions: { enableImplicitConversion: true },
       }),
@@ -96,7 +107,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
         firstName: 'Ahmet',
         lastName: 'Usta',
         phone: testPhone,
-        email: `e2e.${testRunId}@testworksauto.com`,
+        email: 'ridvanemrebayar@gmail.com',
       });
 
     expect(res.status).toBe(201);
@@ -111,6 +122,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const signRes = await request(app.getHttpServer())
       .post('/api/v1/legal/sign')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({
         saasTermsAccepted: true,
         dataProcessingAccepted: true,
@@ -124,6 +136,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const tenantUpdateRes = await request(app.getHttpServer())
       .patch('/api/v1/tenants/current')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({ autoInvoiceOnComplete: true });
 
     expect(tenantUpdateRes.status).toBe(200);
@@ -135,11 +148,12 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const custRes = await request(app.getHttpServer())
       .post('/api/v1/customers')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({
         firstName: 'Mehmet',
         lastName: 'Demir',
-        phone: `+90532${Math.floor(1000000 + Math.random() * 9000000)}`,
-        email: `customer.${testRunId}@test.com`,
+        phone: '05523741500',
+        email: 'ridvanemrebayar@gmail.com',
         notes: 'E2E Test Müşterisi',
       })
       .expect(201);
@@ -151,6 +165,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const vehRes = await request(app.getHttpServer())
       .post('/api/v1/vehicles')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({
         customerId,
         plate: testPlate,
@@ -170,6 +185,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const prodRes = await request(app.getHttpServer())
       .post('/api/v1/inventory')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({
         name: 'E2E Fren Balatası Seti',
         oemCode: `OEM-${testRunId}`,
@@ -192,12 +208,13 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const appRes = await request(app.getHttpServer())
       .post('/api/v1/appointments')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({
         customerId,
         vehicleId,
-        slotDate: '2026-09-20',
-        slotStartTime: '2026-09-20T09:00:00.000Z',
-        slotEndTime: '2026-09-20T10:00:00.000Z',
+        slotDate: slotStart.toISOString().slice(0, 10),
+        slotStartTime: slotStart.toISOString(),
+        slotEndTime: slotEnd.toISOString(),
         customerNotes: 'Fren kontrolü ve balata değişimi',
       })
       .expect(201);
@@ -210,6 +227,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const approveRes = await request(app.getHttpServer())
       .post(`/api/v1/appointments/${appointmentId}/approve`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(201);
 
     expect(approveRes.body.status).toBe('CONFIRMED');
@@ -220,6 +238,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const woRes = await request(app.getHttpServer())
       .post('/api/v1/work-orders')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({
         customerId,
         vehicleId,
@@ -236,6 +255,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     await request(app.getHttpServer())
       .patch(`/api/v1/work-orders/${workOrderId}/status`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({ status: 'IN_PROGRESS' })
       .expect(200);
 
@@ -243,6 +263,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const itemRes = await request(app.getHttpServer())
       .post(`/api/v1/work-orders/${workOrderId}/items`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({
         itemType: 'PART',
         itemId: productId,
@@ -261,6 +282,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/work-orders/${workOrderId}/items`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({
         itemType: 'SERVICE',
         name: 'Fren Balata Değişim İşçiliği',
@@ -274,6 +296,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const productCheck = await request(app.getHttpServer())
       .get(`/api/v1/inventory/${productId}`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(200);
 
     expect(productCheck.body.stockQuantity).toBe(9);
@@ -282,6 +305,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const movementCheck = await request(app.getHttpServer())
       .get(`/api/v1/inventory/${productId}/movements`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(200);
 
     expect(movementCheck.body.length).toBeGreaterThan(0);
@@ -295,6 +319,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const completeRes = await request(app.getHttpServer())
       .patch(`/api/v1/work-orders/${workOrderId}/status`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .set('X-Idempotency-Key', idempotencyKey)
       .send({ status: 'COMPLETED' })
       .expect(200);
@@ -306,6 +331,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const invoicesRes = await request(app.getHttpServer())
       .get('/api/v1/invoices')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(200);
 
     const autoInvoice = invoicesRes.body.find(
@@ -328,6 +354,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const replayRes = await request(app.getHttpServer())
       .patch(`/api/v1/work-orders/${workOrderId}/status`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .set('X-Idempotency-Key', idempotencyKey)
       .send({ status: 'COMPLETED' })
       .expect(200);
@@ -338,6 +365,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const productCheck = await request(app.getHttpServer())
       .get(`/api/v1/inventory/${productId}`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(200);
 
     expect(productCheck.body.stockQuantity).toBe(9);
@@ -346,6 +374,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const invoicesRes = await request(app.getHttpServer())
       .get('/api/v1/invoices')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(200);
 
     const matchingInvoices = invoicesRes.body.filter(
@@ -358,6 +387,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const paymentRes = await request(app.getHttpServer())
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .set('X-Idempotency-Key', `e2e-payment-${Date.now()}`)
       .send({
         invoiceId,
@@ -374,6 +404,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const invoiceCheck = await request(app.getHttpServer())
       .get(`/api/v1/invoices/${invoiceId}`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(200);
 
     expect(invoiceCheck.body.status).toBe('PARTIALLY_PAID');
@@ -388,6 +419,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const caRes = await request(app.getHttpServer())
       .get(`/api/v1/current-accounts/customer/${customerId}`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(200);
 
     expect(caRes.body).toBeDefined();
@@ -409,11 +441,40 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     expect(Number(caRes.body.balance)).toBe(1800);
   });
 
+  it('rejects invalid payments and serializes competing collections', async () => {
+    for (const amount of [-1, 0, 0.001]) {
+      await request(app.getHttpServer())
+        .post('/api/v1/payments')
+        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-Idempotency-Key', crypto.randomUUID())
+        .send({ invoiceId, amount, paymentMethod: 'CASH' })
+        .expect(400);
+    }
+    const collect = () =>
+      request(app.getHttpServer())
+        .post('/api/v1/payments')
+        .set('Authorization', `Bearer ${authToken}`)
+        .set('X-Idempotency-Key', crypto.randomUUID())
+        .send({ invoiceId, amount: 1200, paymentMethod: 'CASH' });
+    const responses = await Promise.all([collect(), collect()]);
+    expect(responses.map((result) => result.status).sort()).toEqual([201, 400]);
+    const invoice = await prisma.invoice.findUniqueOrThrow({
+      where: { id: invoiceId },
+    });
+    expect(Number(invoice.paidAmount)).toBe(2400);
+    expect(Number(invoice.remainingAmount)).toBe(600);
+    const account = await prisma.currentAccount.findFirstOrThrow({
+      where: { tenantId, customerId },
+    });
+    expect(Number(account.balance)).toBe(600);
+  });
+
   it('Step 10: Work Order Cancellation & Inventory Stock Rollback (Md. 19 & 23)', async () => {
     // 10.1 Create second work order
     const wo2Res = await request(app.getHttpServer())
       .post('/api/v1/work-orders')
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({
         customerId,
         vehicleId,
@@ -427,6 +488,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/work-orders/${woId2}/items`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({
         itemType: 'PART',
         itemId: productId,
@@ -440,6 +502,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     let stockCheck = await request(app.getHttpServer())
       .get(`/api/v1/inventory/${productId}`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(200);
     expect(stockCheck.body.stockQuantity).toBe(8);
 
@@ -447,6 +510,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const cancelRes = await request(app.getHttpServer())
       .patch(`/api/v1/work-orders/${woId2}/status`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .send({ status: 'CANCELLED' })
       .expect(200);
 
@@ -456,6 +520,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     stockCheck = await request(app.getHttpServer())
       .get(`/api/v1/inventory/${productId}`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(200);
 
     expect(stockCheck.body.stockQuantity).toBe(9);
@@ -464,6 +529,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
     const movements = await request(app.getHttpServer())
       .get(`/api/v1/inventory/${productId}/movements`)
       .set('Authorization', `Bearer ${authToken}`)
+      .set('X-Idempotency-Key', crypto.randomUUID())
       .expect(200);
 
     const returnMovement = movements.body.find(

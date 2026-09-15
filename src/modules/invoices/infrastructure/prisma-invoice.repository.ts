@@ -1,3 +1,4 @@
+import { calculateInvoiceTotals } from '../domain/invoice-totals';
 import {
   Injectable,
   NotFoundException,
@@ -131,6 +132,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     offsetAdvanceAmount?: number,
   ): Promise<CreateInvoiceTransactionResult> {
     return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${invoice.tenantId + ':' + invoice.customerId}))`;
       // 1. Verify customer strictly belongs to this tenant (IDOR Protection)
       const customer = await tx.customer.findFirst({
         where: {
@@ -169,6 +171,12 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
           );
         }
 
+        if (workOrder.customerId !== invoice.customerId) {
+          throw new BadRequestException(
+            'İş emri ile faturanın müşterisi aynı olmalıdır.',
+          );
+        }
+
         if (workOrder.status === WorkOrderStatus.CANCELLED) {
           throw new BadRequestException(
             'İptal edilmiş bir iş emrine fatura kesilemez.',
@@ -188,6 +196,29 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
             `Bu iş emrine ait aktif bir fatura (${existingInvoiceForWO.invoiceNumber}) zaten mevcuttur.`,
           );
         }
+      }
+
+      const sourceItems = invoice.items?.length
+        ? invoice.items
+        : linkedWorkOrder?.items;
+      if (!sourceItems?.length)
+        throw new BadRequestException('Fatura kalemleri zorunludur.');
+      let totals;
+      try {
+        totals = calculateInvoiceTotals(sourceItems);
+      } catch (error) {
+        throw new BadRequestException((error as Error).message);
+      }
+      for (const key of ['subtotal', 'kdvAmount', 'grandTotal'] as const) {
+        if (
+          !Number.isFinite(invoice[key]) ||
+          Math.round(invoice[key] * 100) !== Math.round(totals[key] * 100)
+        ) {
+          throw new BadRequestException(
+            'Fatura toplamları kalemler ile uyuşmuyor.',
+          );
+        }
+        invoice[key] = totals[key];
       }
 
       // 3. Update Current Account (Cari Hesap Borç Ekle) - Atomik Güncelleme
@@ -213,15 +244,28 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       // Advance offset calculation (Cari avans mahsubu)
       let advancePaid = 0;
       const currentBalance = Number(currentAccount.balance);
-      if (offsetAdvanceAmount && offsetAdvanceAmount > 0 && currentBalance < 0) {
+      if (
+        offsetAdvanceAmount &&
+        offsetAdvanceAmount > 0 &&
+        currentBalance < 0
+      ) {
         const availableAdvance = Math.abs(currentBalance);
-        advancePaid = Math.min(Number(invoice.grandTotal), Math.min(availableAdvance, Number(offsetAdvanceAmount)));
+        advancePaid = Math.min(
+          Number(invoice.grandTotal),
+          Math.min(availableAdvance, Number(offsetAdvanceAmount)),
+        );
       }
 
-      const initialRemaining = Math.max(0, Number(invoice.grandTotal) - advancePaid);
-      const initialStatus = initialRemaining <= 0
-        ? InvoiceStatus.PAID
-        : (advancePaid > 0 ? InvoiceStatus.PARTIALLY_PAID : (invoice.status as InvoiceStatus || InvoiceStatus.UNPAID));
+      const initialRemaining = Math.max(
+        0,
+        Number(invoice.grandTotal) - advancePaid,
+      );
+      const initialStatus =
+        initialRemaining <= 0
+          ? InvoiceStatus.PAID
+          : advancePaid > 0
+            ? InvoiceStatus.PARTIALLY_PAID
+            : (invoice.status as InvoiceStatus) || InvoiceStatus.UNPAID;
 
       // Allocate sequence number atomically inside transaction if not pre-assigned or PENDING
       let finalInvoiceNumber = invoice.invoiceNumber;
@@ -290,9 +334,9 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
             unitPrice: Number(item.unitPrice || 0),
             kdvRate: Number(item.kdvRate ?? 20),
             totalPrice:
-              item.totalPrice !== undefined
-                ? Number(item.totalPrice)
-                : Number(item.quantity || 1) * Number(item.unitPrice || 0),
+              (Math.round(Number(item.unitPrice) * 100) *
+                Number(item.quantity)) /
+              100,
             notes: item.notes || null,
           })),
         });
@@ -305,7 +349,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
             customerId: invoice.customerId,
             invoiceId: created.id,
             amount: advancePaid,
-            paymentMethod: PaymentMethod.ONLINE,
+            paymentMethod: PaymentMethod.ADVANCE_OFFSET,
             paymentDate: new Date(),
             cashierName: 'Sistem (Cari Avans Mahsubu)',
             notes: `Fatura #${invoice.invoiceNumber} için müşteri cari avansından ${advancePaid.toLocaleString('tr-TR')} ₺ mahsup edildi.`,
@@ -324,18 +368,19 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
 
       const newBalance = Number(updatedCA.balance);
 
-      const advanceMovementNote = advancePaid > 0
-        ? ` (${advancePaid.toLocaleString('tr-TR')} ₺ cari avansından mahsup edildi)`
-        : '';
+      const advanceMovementNote =
+        advancePaid > 0
+          ? ` (${advancePaid.toLocaleString('tr-TR')} ₺ cari avansından mahsup edildi)`
+          : '';
 
       await tx.cariMovement.create({
         data: {
           tenantId: invoice.tenantId,
           currentAccountId: currentAccount.id,
           date: new Date(),
-          description: `Fatura Kesildi (#${invoice.invoiceNumber})${advanceMovementNote}`,
+          description: `Fatura Kesildi (#${finalInvoiceNumber})${advanceMovementNote}`,
           referenceType: CariReferenceType.INVOICE,
-          referenceNo: invoice.invoiceNumber,
+          referenceNo: finalInvoiceNumber,
           debit: invoice.grandTotal,
           credit: 0,
           balanceAfter: newBalance,
@@ -367,7 +412,12 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         : 0;
 
       return {
-        invoice: this.mapToEntity(created),
+        invoice: this.mapToEntity({
+          ...created,
+          items: await tx.invoiceItem.findMany({
+            where: { invoiceId: created.id },
+          }),
+        }),
         newBalance,
         creditLimit,
         customerName,
@@ -384,6 +434,12 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     reason: string,
   ): Promise<InvoiceEntity> {
     return this.prisma.$transaction(async (tx) => {
+      const owner = await tx.invoice.findFirst({
+        where: { id, tenantId },
+        select: { customerId: true },
+      });
+      if (!owner) throw new NotFoundException('Fatura bulunamadı.');
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenantId + ':' + owner.customerId}))`;
       // 1. Verify invoice belongs strictly to this tenant (IDOR Protection)
       const existing = await tx.invoice.findFirst({
         where: { id, tenantId },
@@ -503,7 +559,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
     },
   ): Promise<InvoiceEntity> {
     const updated = await this.prisma.invoice.update({
-      where: { id },
+      where: { id, tenantId },
       data,
       include: {
         customer: true,

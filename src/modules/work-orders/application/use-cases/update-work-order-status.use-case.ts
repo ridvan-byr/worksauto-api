@@ -13,26 +13,20 @@ import {
 import { CreateInvoiceUseCase } from '../../../invoices/application/use-cases/create-invoice.use-case';
 import { AuditService } from '../../../audit/audit.service';
 import { EventsGateway } from '../../../events/events.gateway';
-import { NotificationsService } from '../../../notifications/notifications.service';
-import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
-import { NotificationType } from '@prisma/client';
 
 @Injectable()
 export class UpdateWorkOrderStatusUseCase {
-  private readonly templateService: NotificationTemplateService;
-
   constructor(
     @Inject('IWorkOrderRepository')
     private readonly workOrderRepository: IWorkOrderRepository,
     private readonly createInvoiceUseCase: CreateInvoiceUseCase,
     private readonly auditService: AuditService,
     private readonly eventsGateway: EventsGateway,
-    private readonly notificationsService: NotificationsService,
     @Optional()
-    templateService?: NotificationTemplateService,
-  ) {
-    this.templateService = templateService || new NotificationTemplateService();
-  }
+    _notificationsService?: any,
+    @Optional()
+    _templateService?: any,
+  ) {}
 
   async execute(
     tenantId: string,
@@ -163,7 +157,7 @@ export class UpdateWorkOrderStatusUseCase {
       }
     }
 
-    // WebSockets & Notifications
+    // WebSockets (Internal real-time dashboard events)
     this.eventsGateway.emitToTenant(tenantId, 'work_order:status_changed', {
       workOrderId: id,
       status: targetStatus,
@@ -171,163 +165,11 @@ export class UpdateWorkOrderStatusUseCase {
       plate: wo.vehicle?.plate,
     });
 
-    const tenantTitle = (wo as any).tenant?.title || 'Oto Servisiniz';
-    const customerName = wo.customer
-      ? `${wo.customer.firstName} ${wo.customer.lastName || ''}`.trim()
-      : 'Değerli Müşterimiz';
-    const plate = wo.vehicle?.plate || '';
-    const trackingUrl = this.templateService.getTrackingUrl(id);
-    const statusLabelTr =
-      this.templateService.getWorkOrderStatusLabel(targetStatus);
-
     if (targetStatus === WorkOrderStatusEnum.COMPLETED) {
       this.eventsGateway.emitToTenant(tenantId, 'work_order:completed', {
         workOrderId: id,
         workOrderNumber: wo.workOrderNumber,
         plate: wo.vehicle?.plate,
-      });
-
-      const customerMsg =
-        this.templateService.formatWorkOrderCompletedCustomerMessage({
-          customerName,
-          plate,
-          workOrderNumber: wo.workOrderNumber,
-          trackingUrl,
-          tenantTitle,
-        });
-
-      const customerHtml = this.templateService.generateBrandedHtmlEmail({
-        title: 'Servis Onarım İşleminiz Tamamlandı',
-        customerName,
-        message: `${wo.workOrderNumber} numaralı iş emrine ait ${plate ? plate + ' plakalı ' : ''}aracınızın tüm bakım ve onarım işlemleri başarıyla tamamlanmış ve teslime hazır hale getirilmiştir.`,
-        buttonText: 'Canlı Takip ve İşlem Detayı',
-        buttonUrl: trackingUrl,
-        tenantTitle,
-        extraDetails: {
-          'İş Emri No': wo.workOrderNumber,
-          Plaka: plate || 'Belirtilmedi',
-          Durum: 'Tamamlandı / Teslime Hazır',
-        },
-      });
-
-      await this.notificationsService.createNotification({
-        tenantId,
-        actorUserId: userId,
-        type: NotificationType.SUCCESS,
-        category: 'WORK_ORDER',
-        title: 'İş Emri Tamamlandı',
-        message: `${wo.workOrderNumber} nolu iş emri (${plate || ''}) başarıyla tamamlandı.`,
-        link: `/work-orders/${id}`,
-        metadata: {
-          workOrderId: id,
-          workOrderNumber: wo.workOrderNumber,
-          trackingUrl,
-        },
-        recipientPhone: wo.customer?.phone,
-        recipientEmail: (wo.customer as any)?.email,
-        customerMessage: customerMsg,
-        customerHtml,
-        sendSms: !!wo.customer?.phone,
-        sendWhatsApp: !!wo.customer?.phone,
-        sendEmail: !!(wo.customer as any)?.email,
-      });
-    } else if (targetStatus === WorkOrderStatusEnum.CANCELLED) {
-      const customerMsg =
-        this.templateService.formatWorkOrderCancelledCustomerMessage({
-          customerName,
-          plate,
-          workOrderNumber: wo.workOrderNumber,
-          trackingUrl,
-          tenantTitle,
-        });
-
-      const customerHtml = this.templateService.generateBrandedHtmlEmail({
-        title: `İş Emriniz İptal Edilmiştir (#${wo.workOrderNumber})`,
-        customerName,
-        message: `${wo.workOrderNumber} numaralı iş emrine ait ${plate ? plate + ' plakalı ' : ''}aracınızın servis kaydı iptal edilmiştir. Yapılan veya planlanan herhangi bir aktif bakım/onarım işlemi bulunmamaktadır. Ayrıntılı bilgi almak için servis danışmanınız ile görüşebilirsiniz.`,
-        buttonText: 'Takip Sayfasını Görüntüle',
-        buttonUrl: trackingUrl,
-        tenantTitle,
-        extraDetails: {
-          'İş Emri No': wo.workOrderNumber,
-          'Plaka': plate || 'Belirtilmedi',
-          'Durum': 'İptal Edildi',
-          'Tarih': new Date().toLocaleDateString('tr-TR'),
-        },
-      });
-
-      await this.notificationsService.createNotification({
-        tenantId,
-        actorUserId: userId,
-        type: NotificationType.WARNING,
-        category: 'WORK_ORDER',
-        title: 'İş Emri İptal Edildi',
-        message: `${wo.workOrderNumber} nolu iş emri (${plate || ''}) iptal edildi.`,
-        link: `/work-orders/${id}`,
-        metadata: {
-          workOrderId: id,
-          workOrderNumber: wo.workOrderNumber,
-          status: targetStatus,
-          statusLabelTr: 'İptal Edildi',
-          trackingUrl,
-        },
-        recipientPhone: wo.customer?.phone,
-        recipientEmail: (wo.customer as any)?.email,
-        customerMessage: customerMsg,
-        customerHtml,
-        sendSms: !!wo.customer?.phone,
-        sendWhatsApp: !!wo.customer?.phone,
-        sendEmail: !!(wo.customer as any)?.email,
-      });
-    } else {
-      const customerMsg =
-        this.templateService.formatWorkOrderStatusChangedCustomerMessage({
-          customerName,
-          plate,
-          workOrderNumber: wo.workOrderNumber,
-          status: targetStatus,
-          trackingUrl,
-          tenantTitle,
-        });
-
-      const customerHtml = this.templateService.generateBrandedHtmlEmail({
-        title: `İş Emri Durum Güncellemesi: ${statusLabelTr}`,
-        customerName,
-        message: `${wo.workOrderNumber} numaralı iş emrine ait ${plate ? plate + ' plakalı ' : ''}aracınızın işlem aşaması "${statusLabelTr}" olarak güncellenmiştir.`,
-        buttonText: 'Canlı Takip Sayfasını Aç',
-        buttonUrl: trackingUrl,
-        tenantTitle,
-        extraDetails: {
-          'İş Emri No': wo.workOrderNumber,
-          Plaka: plate || 'Belirtilmedi',
-          'Yeni Aşama': statusLabelTr,
-        },
-      });
-
-      await this.notificationsService.createNotification({
-        tenantId,
-        actorUserId: userId,
-        type: NotificationType.INFO,
-        category: 'WORK_ORDER',
-        title: 'İş Emri Durumu Değişti',
-        message: `${wo.workOrderNumber} (${plate || ''}) aşaması "${statusLabelTr}" olarak güncellendi.`,
-        link: `/work-orders/${id}`,
-        metadata: {
-          workOrderId: id,
-          workOrderNumber: wo.workOrderNumber,
-          status: targetStatus,
-          statusLabelTr,
-          trackingUrl,
-        },
-        recipientPhone: wo.customer?.phone,
-        recipientEmail: (wo.customer as any)?.email,
-        customerMessage: customerMsg,
-        customerHtml,
-        sendSms:
-          targetStatus === WorkOrderStatusEnum.IN_PROGRESS &&
-          !!wo.customer?.phone,
-        sendWhatsApp: !!wo.customer?.phone,
-        sendEmail: !!(wo.customer as any)?.email,
       });
     }
 

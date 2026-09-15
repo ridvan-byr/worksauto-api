@@ -1,3 +1,4 @@
+import { suppressNotificationDelivery } from '../notifications/providers/delivery-policy';
 import {
   Injectable,
   OnModuleInit,
@@ -16,6 +17,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   private maintenanceQueue: Queue | null = null;
 
   onModuleInit() {
+    if (suppressNotificationDelivery()) return;
     const host = process.env.REDIS_HOST || 'localhost';
     const port = Number(process.env.REDIS_PORT) || 6379;
     const password = process.env.REDIS_PASSWORD || undefined;
@@ -72,7 +74,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
    * Bildirim kuyruğuna asenkron iş ekler (SMS, WhatsApp, Push, E-Posta)
    */
   async addNotificationJob(name: string, data: any, opts?: JobsOptions) {
-    if (!this.notificationsQueue) {
+    if (suppressNotificationDelivery() || !this.notificationsQueue) {
       this.logger.debug(
         `Notification queue unavailable, bypassing async job ${name}`,
       );
@@ -89,7 +91,7 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
     delayMs: number,
     data: any,
   ) {
-    if (!this.notificationsQueue) return null;
+    if (suppressNotificationDelivery() || !this.notificationsQueue) return null;
     return this.notificationsQueue.add(
       'appointment-reminder',
       { appointmentId, ...data },

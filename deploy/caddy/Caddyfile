@@ -1,0 +1,22 @@
+{
+    admin off
+}
+
+# --- 1. NestJS Backend REST API & WebSockets & OpenAPI Docs ---
+{$API_DOMAIN:api.worksauto.com.tr}, api.localhost {
+    encode gzip zstd
+    reverse_proxy api:4000
+}
+
+# --- 2. Tenant Servis Paneli & Müşteri Portalları (Next.js) ---
+{$PANEL_DOMAIN:panel.worksauto.com.tr}, localhost, panel.localhost {
+    encode gzip zstd
+    reverse_proxy web:3000
+}
+
+# --- 3. Platform Süper Admin Yönetim Paneli (Next.js) ---
+{$ADMIN_DOMAIN:admin.worksauto.com.tr}, admin.localhost {
+    encode gzip zstd
+    reverse_proxy admin:3001
+}
+

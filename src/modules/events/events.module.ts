@@ -1,3 +1,4 @@
+import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { Module, Global } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { EventsGateway } from './events.gateway';
@@ -9,7 +10,7 @@ import { EventsGateway } from './events.gateway';
       secret: process.env.JWT_SECRET,
     }),
   ],
-  providers: [EventsGateway],
+  providers: [EventsGateway, PrismaService],
   exports: [EventsGateway],
 })
 export class EventsModule {}

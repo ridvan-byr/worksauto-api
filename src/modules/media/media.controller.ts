@@ -152,10 +152,12 @@ export class MediaController {
     // 2. Servis/İş emri fotoğrafları için Doğrulama
     const authHeader = req.headers['authorization'];
     const queryToken =
-      (req.query?.token as string) || (req.query?.access_token as string) || null;
+      (req.query?.token as string) ||
+      (req.query?.access_token as string) ||
+      null;
     const cookieToken =
       (req.cookies ? req.cookies['worksauto_access_token'] : null) ||
-      (req.cookies ? req.cookies['refreshToken'] : null);
+      (req.cookies ? req.cookies['accessToken'] : null);
 
     const token =
       (authHeader &&
@@ -172,6 +174,7 @@ export class MediaController {
         const payload: any = this.jwtService.verify(token, {
           secret: process.env.JWT_SECRET,
         });
+        await this.mediaService.validateAccess(payload);
         requestingTenantId = payload.tenantId;
       } catch {
         // Token invalid or expired
@@ -179,19 +182,9 @@ export class MediaController {
     }
 
     const fileTenantId = objectKey.split('/')[0];
-    let isAuthorized = Boolean(
+    const isAuthorized = Boolean(
       requestingTenantId && requestingTenantId === fileTenantId,
     );
-
-    // 3. Fallback: Browser <img> tags or public tracking without headers
-    // Check if the file is an active registered work order photo
-    if (!isAuthorized) {
-      const photoExists =
-        await this.mediaService.verifyWorkOrderPhotoExists(objectKey);
-      if (photoExists) {
-        isAuthorized = true;
-      }
-    }
 
     if (!isAuthorized) {
       throw new ForbiddenException(
@@ -199,10 +192,7 @@ export class MediaController {
       );
     }
 
-    const file = await this.mediaService.getFileStream(
-      fileTenantId,
-      objectKey,
-    );
+    const file = await this.mediaService.getFileStream(fileTenantId, objectKey);
     res.set({
       'Content-Type': file.contentType,
       ...(file.contentLength && {

@@ -27,17 +27,17 @@ export class InternalDraftProvider implements IEInvoiceProvider {
     return clean.length === 10 ? 'E_FATURA' : 'E_ARSIV';
   }
 
-  async createInvoice(payload: CreateEInvoicePayload): Promise<EInvoiceResult> {
+  async createInvoice(
+    _payload: CreateEInvoicePayload,
+  ): Promise<EInvoiceResult> {
     const draftUuid = randomUUID();
-    const series = payload.seriesPrefix || 'DRAFT';
-    const gibNumber = `${series}${new Date().getFullYear()}${String(Date.now()).slice(-9)}`;
 
     return {
       success: true,
       provider: this.providerName,
       eInvoiceUuid: draftUuid,
-      gibInvoiceNumber: gibNumber,
-      eInvoiceStatus: 'COMPLETED',
+      gibInvoiceNumber: '',
+      eInvoiceStatus: 'DRAFT',
       errorMessage: undefined,
     };
   }

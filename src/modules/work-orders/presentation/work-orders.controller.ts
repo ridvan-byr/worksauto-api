@@ -29,9 +29,11 @@ import { UpdateWorkOrderItemDto } from '../dto/update-item.dto';
 import { CreateWorkOrderNoteDto } from '../dto/create-note.dto';
 import { UpdateWorkOrderNoteDto } from '../dto/update-note.dto';
 import { CreateWorkOrderDto } from '../dto/create-work-order.dto';
+import { NotifyWorkOrderStatusDto } from '../dto/notify-status.dto';
 import { GetWorkOrdersUseCase } from '../application/use-cases/get-work-orders.use-case';
 import { CreateWorkOrderUseCase } from '../application/use-cases/create-work-order.use-case';
 import { UpdateWorkOrderStatusUseCase } from '../application/use-cases/update-work-order-status.use-case';
+import { NotifyWorkOrderStatusUseCase } from '../application/use-cases/notify-work-order-status.use-case';
 import { RollbackWorkOrderUseCase } from '../application/use-cases/rollback-work-order.use-case';
 import { AddWorkOrderItemUseCase } from '../application/use-cases/add-work-order-item.use-case';
 import { UpdateWorkOrderItemQuantityUseCase } from '../application/use-cases/update-work-order-item-quantity.use-case';
@@ -51,6 +53,7 @@ export class WorkOrdersController {
     private readonly getWorkOrdersUseCase: GetWorkOrdersUseCase,
     private readonly createWorkOrderUseCase: CreateWorkOrderUseCase,
     private readonly updateWorkOrderStatusUseCase: UpdateWorkOrderStatusUseCase,
+    private readonly notifyWorkOrderStatusUseCase: NotifyWorkOrderStatusUseCase,
     private readonly rollbackWorkOrderUseCase: RollbackWorkOrderUseCase,
     private readonly addWorkOrderItemUseCase: AddWorkOrderItemUseCase,
     private readonly updateWorkOrderItemQuantityUseCase: UpdateWorkOrderItemQuantityUseCase,
@@ -151,6 +154,32 @@ export class WorkOrdersController {
       tenantId,
       id,
       status,
+      user?.id,
+    );
+  }
+
+  @Post(':id/notify-status')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.TECHNICIAN)
+  @RequirePermission(Permission.WORK_ORDER_UPDATE)
+  @ApiOperation({
+    summary:
+      'Müşteriye manuel iş emri durum bildirimi (SMS/WhatsApp/E-posta) gönderir',
+  })
+  @ApiHeader({
+    name: 'X-Idempotency-Key',
+    required: false,
+    description: 'Tekrarlanan istek koruması için benzersiz anahtar',
+  })
+  notifyStatus(
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() dto: NotifyWorkOrderStatusDto,
+  ) {
+    return this.notifyWorkOrderStatusUseCase.execute(
+      tenantId,
+      id,
+      dto,
       user?.id,
     );
   }

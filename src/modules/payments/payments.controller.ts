@@ -5,8 +5,8 @@ import {
   Body,
   Query,
   Req,
-  UseGuards,
   UseInterceptors,
+  HttpCode,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -14,14 +14,12 @@ import {
   ApiBearerAuth,
   ApiHeader,
 } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { PaymentsService, CreatePaymentDto } from './payments.service';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { RequirePermission } from '../../shared/decorators/require-permission.decorator';
 import { RequireIdempotency } from '../../shared/decorators/require-idempotency.decorator';
-import { RolesGuard } from '../../shared/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../shared/interceptors/idempotency.interceptor';
 import { Permission } from '../../shared/constants/permissions.enum';
 import { Public } from '../../shared/decorators/public.decorator';
@@ -31,7 +29,6 @@ import { UserRole } from '@prisma/client';
 
 @ApiTags('Payments & Cashier (Kasa & Tahsilat)')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
 @UseInterceptors(IdempotencyInterceptor)
 @Controller('payments')
 export class PaymentsController {
@@ -87,6 +84,7 @@ export class PaymentsController {
 
   @Public()
   @Post('webhook/paytr')
+  @HttpCode(200)
   @ApiOperation({
     summary: 'PayTR Webhook Callback (İmza doğrulamalı ödeme bildirimi)',
   })
@@ -102,8 +100,12 @@ export class PaymentsController {
   })
   createPayTrToken(@Body() dto: CreatePayTrTokenDto, @Req() req: any) {
     const rawIp =
-      req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1';
-    const ip = Array.isArray(rawIp) ? rawIp[0] : String(rawIp).split(',')[0].trim();
+      req.headers['x-forwarded-for'] ||
+      req.socket?.remoteAddress ||
+      '127.0.0.1';
+    const ip = Array.isArray(rawIp)
+      ? rawIp[0]
+      : String(rawIp).split(',')[0].trim();
     return this.paymentsService.createPayTrPaymentToken(dto.invoiceId, ip);
   }
 }

@@ -5,28 +5,16 @@ import {
   Logger,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { ClsService } from 'nestjs-cls';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
-const TENANT_SCOPED_MODELS = new Set([
-  'WorkOrder',
-  'Invoice',
-  'Payment',
-  'CurrentAccount',
-  'CariMovement',
-  'Vehicle',
-  'Customer',
-  'Product',
-  'StockMovement',
-  'Appointment',
-  'Branch',
-  'Mechanic',
-  'Service',
-  'IdempotencyRecord',
-  'DocumentSequence',
-  'TenantConsent',
-  'TenantNotificationSetting',
-]);
+// Shared by PrismaService instances so an audit/service call participates in the
+// caller's transaction instead of opening an independent connection.
+const transactions = new AsyncLocalStorage<{
+  tx: any;
+  tenantId: string | null;
+}>();
 
 @Injectable()
 export class PrismaService
@@ -34,175 +22,149 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
+  private readonly database: PrismaClient;
 
   constructor(private readonly cls: ClsService) {
-    super({
-      log:
-        process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-    });
-
-    const extendedClient = this.$extends({
-      query: {
-        $allModels: {
-          async $allOperations({
-            model,
-            operation,
-            args,
-            query,
-          }: {
-            model?: string;
-            operation: string;
-            args: any;
-            query: (args: any) => Promise<any>;
-          }) {
-            if (model && TENANT_SCOPED_MODELS.has(model)) {
-              const tenantId = cls.get<string>('tenantId');
-              const userRole = cls.get<string>('userRole');
-
-              // Only enforce when a tenant request context is active and not super admin
-              if (userRole !== 'SUPER_ADMIN' && tenantId) {
+    super();
+    const database = new PrismaClient({ log: ['error'] });
+    this.database = database;
+    for (const model of Prisma.dmmf.datamodel.models) {
+      const delegateName =
+        model.name.charAt(0).toLowerCase() + model.name.slice(1);
+      const tenantScoped = model.fields.some(
+        (field) => field.name === 'tenantId',
+      );
+      Object.defineProperty(this, delegateName, {
+        value: new Proxy(
+          {},
+          {
+            get: (_target, operation: string) => (input: any) => {
+              const args = input ? { ...input } : {};
+              const tenantId = this.tenantId();
+              if (tenantScoped && tenantId) {
                 if (
                   [
-                    'findMany',
+                    'findUnique',
+                    'findUniqueOrThrow',
                     'findFirst',
+                    'findFirstOrThrow',
+                    'findMany',
                     'count',
                     'aggregate',
                     'groupBy',
+                    'update',
+                    'updateMany',
+                    'delete',
+                    'deleteMany',
+                    'upsert',
                   ].includes(operation)
                 ) {
-                  args = args || {};
-                  args.where = args.where || {};
-                  if (args.where.tenantId && args.where.tenantId !== tenantId) {
+                  if (args.where?.tenantId && args.where.tenantId !== tenantId)
                     throw new ForbiddenException(
-                      `Çapraz kiracı erişim ihlali engellendi: ${model} modeli için yetkisiz tenantId tespiti.`,
+                      'Cross-tenant access is not allowed.',
                     );
-                  }
-                  args.where.tenantId = tenantId;
+                  args.where = { ...args.where, tenantId };
                 }
-
-                if (['updateMany', 'deleteMany'].includes(operation)) {
-                  args = args || {};
-                  args.where = args.where || {};
-                  if (args.where.tenantId && args.where.tenantId !== tenantId) {
-                    throw new ForbiddenException(
-                      `Çapraz kiracı işlem ihlali engellendi: ${model} modeli için yetkisiz tenantId tespiti.`,
-                    );
-                  }
-                  args.where.tenantId = tenantId;
+                if (
+                  ['update', 'updateMany', 'upsert'].includes(operation) &&
+                  args.data?.tenantId &&
+                  args.data.tenantId !== tenantId
+                ) {
+                  throw new ForbiddenException(
+                    'Cross-tenant writes are not allowed.',
+                  );
                 }
-
-                if (['update', 'delete'].includes(operation)) {
-                  args = args || {};
-                  if (args.where) {
-                    if (
-                      args.where.tenantId &&
-                      args.where.tenantId !== tenantId
-                    ) {
-                      throw new ForbiddenException(
-                        `Çapraz kiracı işlem ihlali engellendi: ${model} modeli için yetkisiz tenantId tespiti.`,
-                      );
-                    }
-
-                    // Defense-in-depth: Verify record ownership before mutation if where has only primary key
-                    const modelDelegate = (this as any)[
-                      model.charAt(0).toLowerCase() + model.slice(1)
-                    ];
-                    if (
-                      modelDelegate &&
-                      typeof modelDelegate.findUnique === 'function'
-                    ) {
-                      const existing = await modelDelegate.findUnique({
-                        where: args.where,
-                        select: { tenantId: true },
-                      });
-                      if (
-                        existing &&
-                        existing.tenantId &&
-                        existing.tenantId !== tenantId
-                      ) {
-                        throw new ForbiddenException(
-                          `Çapraz kiracı manipülasyon engellendi: ${model} kaydı başka bir işletmeye ait.`,
-                        );
-                      }
-                    }
-                  }
-
-                  if (
-                    operation === 'update' &&
-                    args.data &&
-                    args.data.tenantId &&
-                    args.data.tenantId !== tenantId
-                  ) {
-                    throw new ForbiddenException(
-                      `Çapraz kiracı veri taşıma ihlali: ${model} modeli için yetkisiz tenantId tespiti.`,
-                    );
-                  }
-                }
-
                 if (operation === 'create') {
-                  args = args || {};
-                  args.data = args.data || {};
-                  if (args.data.tenantId && args.data.tenantId !== tenantId) {
+                  if (args.data?.tenantId && args.data.tenantId !== tenantId)
                     throw new ForbiddenException(
-                      `Çapraz kiracı veri yazma ihlali: ${model} modeli için yetkisiz tenantId tespiti.`,
+                      'Cross-tenant writes are not allowed.',
                     );
-                  }
-                  args.data.tenantId = tenantId;
-                }
-
-                if (operation === 'findUnique') {
-                  const result = await query(args);
-                  if (
-                    result &&
-                    typeof result === 'object' &&
-                    'tenantId' in result &&
-                    result.tenantId &&
-                    result.tenantId !== tenantId
-                  ) {
-                    return null;
-                  }
-                  return result;
+                  args.data = { ...args.data, tenantId };
                 }
               }
-            }
-            return query(args);
+              return this.inContext((tx) => tx[delegateName][operation](args));
+            },
           },
-        },
+        ),
+      });
+    }
+    for (const method of [
+      '$queryRaw',
+      '$queryRawUnsafe',
+      '$executeRaw',
+      '$executeRawUnsafe',
+    ]) {
+      Object.defineProperty(this, method, {
+        value: (...args: any[]) => this.inContext((tx) => tx[method](...args)),
+      });
+    }
+    Object.defineProperty(this, '$transaction', {
+      value: (callback: any, options?: any) => {
+        if (typeof callback !== 'function')
+          throw new Error(
+            'Use an interactive transaction callback for tenant-scoped operations.',
+          );
+        return this.inContext(callback, undefined, options);
       },
     });
+  }
 
-    Object.assign(this, extendedClient);
+  private tenantId(): string | null {
+    return this.cls.isActive() && this.cls.get('userRole') !== 'SUPER_ADMIN'
+      ? this.cls.get<string>('tenantId') || null
+      : null;
+  }
+
+  private async inContext<T>(
+    callback: (tx: any) => Promise<T>,
+    explicitTenant?: string | null,
+    options?: any,
+  ): Promise<T> {
+    const tenantId =
+      explicitTenant === undefined ? this.tenantId() : explicitTenant;
+    const active = transactions.getStore();
+    if (active) {
+      if (active.tenantId !== tenantId)
+        throw new ForbiddenException(
+          'Cannot change tenant inside a transaction.',
+        );
+      return callback(active.tx);
+    }
+    return this.database.$transaction(
+      async (tx) => {
+        // Tenant-free calls are reserved for authenticated control-plane and
+        // explicitly public application flows (login, booking and signed links).
+        await tx.$queryRaw`SELECT set_config('app.current_tenant_id', ${tenantId || ''}, true), set_config('app.bypass_rls', ${tenantId ? 'off' : 'on'}, true)`;
+        return transactions.run({ tx, tenantId }, () => callback(tx));
+      },
+      { maxWait: 10000, timeout: 15000, ...options },
+    );
   }
 
   async onModuleInit() {
-    await this.$connect();
+    await this.database.$connect();
+    if (process.env.NODE_ENV === 'production') {
+      const roles = await this.database.$queryRaw<
+        Array<{ rolsuper: boolean; rolbypassrls: boolean }>
+      >`SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`;
+      if (roles[0]?.rolsuper || roles[0]?.rolbypassrls)
+        throw new Error(
+          'Production DATABASE_URL must use a NOSUPERUSER NOBYPASSRLS role.',
+        );
+    }
     this.logger.log(
-      'PostgreSQL Prisma connection established with Multi-Tenant AST Guard & Native RLS.',
+      'Database connected with transaction-scoped tenant context.',
     );
   }
 
   async onModuleDestroy() {
-    await this.$disconnect();
-    this.logger.log('PostgreSQL Prisma connection closed.');
+    await this.database.$disconnect();
   }
 
-  /**
-   * Execute an operation inside a PostgreSQL transaction with Native RLS session variable set.
-   * This is fully PgBouncer transaction-mode safe (SET LOCAL resets automatically upon commit/rollback).
-   */
   async withTenantContext<T>(
     tenantId: string | null | undefined,
     fn: (tx: any) => Promise<T>,
   ): Promise<T> {
-    return this.$transaction(async (tx) => {
-      if (tenantId) {
-        await tx.$executeRawUnsafe(
-          `SET LOCAL app.current_tenant_id = '${tenantId.replace(/'/g, "''")}'`,
-        );
-      } else {
-        await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
-      }
-      return fn(tx);
-    });
+    return this.inContext(fn, tenantId || null);
   }
 }

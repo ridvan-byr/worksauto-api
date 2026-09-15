@@ -1,5 +1,5 @@
 # --- Stage 1: Builder ---
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 RUN apk add --no-cache python3 make g++ libc6-compat openssl
@@ -16,7 +16,7 @@ RUN npm run build
 RUN npm prune --production --legacy-peer-deps
 
 # --- Stage 2: Production Runner ---
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 RUN apk add --no-cache libc6-compat openssl curl
@@ -29,6 +29,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
+COPY scripts/provision-runtime-role.cjs ./scripts/provision-runtime-role.cjs
 
 RUN chmod +x ./docker-entrypoint.sh
 
@@ -38,7 +39,7 @@ ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "dist/main.js"]
 
 # --- Dev Stage: Live Reload (used by docker-compose.dev.yml) ---
-FROM node:20-alpine AS development
+FROM node:22-alpine AS development
 WORKDIR /app
 
 RUN apk add --no-cache python3 make g++ libc6-compat openssl curl
@@ -50,6 +51,7 @@ RUN --mount=type=cache,target=/root/.npm npm install --no-audit --legacy-peer-de
 
 COPY . .
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
+COPY scripts/provision-runtime-role.cjs ./scripts/provision-runtime-role.cjs
 
 RUN chmod +x ./docker-entrypoint.sh
 
@@ -60,3 +62,6 @@ EXPOSE 4000
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["npm", "run", "start:dev"]
+
+# Default docker build must produce the production image.
+FROM runner AS production

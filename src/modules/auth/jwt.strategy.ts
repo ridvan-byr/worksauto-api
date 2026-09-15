@@ -1,3 +1,4 @@
+import { validateAccessIdentity } from '../../shared/security/access-identity';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -31,6 +32,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    await validateAccessIdentity(this.prisma, payload);
     if (!payload.sub) {
       throw new UnauthorizedException('Geçersiz oturum belirteci (sub eksik).');
     }

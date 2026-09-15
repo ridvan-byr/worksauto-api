@@ -8,14 +8,16 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'worksauto_app') THEN
-    CREATE ROLE worksauto_app WITH LOGIN PASSWORD 'worksauto_secret_2026' NOBYPASSRLS NOSUPERUSER;
+    CREATE ROLE worksauto_app WITH NOLOGIN NOBYPASSRLS NOSUPERUSER;
   ELSE
     ALTER ROLE worksauto_app WITH NOBYPASSRLS NOSUPERUSER;
   END IF;
 END
 $$;
 
-GRANT CONNECT ON DATABASE worksauto_db TO worksauto_app;
+DO $$ BEGIN
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO worksauto_app', current_database());
+END $$;
 GRANT USAGE ON SCHEMA public TO worksauto_app;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO worksauto_app;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO worksauto_app;
