@@ -50,9 +50,9 @@ describe('RescheduleAppointmentUseCase', () => {
 
     await expect(
       useCase.execute('tenant-1', 'non-existent', {
-        slotDate: '2026-09-15',
-        slotStartTime: '2026-09-15T09:00:00.000Z',
-        slotEndTime: '2026-09-15T10:00:00.000Z',
+        slotDate: '2028-10-15',
+        slotStartTime: '2028-10-15T09:00:00.000Z',
+        slotEndTime: '2028-10-15T10:00:00.000Z',
       }),
     ).rejects.toThrow(NotFoundException);
   });
@@ -73,9 +73,32 @@ describe('RescheduleAppointmentUseCase', () => {
 
     await expect(
       useCase.execute('tenant-1', 'app-1', {
-        slotDate: '2026-09-15',
-        slotStartTime: '2026-09-15T09:00:00.000Z',
-        slotEndTime: '2026-09-15T10:00:00.000Z',
+        slotDate: '2028-10-15',
+        slotStartTime: '2028-10-15T09:00:00.000Z',
+        slotEndTime: '2028-10-15T10:00:00.000Z',
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('should throw BadRequestException when new slot is in the past', async () => {
+    const existing = new AppointmentEntity({
+      id: 'app-1',
+      tenantId: 'tenant-1',
+      customerId: 'cust-1',
+      vehicleId: 'veh-1',
+      slotDate: new Date('2026-09-10'),
+      slotStartTime: new Date('2026-09-10T09:00:00.000Z'),
+      slotEndTime: new Date('2026-09-10T10:00:00.000Z'),
+      status: 'CONFIRMED',
+    });
+
+    vi.mocked(mockRepo.findById).mockResolvedValue(existing);
+
+    await expect(
+      useCase.execute('tenant-1', 'app-1', {
+        slotDate: '2020-01-01',
+        slotStartTime: '2020-01-01T09:00:00.000Z',
+        slotEndTime: '2020-01-01T10:00:00.000Z',
       }),
     ).rejects.toThrow(BadRequestException);
   });
@@ -98,9 +121,9 @@ describe('RescheduleAppointmentUseCase', () => {
 
     await expect(
       useCase.execute('tenant-1', 'app-1', {
-        slotDate: '2026-09-15',
-        slotStartTime: '2026-09-15T09:00:00.000Z',
-        slotEndTime: '2026-09-15T10:00:00.000Z',
+        slotDate: '2028-10-15',
+        slotStartTime: '2028-10-15T09:00:00.000Z',
+        slotEndTime: '2028-10-15T10:00:00.000Z',
       }),
     ).rejects.toThrow(ConflictException);
   });
@@ -121,12 +144,12 @@ describe('RescheduleAppointmentUseCase', () => {
     vi.mocked(mockRepo.save).mockImplementation(async (item) => item);
 
     const result = await useCase.execute('tenant-1', 'app-1', {
-      slotDate: '2026-09-15',
-      slotStartTime: '2026-09-15T14:00:00.000Z',
-      slotEndTime: '2026-09-15T15:00:00.000Z',
+      slotDate: '2028-10-15',
+      slotStartTime: '2028-10-15T14:00:00.000Z',
+      slotEndTime: '2028-10-15T15:00:00.000Z',
     });
 
-    expect(result.slotDate).toEqual(new Date('2026-09-15'));
+    expect(result.slotDate).toEqual(new Date('2028-10-15'));
     expect(mockEvents.emitToTenant).toHaveBeenCalledWith(
       'tenant-1',
       'appointment:rescheduled',
