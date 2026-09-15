@@ -11,6 +11,7 @@ import {
   ArrayMaxSize,
   ValidateNested,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CustomerType } from '@prisma/client';
@@ -45,16 +46,17 @@ export class CreateCustomerDto {
   @IsEmail()
   email?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '11111111111',
-    description: 'Bireysel için 11 haneli TCKN veya Kurumsal için 10 haneli VKN',
+    description: 'Bireysel için 11 haneli TCKN veya Kurumsal için 10 haneli VKN (Boş bırakılırsa 11111111111 atanır)',
   })
+  @IsOptional()
+  @ValidateIf((o) => !!o.taxNumber)
   @IsString()
-  @IsNotEmpty({ message: 'T.C. Kimlik / Vergi Numarası zorunludur' })
   @Matches(/^[0-9]{10,11}$/, {
     message: 'T.C. Kimlik No 11 hane veya Vergi Numarası 10 hane olmalıdır',
   })
-  taxNumber: string;
+  taxNumber?: string;
 
   @ApiPropertyOptional({ example: 'Kadıköy' })
   @IsOptional()
