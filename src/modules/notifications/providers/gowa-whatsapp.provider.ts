@@ -230,7 +230,7 @@ export class GowaWhatsAppProvider implements NotificationProvider {
         success: true,
         qrLink: results.qr_link,
         qrBase64,
-        qrDuration: Math.max(results.qr_duration || 90, 90),
+        qrDuration: results.qr_duration || 30,
       };
     } catch (err: any) {
       return {
