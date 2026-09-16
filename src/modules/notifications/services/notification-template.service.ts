@@ -217,6 +217,7 @@ export class NotificationTemplateService {
 
   /**
    * 7b. Randevu Yeniden Planlandı (Ertelendi) Müşteri Mesajı
+   * Randevu Güncelleme / Erteleme / Erkene Alma Müşteri SMS & WhatsApp Şablonu
    */
   formatAppointmentRescheduledCustomerMessage(params: {
     customerName?: string;
@@ -225,16 +226,25 @@ export class NotificationTemplateService {
     timeFormatted: string;
     reason?: string;
     tenantTitle?: string;
+    isEarlier?: boolean;
   }): string {
     const greeting = params.customerName?.trim()
       ? `Sayın ${params.customerName.trim()}`
       : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
-    const reasonStr = params.reason?.trim()
-      ? ` (Erteleme Nedeni: ${params.reason.trim()})`
-      : '';
     const tenantStr = params.tenantTitle?.trim()
       ? ` - ${params.tenantTitle.trim()}`
+      : '';
+
+    if (params.isEarlier) {
+      const reasonStr = params.reason?.trim()
+        ? ` (${params.reason.trim()})`
+        : '';
+      return `${greeting}, ${plateStr}aracınızın servis randevusu talebiniz/oluşan müsaitlik doğrultusunda ${params.dateFormatted} saat ${params.timeFormatted} olarak erkene alınmıştır.${reasonStr}${tenantStr}`;
+    }
+
+    const reasonStr = params.reason?.trim()
+      ? ` (Erteleme Nedeni: ${params.reason.trim()})`
       : '';
     return `${greeting}, ${plateStr}aracınızın servis randevusu ${params.dateFormatted} saat ${params.timeFormatted} olarak güncellenmiştir.${reasonStr}${tenantStr}`;
   }

@@ -121,6 +121,7 @@ export class RescheduleAppointmentUseCase {
 
     const oldDate = app.slotDate;
     const oldStart = app.slotStartTime;
+    const isEarlier = start.getTime() < oldStart.getTime();
 
     app.reschedule(
       new Date(dto.slotDate),
@@ -176,10 +177,13 @@ export class RescheduleAppointmentUseCase {
         timeFormatted,
         reason: dto.reason,
         tenantTitle,
+        isEarlier,
       });
 
     // Panel içi bildirim metni (kısa ve operasyonel)
-    const internalNotificationMessage = `Randevu saati güncellendi: ${dateFormatted} (${timeFormatted}).${dto.reason ? ` Neden: ${dto.reason}` : ''}`;
+    const internalNotificationMessage = isEarlier
+      ? `Randevu saati erkene alındı: ${dateFormatted} (${timeFormatted}).${dto.reason ? ` Neden: ${dto.reason}` : ''}`
+      : `Randevu saati güncellendi: ${dateFormatted} (${timeFormatted}).${dto.reason ? ` Neden: ${dto.reason}` : ''}`;
 
     const requestedChannels =
       dto.channels && dto.channels.length > 0
@@ -205,16 +209,18 @@ export class RescheduleAppointmentUseCase {
     let customerHtml: string | undefined;
     if (sendEmail) {
       customerHtml = this.templateService.generateBrandedHtmlEmail({
-        title: 'Randevu Tarihiniz Güncellendi',
+        title: isEarlier ? 'Randevu Tarihiniz Erkene Alındı' : 'Randevu Tarihiniz Güncellendi',
         customerName,
-        message: `${plate ? `${plate} plakalı aracınıza ait ` : 'Aracınıza ait '}servis randevunuz yeni bir tarih ve saate güncellenmiştir.${dto.reason ? ` Erteleme Gerekçesi: ${dto.reason}` : ''}`,
+        message: isEarlier
+          ? `${plate ? `${plate} plakalı aracınıza ait ` : 'Aracınıza ait '}servis randevunuz talebiniz/oluşan müsaitlik doğrultusunda erkene alınmıştır.${dto.reason ? ` Erkene Alma Nedeni: ${dto.reason}` : ''}`
+          : `${plate ? `${plate} plakalı aracınıza ait ` : 'Aracınıza ait '}servis randevunuz yeni bir tarih ve saate güncellenmiştir.${dto.reason ? ` Erteleme Gerekçesi: ${dto.reason}` : ''}`,
         tenantTitle,
         tenantLogoUrl,
         extraDetails: {
-          'Yeni Randevu Tarihi': dateFormatted,
+          [isEarlier ? 'Yeni (Erken) Randevu Tarihi' : 'Yeni Randevu Tarihi']: dateFormatted,
           'Yeni Randevu Saati': timeFormatted,
           ...(plate ? { 'Araç Plakası': plate } : {}),
-          ...(dto.reason ? { 'Erteleme Nedeni': dto.reason } : {}),
+          ...(dto.reason ? { [isEarlier ? 'Erkene Alma Nedeni' : 'Erteleme Nedeni']: dto.reason } : {}),
         },
       });
     }
@@ -225,7 +231,7 @@ export class RescheduleAppointmentUseCase {
       targetRoles: ['OWNER', 'SERVICE_MANAGER', 'TECHNICIAN'],
       type: NotificationType.INFO,
       category: 'APPOINTMENT',
-      title: 'Randevu Yeniden Planlandı',
+      title: isEarlier ? 'Randevu Erkene Alındı' : 'Randevu Yeniden Planlandı',
       message: internalNotificationMessage,
       link: '/appointments',
       metadata: {
