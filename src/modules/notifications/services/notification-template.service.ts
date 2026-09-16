@@ -423,16 +423,25 @@ export class NotificationTemplateService {
         <table role="presentation" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
           <!-- Header -->
           <tr>
-            <td style="background-color: #0f172a; padding: 24px; text-align: center;">
+            <td style="background-color: #0f172a; padding: 24px 28px;">
               ${
                 fullTenantLogoUrl
-                  ? `<div style="margin-bottom: 12px; text-align: center;">
-                      <img src="${fullTenantLogoUrl}" alt="${params.tenantTitle}" style="max-height: 52px; max-width: 220px; object-fit: contain; display: inline-block; vertical-align: middle; border: 0;" />
-                    </div>`
-                  : ''
+                  ? `<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td align="left" style="vertical-align: middle; width: 56px; padding-right: 16px;">
+                          <img src="${fullTenantLogoUrl}" alt="${params.tenantTitle}" style="max-height: 48px; max-width: 140px; object-fit: contain; display: block; border: 0;" />
+                        </td>
+                        <td align="left" style="vertical-align: middle;">
+                          <h1 style="color: #ffffff; margin: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.2;">${params.tenantTitle}</h1>
+                          <div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">Oto Servis Yönetim ve Canlı Takip Sistemi</div>
+                        </td>
+                      </tr>
+                    </table>`
+                  : `<div style="text-align: center;">
+                       <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">${params.tenantTitle}</h1>
+                       <div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Oto Servis Yönetim ve Canlı Takip Sistemi</div>
+                     </div>`
               }
-              <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">${params.tenantTitle}</h1>
-              <span style="color: #94a3b8; font-size: 13px;">Oto Servis Yönetim ve Canlı Takip Sistemi</span>
             </td>
           </tr>
           <!-- Body -->
