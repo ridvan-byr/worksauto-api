@@ -8,6 +8,7 @@ export interface AppointmentNotificationContext {
   phone?: string | null;
   plate?: string | null;
   tenantTitle: string;
+  tenantLogoUrl?: string | null;
 }
 
 export interface IAppointmentRepository {

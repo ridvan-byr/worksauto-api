@@ -154,6 +154,7 @@ export class RescheduleAppointmentUseCase {
     const phone = details?.phone || app.customer?.phone;
     const email = details?.email || app.customer?.email;
     const tenantTitle = details?.tenantTitle || 'WorksAuto Servis';
+    const tenantLogoUrl = details?.tenantLogoUrl || undefined;
 
     const { dateFormatted, timeFormatted } =
       typeof this.templateService?.formatTurkeyDateTime === 'function'
@@ -208,6 +209,7 @@ export class RescheduleAppointmentUseCase {
         customerName,
         message: `${plate ? `${plate} plakalı aracınıza ait ` : 'Aracınıza ait '}servis randevunuz yeni bir tarih ve saate güncellenmiştir.${dto.reason ? ` Erteleme Gerekçesi: ${dto.reason}` : ''}`,
         tenantTitle,
+        tenantLogoUrl,
         extraDetails: {
           'Yeni Randevu Tarihi': dateFormatted,
           'Yeni Randevu Saati': timeFormatted,

@@ -611,7 +611,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         : Promise.resolve(null),
       this.prisma.tenant.findUnique({
         where: { id: tenantId },
-        select: { title: true },
+        select: { title: true, logoUrl: true },
       }),
     ]);
 
@@ -627,6 +627,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       phone: customer?.phone,
       plate: vehicle?.plate || 'Belirtilmedi',
       tenantTitle: tenant?.title || 'WorksAuto Servis',
+      tenantLogoUrl: tenant?.logoUrl || undefined,
     };
   }
 }

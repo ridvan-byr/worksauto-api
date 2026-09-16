@@ -142,6 +142,7 @@ export class CreateWorkOrderUseCase {
       buttonText: 'Canlı Takip Sayfasını Aç',
       buttonUrl: trackingUrl,
       tenantTitle,
+      tenantLogoUrl: tenant?.logoUrl || undefined,
       extraDetails: {
         'İş Emri No': woNumber,
         Plaka: plate || 'Belirtilmedi',
