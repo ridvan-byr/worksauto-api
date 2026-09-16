@@ -23,6 +23,7 @@ describe('CreateAppointmentUseCase', () => {
       create: vi.fn(),
       save: vi.fn(),
       checkMechanicConflict: vi.fn().mockResolvedValue(false),
+      checkMechanicOnLeave: vi.fn().mockResolvedValue(false),
       checkLiftConflict: vi.fn().mockResolvedValue(false),
       cancelAppointmentAndWorkOrder: vi.fn(),
       findTenantBySlug: vi.fn(),
@@ -39,7 +40,9 @@ describe('CreateAppointmentUseCase', () => {
     };
 
     mockAudit = { log: vi.fn() } as any;
-    mockNotifications = { createNotification: vi.fn().mockResolvedValue({}) } as any;
+    mockNotifications = {
+      createNotification: vi.fn().mockResolvedValue({}),
+    } as any;
     mockEvents = { emitToTenant: vi.fn() } as any;
     mockQueue = { scheduleAppointmentReminder: vi.fn() } as any;
 
@@ -55,6 +58,23 @@ describe('CreateAppointmentUseCase', () => {
       mockEvents,
       mockQueue,
       mockTemplateService,
+    );
+  });
+
+  it('should throw ConflictException if mechanic is on leave', async () => {
+    vi.mocked(mockRepo.checkMechanicOnLeave).mockResolvedValue(true);
+
+    await expect(
+      useCase.execute('tenant-1', {
+        customerId: 'cust-1',
+        vehicleId: 'veh-1',
+        assignedMechanicId: 'mech-1',
+        slotDate: '2026-12-15',
+        slotStartTime: '2026-12-15T09:00:00.000Z',
+        slotEndTime: '2026-12-15T10:00:00.000Z',
+      }),
+    ).rejects.toThrow(
+      'Seçilen teknisyen randevu tarihinde izinli veya raporludur.',
     );
   });
 

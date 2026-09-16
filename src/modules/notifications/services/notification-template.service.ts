@@ -28,7 +28,10 @@ export class NotificationTemplateService {
   resolveLogoPath(): string | null {
     try {
       const candidates = [
-        path.join(__dirname, '../../../../assets/brand/worksauto-logo-dark.png'),
+        path.join(
+          __dirname,
+          '../../../../assets/brand/worksauto-logo-dark.png',
+        ),
         path.join(process.cwd(), 'assets/brand/worksauto-logo-dark.png'),
         path.join(process.cwd(), '../assets/brand/worksauto-logo-dark.png'),
         path.join(
@@ -93,7 +96,6 @@ export class NotificationTemplateService {
     return WORK_ORDER_STATUS_LABELS_TR[status] || status;
   }
 
-
   /**
    * 1. İş Emri Kabul Mesajı (Müşteri Canlı Takip Linki ile)
    */
@@ -104,7 +106,9 @@ export class NotificationTemplateService {
     trackingUrl: string;
     tenantTitle: string;
   }): string {
-    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const greeting = params.customerName
+      ? `Sayın ${params.customerName}`
+      : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
     return `${greeting}, ${plateStr}aracınızın servis kabulü yapılmıştır (İş Emri: ${params.workOrderNumber}).\n\nYapılan işlemleri ve hasar/onarım fotoğraflarını anlık canlı takip etmek için:\n${params.trackingUrl}\n\n${params.tenantTitle}`;
   }
@@ -120,7 +124,9 @@ export class NotificationTemplateService {
     trackingUrl: string;
     tenantTitle: string;
   }): string {
-    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const greeting = params.customerName
+      ? `Sayın ${params.customerName}`
+      : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
     const statusTr = this.getWorkOrderStatusLabel(params.status);
     return `${greeting}, ${plateStr}aracınız "${statusTr}" aşamasına alınmıştır.\n\nGüncel durumu canlı takip etmek için:\n${params.trackingUrl}\n\n${params.tenantTitle}`;
@@ -136,7 +142,9 @@ export class NotificationTemplateService {
     trackingUrl: string;
     tenantTitle: string;
   }): string {
-    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const greeting = params.customerName
+      ? `Sayın ${params.customerName}`
+      : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
     return `${greeting}, ${plateStr}aracınızın tüm servis ve onarım işlemleri başarıyla tamamlanmış ve teslime hazır hale getirilmiştir.\n\nDetaylar:\n${params.trackingUrl}\n\n${params.tenantTitle}`;
   }
@@ -151,7 +159,9 @@ export class NotificationTemplateService {
     paymentUrl: string;
     tenantTitle: string;
   }): string {
-    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const greeting = params.customerName
+      ? `Sayın ${params.customerName}`
+      : 'Sayın Müşterimiz';
     const amountStr = params.grandTotal.toLocaleString('tr-TR', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -167,7 +177,9 @@ export class NotificationTemplateService {
     consentUrl: string;
     tenantTitle: string;
   }): string {
-    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const greeting = params.customerName
+      ? `Sayın ${params.customerName}`
+      : 'Sayın Müşterimiz';
     return `${greeting},\n\n${params.tenantTitle} servis kayıt ve KVKK aydınlatma onayınızı tamamlamak için linke tıklayınız:\n${params.consentUrl}`;
   }
 
@@ -180,7 +192,9 @@ export class NotificationTemplateService {
     dateStr: string;
     tenantTitle: string;
   }): string {
-    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const greeting = params.customerName
+      ? `Sayın ${params.customerName}`
+      : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
     return `${greeting}, ${plateStr}aracınızın ${params.dateStr} tarihindeki servis randevusunu hatırlatırız. İyi günler dileriz. - ${params.tenantTitle}`;
   }
@@ -194,9 +208,88 @@ export class NotificationTemplateService {
     dateStr: string;
     tenantTitle: string;
   }): string {
-    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const greeting = params.customerName
+      ? `Sayın ${params.customerName}`
+      : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
     return `${greeting}, ${plateStr}aracınız için ${params.dateStr} tarihine servis randevunuz başarıyla oluşturulmuştur. Sizleri aramızda görmekten mutluluk duyarız. - ${params.tenantTitle}`;
+  }
+
+  /**
+   * 7b. Randevu Yeniden Planlandı (Ertelendi) Müşteri Mesajı
+   */
+  formatAppointmentRescheduledCustomerMessage(params: {
+    customerName?: string;
+    plate?: string;
+    dateFormatted: string;
+    timeFormatted: string;
+    reason?: string;
+    tenantTitle?: string;
+  }): string {
+    const greeting = params.customerName?.trim()
+      ? `Sayın ${params.customerName.trim()}`
+      : 'Sayın Müşterimiz';
+    const plateStr = params.plate ? `${params.plate} plakalı ` : '';
+    const reasonStr = params.reason?.trim()
+      ? ` (Erteleme Nedeni: ${params.reason.trim()})`
+      : '';
+    const tenantStr = params.tenantTitle?.trim()
+      ? ` - ${params.tenantTitle.trim()}`
+      : '';
+    return `${greeting}, ${plateStr}aracınızın servis randevusu ${params.dateFormatted} saat ${params.timeFormatted} olarak güncellenmiştir.${reasonStr}${tenantStr}`;
+  }
+
+  /**
+   * Türkiye Yerel Saat Dilimine (Europe/Istanbul - UTC+3) Göre Tarih & Saat Formatlar
+   */
+  formatTurkeyDateTime(
+    slotDate?: string,
+    slotStartTime?: string | Date,
+  ): { dateFormatted: string; timeFormatted: string; fullStr: string } {
+    let dateObj: Date;
+    if (slotStartTime instanceof Date) {
+      dateObj = slotStartTime;
+    } else if (
+      typeof slotStartTime === 'string' &&
+      (slotStartTime.includes('T') || slotStartTime.includes('Z'))
+    ) {
+      dateObj = new Date(slotStartTime);
+    } else if (
+      typeof slotStartTime === 'string' &&
+      slotStartTime.includes(':')
+    ) {
+      const [h, m] = slotStartTime.split(':').map(Number);
+      const [y, mon, d] = (slotDate || '').split('-').map(Number);
+      dateObj = new Date(
+        Date.UTC(y || 2026, (mon || 1) - 1, d || 1, (h || 0) - 3, m || 0, 0),
+      );
+    } else if (slotStartTime) {
+      dateObj = new Date(slotStartTime);
+    } else if (slotDate) {
+      const [y, mon, d] = slotDate.split('-').map(Number);
+      dateObj = new Date(Date.UTC(y, mon - 1, d, 9, 0, 0));
+    } else {
+      dateObj = new Date();
+    }
+
+    const timeFormatted = dateObj.toLocaleTimeString('tr-TR', {
+      timeZone: 'Europe/Istanbul',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+
+    const dateFormatted = dateObj.toLocaleDateString('tr-TR', {
+      timeZone: 'Europe/Istanbul',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      weekday: 'long',
+    });
+
+    const fullStr = `${dateFormatted} saat ${timeFormatted}`;
+
+    return { dateFormatted, timeFormatted, fullStr };
   }
 
   /**
@@ -208,12 +301,16 @@ export class NotificationTemplateService {
     invoiceNumber?: string;
     tenantTitle: string;
   }): string {
-    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const greeting = params.customerName
+      ? `Sayın ${params.customerName}`
+      : 'Sayın Müşterimiz';
     const amountStr = params.amount.toLocaleString('tr-TR', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    const invStr = params.invoiceNumber ? ` (${params.invoiceNumber} nolu fatura)` : '';
+    const invStr = params.invoiceNumber
+      ? ` (${params.invoiceNumber} nolu fatura)`
+      : '';
     return `${greeting}, ${amountStr} ₺ tutarındaki servis ödemeniz başarıyla tahsil edilmiştir${invStr}. Bizi tercih ettiğiniz için teşekkür ederiz. - ${params.tenantTitle}`;
   }
 
@@ -227,9 +324,52 @@ export class NotificationTemplateService {
     trackingUrl: string;
     tenantTitle: string;
   }): string {
-    const greeting = params.customerName ? `Sayın ${params.customerName}` : 'Sayın Müşterimiz';
+    const greeting = params.customerName
+      ? `Sayın ${params.customerName}`
+      : 'Sayın Müşterimiz';
     const plateStr = params.plate ? `${params.plate} plakalı ` : '';
     return `${greeting}, ${plateStr}aracınıza ait ${params.workOrderNumber} numaralı servis iş emri iptal edilmiştir.\n\nDetaylar ve iletişim:\n${params.trackingUrl}\n\n${params.tenantTitle}`;
+  }
+
+  /**
+   * 10. WorksAuto Yeni Servis Sahibi (Owner) Hoş Geldiniz E-Postası
+   */
+  formatServiceOwnerWelcomeEmail(params: {
+    ownerName: string;
+    tenantTitle: string;
+    slug: string;
+  }): { subject: string; html: string; text: string } {
+    const panelUrl = process.env.PANEL_DOMAIN
+      ? `https://${process.env.PANEL_DOMAIN}`
+      : 'http://localhost:3000';
+    const bookingUrl = `${panelUrl}/book/${params.slug}`;
+
+    const subject = `WorksAuto Servis Yönetim Ailesine Hoş Geldiniz! - ${params.tenantTitle}`;
+    const text = `Sayın ${params.ownerName},\n\nWorksAuto Servis Yönetim Ailesine hoş geldiniz! ${params.tenantTitle} servisinizin kurulumu başarıyla tamamlanmıştır.\n\nYönetim Paneli: ${panelUrl}\nOnline Randevu Sayfanız: ${bookingUrl}\n\nİyi çalışmalar dileriz,\nWorksAuto Ekibi`;
+
+    const html = this.generateBrandedHtmlEmail({
+      title: 'WorksAuto Ailesine Hoş Geldiniz!',
+      customerName: `${params.ownerName} (İşletme Sahibi / Yöneticisi)`,
+      message: `Tebrikler! <strong>${params.tenantTitle}</strong> servisinizin WorksAuto platformu üzerindeki kaydı başarıyla oluşturulmuştur. Artık tüm servis, iş emri, yedek parça, faturalama ve usta süreçlerinizi tek ekrandan modern ve kesintisiz şekilde yönetebilirsiniz.`,
+      tenantTitle: 'WorksAuto Servis Yönetim Platformu',
+      buttonText: 'Servis Yönetim Paneline Git',
+      buttonUrl: panelUrl,
+      extraDetails: {
+        'İşletme / Servis Adı': params.tenantTitle,
+        'Servis URL Kodu (Slug)': params.slug,
+        'Müşteri Randevu Linki': bookingUrl,
+        'Başlangıç Adımı 1':
+          'Servis Ayarlarından logonuzu ve kurumsal bilgilerinizi tamamlayın.',
+        'Başlangıç Adımı 2':
+          'Faaliyet alanlarınızı ve paketlerinizi seçip servisinize aktarın.',
+        'Başlangıç Adımı 3':
+          'Ustalarınızı, teknisyenlerinizi ve liftlerinizi tanımlayın.',
+        'Başlangıç Adımı 4':
+          'Müşterilerinizle online randevu linkinizi paylaşın.',
+      },
+    });
+
+    return { subject, html, text };
   }
 
   /**
@@ -242,6 +382,7 @@ export class NotificationTemplateService {
     buttonText?: string;
     buttonUrl?: string;
     tenantTitle: string;
+    tenantLogoUrl?: string;
     extraDetails?: Record<string, string>;
   }): string {
     const detailsHtml = params.extraDetails
@@ -262,6 +403,13 @@ export class NotificationTemplateService {
           </div>`
         : '';
 
+    const fullTenantLogoUrl = params.tenantLogoUrl
+      ? params.tenantLogoUrl.startsWith('http://') ||
+        params.tenantLogoUrl.startsWith('https://')
+        ? params.tenantLogoUrl
+        : `${this.getAppBaseUrl()}${params.tenantLogoUrl.startsWith('/') ? '' : '/'}${params.tenantLogoUrl}`
+      : null;
+
     return `<!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -276,6 +424,13 @@ export class NotificationTemplateService {
           <!-- Header -->
           <tr>
             <td style="background-color: #0f172a; padding: 24px; text-align: center;">
+              ${
+                fullTenantLogoUrl
+                  ? `<div style="margin-bottom: 12px; text-align: center;">
+                      <img src="${fullTenantLogoUrl}" alt="${params.tenantTitle}" style="max-height: 52px; max-width: 220px; object-fit: contain; display: inline-block; vertical-align: middle; border: 0;" />
+                    </div>`
+                  : ''
+              }
               <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px;">${params.tenantTitle}</h1>
               <span style="color: #94a3b8; font-size: 13px;">Oto Servis Yönetim ve Canlı Takip Sistemi</span>
             </td>

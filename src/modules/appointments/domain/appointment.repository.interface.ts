@@ -8,6 +8,7 @@ export interface AppointmentNotificationContext {
   phone?: string | null;
   plate?: string | null;
   tenantTitle: string;
+  tenantLogoUrl?: string | null;
 }
 
 export interface IAppointmentRepository {
@@ -21,6 +22,11 @@ export interface IAppointmentRepository {
     start: Date,
     end: Date,
     excludeId?: string,
+  ): Promise<boolean>;
+  checkMechanicOnLeave(
+    tenantId: string,
+    mechanicId: string,
+    date: Date,
   ): Promise<boolean>;
   checkLiftConflict(
     tenantId: string,

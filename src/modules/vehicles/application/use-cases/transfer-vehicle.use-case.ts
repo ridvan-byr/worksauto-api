@@ -51,7 +51,9 @@ export class TransferVehicleUseCase {
       if (customer.companyTitle) {
         ownerName = customer.companyTitle;
       } else {
-        ownerName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Müşteri';
+        ownerName =
+          `${customer.firstName || ''} ${customer.lastName || ''}`.trim() ||
+          'Müşteri';
       }
     }
 

@@ -21,7 +21,8 @@ export class OnboardingServiceItemDto {
   @ApiProperty({ example: 'Periyodik Bakım (Yağ + 4 Filtre)' })
   @IsString()
   @Matches(/^[a-zA-Z0-9çÇğĞıIİiöÖşŞüÜ\s()+\-/.]{2,100}$/, {
-    message: 'Hizmet adı en az 2 karakter olmalı ve geçerli bir başlık olmalıdır.',
+    message:
+      'Hizmet adı en az 2 karakter olmalı ve geçerli bir başlık olmalıdır.',
   })
   name: string;
 
@@ -51,7 +52,8 @@ export class OnboardingStaffItemDto {
   @ApiProperty({ example: 'Ahmet' })
   @IsString()
   @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
-    message: 'Usta adı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
+    message:
+      'Usta adı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
   })
   name: string;
 
@@ -59,15 +61,20 @@ export class OnboardingStaffItemDto {
   @IsOptional()
   @IsString()
   @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
-    message: 'Usta soyadı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
+    message:
+      'Usta soyadı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
   })
   surname?: string;
 
   @ApiProperty({ example: '0532 123 45 67' })
   @IsString()
-  @Matches(/^(?:\+90\s?|0\s?)?(?:\(5\d{2}\)|5\d{2})[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$/, {
-    message: 'Usta cep telefonu geçerli bir Türkiye GSM formatında olmalıdır (Örn: 0532 123 45 67)',
-  })
+  @Matches(
+    /^(?:\+90\s?|0\s?)?(?:\(5\d{2}\)|5\d{2})[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$/,
+    {
+      message:
+        'Usta cep telefonu geçerli bir Türkiye GSM formatında olmalıdır (Örn: 0532 123 45 67)',
+    },
+  )
   phone: string;
 
   @ApiPropertyOptional({ example: 'Motor & Mekanik' })
@@ -116,7 +123,8 @@ export class CompleteOnboardingDto {
   @IsOptional()
   @IsString()
   @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
-    message: 'Vergi dairesi yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır.',
+    message:
+      'Vergi dairesi yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır.',
   })
   taxOffice?: string;
 

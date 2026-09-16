@@ -67,4 +67,3 @@ export interface ICustomerRepository {
     legalRef: string,
   ): Promise<CustomerEntity>;
 }
-

@@ -412,8 +412,12 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       attendanceScore,
       riskCategory,
       balance,
-      totalDebits: customer.currentAccount?.totalDebits ? Number(customer.currentAccount.totalDebits) : 0,
-      totalCredits: customer.currentAccount?.totalCredits ? Number(customer.currentAccount.totalCredits) : 0,
+      totalDebits: customer.currentAccount?.totalDebits
+        ? Number(customer.currentAccount.totalDebits)
+        : 0,
+      totalCredits: customer.currentAccount?.totalCredits
+        ? Number(customer.currentAccount.totalCredits)
+        : 0,
       creditLimit,
       limitExceeded: creditLimit > 0 && balance > creditLimit,
     };

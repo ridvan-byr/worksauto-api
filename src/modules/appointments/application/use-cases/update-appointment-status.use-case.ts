@@ -47,12 +47,19 @@ export class UpdateAppointmentStatusUseCase {
 
     if (app.customer?.phone) {
       const formattedDate = app.slotStartTime
-        ? new Date(app.slotStartTime).toLocaleDateString('tr-TR')
+        ? new Date(app.slotStartTime).toLocaleDateString('tr-TR', {
+            timeZone: 'Europe/Istanbul',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })
         : '';
       const formattedTime = app.slotStartTime
         ? new Date(app.slotStartTime).toLocaleTimeString('tr-TR', {
+            timeZone: 'Europe/Istanbul',
             hour: '2-digit',
             minute: '2-digit',
+            hour12: false,
           })
         : '';
       await this.notificationsService.createNotification({

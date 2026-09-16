@@ -1,4 +1,9 @@
-import { Injectable, Inject, NotFoundException, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { IWorkOrderRepository } from '../../domain/repositories/work-order.repository.interface';
 import { MediaService } from '../../../media/media.service';
 
@@ -28,7 +33,10 @@ export class GetPublicWorkOrderTrackUseCase {
   }
 
   async execute(tokenOrNumber: string) {
-    const wo: any = await this.workOrderRepository.findPublicTrackByTokenOrNumber(tokenOrNumber);
+    const wo: any =
+      await this.workOrderRepository.findPublicTrackByTokenOrNumber(
+        tokenOrNumber,
+      );
 
     if (!wo) {
       throw new NotFoundException('İş emri veya araç takip kaydı bulunamadı.');
@@ -41,7 +49,9 @@ export class GetPublicWorkOrderTrackUseCase {
     const rawName = wo.customer
       ? `${wo.customer.firstName || ''} ${wo.customer.lastName || ''}`.trim()
       : '';
-    const customerFullName = rawName ? this.maskName(rawName) : 'Değerli Müşterimiz';
+    const customerFullName = rawName
+      ? this.maskName(rawName)
+      : 'Değerli Müşterimiz';
     const phoneMasked = this.maskPhone(wo.customer?.phone);
 
     // 7-day retention check for COMPLETED, 24-hour retention check for CANCELLED

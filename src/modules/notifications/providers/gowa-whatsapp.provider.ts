@@ -19,7 +19,19 @@ export class GowaWhatsAppProvider implements NotificationProvider {
   private readonly smtpFrom: string;
 
   constructor() {
-    this.gowaBaseUrl = process.env.WHATSAPP_API_URL || 'http://localhost:8080';
+    const envUrl = process.env.WHATSAPP_API_URL;
+    if (envUrl && envUrl !== 'http://localhost:8080') {
+      this.gowaBaseUrl = envUrl;
+    } else if (
+      process.env.REDIS_HOST === 'redis' ||
+      process.env.NODE_ENV === 'production'
+    ) {
+      // In Docker compose network, GOWA service runs at http://whatsapp:3000
+      this.gowaBaseUrl = 'http://whatsapp:3000';
+    } else {
+      this.gowaBaseUrl = envUrl || 'http://localhost:8080';
+    }
+
     this.smtpFrom =
       process.env.SMTP_FROM || 'WorksAuto Servis <bildirim@worksauto.com>';
 

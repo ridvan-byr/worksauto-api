@@ -102,7 +102,8 @@ export class CreateInvoiceDto {
   items?: CreateInvoiceItemDto[];
 
   @ApiPropertyOptional({
-    example: 'İşbu fatura muhteviyatı teslim edilmiş olup, irsaliye yerine geçer.',
+    example:
+      'İşbu fatura muhteviyatı teslim edilmiş olup, irsaliye yerine geçer.',
     description: 'Fatura açıklama ve yasal notları',
   })
   @IsOptional()
@@ -111,7 +112,8 @@ export class CreateInvoiceDto {
 
   @ApiPropertyOptional({
     example: 'TICARIFATURA',
-    description: 'E-Fatura Senaryo Türü (TICARIFATURA, TEMELFATURA, EARSIVFATURA)',
+    description:
+      'E-Fatura Senaryo Türü (TICARIFATURA, TEMELFATURA, EARSIVFATURA)',
   })
   @IsOptional()
   @IsString()

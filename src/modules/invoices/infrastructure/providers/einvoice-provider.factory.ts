@@ -26,10 +26,14 @@ export class EInvoiceProviderFactory implements IEInvoiceProviderFactory {
       return new InternalDraftProvider(tenantId);
     }
 
-    const decryptedApiKey = this.cryptoService.decrypt(config.encryptedApiKey) || undefined;
-    const decryptedApiSecret = this.cryptoService.decrypt(config.encryptedApiSecret) || undefined;
-    const decryptedUsername = this.cryptoService.decrypt(config.encryptedUsername) || undefined;
-    const decryptedPassword = this.cryptoService.decrypt(config.encryptedPassword) || undefined;
+    const decryptedApiKey =
+      this.cryptoService.decrypt(config.encryptedApiKey) || undefined;
+    const decryptedApiSecret =
+      this.cryptoService.decrypt(config.encryptedApiSecret) || undefined;
+    const decryptedUsername =
+      this.cryptoService.decrypt(config.encryptedUsername) || undefined;
+    const decryptedPassword =
+      this.cryptoService.decrypt(config.encryptedPassword) || undefined;
 
     const creds = {
       apiKey: decryptedApiKey,

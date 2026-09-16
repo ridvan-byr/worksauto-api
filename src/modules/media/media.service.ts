@@ -5,6 +5,7 @@ import {
   OnModuleInit,
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -178,6 +179,58 @@ export class MediaService implements OnModuleInit {
   }
 
   /**
+   * Upload and persist tenant corporate logo in MinIO (public folder)
+   */
+  async uploadTenantLogo(tenantId: string, file: UploadedMediaFile) {
+    if (!file) {
+      throw new BadRequestException('Logo dosyası yüklenmedi.');
+    }
+
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/svg+xml',
+    ];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Geçersiz dosya formatı. Sadece PNG, JPG, WEBP ve SVG desteklenir.',
+      );
+    }
+
+    if (file.size && file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException('Logo boyutu en fazla 5MB olabilir.');
+    }
+
+    const ext = file.originalname.split('.').pop() || 'png';
+    const objectKey = `public/tenants/${tenantId}/logo.${ext}`;
+
+    // Upload to MinIO
+    await this.s3Client.send(
+      new PutObjectCommand({
+        Bucket: this.bucketName,
+        Key: objectKey,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      }),
+    );
+
+    const relativeUrl = `/api/v1/media/files/${objectKey}`;
+
+    // Update tenant logoUrl in DB
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { logoUrl: relativeUrl },
+    });
+
+    return {
+      success: true,
+      url: relativeUrl,
+      objectKey,
+    };
+  }
+
+  /**
    * Generate temporary presigned download URL (Tenant-scoped security check)
    */
   async getPresignedUrl(
@@ -324,12 +377,19 @@ export class MediaService implements OnModuleInit {
       Key: objectKey,
     });
 
-    const response = await this.s3Client.send(command);
-    return {
-      stream: response.Body,
-      contentType: response.ContentType || 'image/jpeg',
-      contentLength: response.ContentLength,
-    };
+    try {
+      const response = await this.s3Client.send(command);
+      return {
+        stream: response.Body,
+        contentType: response.ContentType || 'image/jpeg',
+        contentLength: response.ContentLength,
+      };
+    } catch (err: any) {
+      if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+        throw new NotFoundException('Medya dosyası bulunamadı.');
+      }
+      throw err;
+    }
   }
 
   /**

@@ -1,6 +1,8 @@
 import { InvoiceProviderType } from './invoice-provider-type.enum';
 
-export const INVOICE_SETTINGS_REPOSITORY = Symbol('INVOICE_SETTINGS_REPOSITORY');
+export const INVOICE_SETTINGS_REPOSITORY = Symbol(
+  'INVOICE_SETTINGS_REPOSITORY',
+);
 
 export interface InvoiceSettingRecord {
   tenantId: string;

@@ -154,6 +154,7 @@ describe('Core Workflow E2E Integration Test (Şartname Md. 51 & 59)', () => {
         lastName: 'Demir',
         phone: '05523741500',
         email: 'ridvanemrebayar@gmail.com',
+        taxNumber: '11111111111',
         notes: 'E2E Test Müşterisi',
       })
       .expect(201);

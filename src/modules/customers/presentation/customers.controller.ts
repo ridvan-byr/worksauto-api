@@ -70,10 +70,7 @@ export class CustomersController {
     summary:
       'Telefon numarasının aktif veya silinmiş/arşivde olup olmadığını kontrol eder',
   })
-  checkPhone(
-    @CurrentTenant() tenantId: string,
-    @Query('phone') phone: string,
-  ) {
+  checkPhone(@CurrentTenant() tenantId: string, @Query('phone') phone: string) {
     return this.restoreCustomerUseCase.checkPhone(tenantId, phone || '');
   }
 

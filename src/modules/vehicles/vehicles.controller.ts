@@ -44,12 +44,10 @@ export class VehiclesController {
     UserRole.CASHIER,
   )
   @ApiOperation({
-    summary: 'Plakanın sistemde kayıtlı veya başka bir müşteride olup olmadığını kontrol eder',
+    summary:
+      'Plakanın sistemde kayıtlı veya başka bir müşteride olup olmadığını kontrol eder',
   })
-  checkPlate(
-    @CurrentTenant() tenantId: string,
-    @Query('plate') plate: string,
-  ) {
+  checkPlate(@CurrentTenant() tenantId: string, @Query('plate') plate: string) {
     return this.transferVehicleUseCase.checkPlate(tenantId, plate || '');
   }
 
@@ -114,4 +112,3 @@ export class VehiclesController {
     return this.deleteVehicleUseCase.execute(tenantId, id);
   }
 }
-

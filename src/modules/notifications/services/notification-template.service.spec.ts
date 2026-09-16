@@ -49,7 +49,9 @@ describe('NotificationTemplateService', () => {
       });
 
       expect(msg).toContain('Sayın Ahmet Yılmaz');
-      expect(msg).toContain('34ABC123 plakalı aracınızın servis kabulü yapılmıştır');
+      expect(msg).toContain(
+        '34ABC123 plakalı aracınızın servis kabulü yapılmıştır',
+      );
       expect(msg).toContain('İş Emri: WO-2026-0001');
       expect(msg).toContain('https://app.worksauto.com/track/123');
       expect(msg).toContain('Yıldız Oto Bosch Service');
@@ -82,7 +84,9 @@ describe('NotificationTemplateService', () => {
       });
 
       expect(msg).toContain('Sayın Ayşe Kaya');
-      expect(msg).toContain('tüm servis ve onarım işlemleri başarıyla tamamlanmış');
+      expect(msg).toContain(
+        'tüm servis ve onarım işlemleri başarıyla tamamlanmış',
+      );
       expect(msg).toContain('teslime hazır hale getirilmiştir');
       expect(msg).toContain('https://app.worksauto.com/track/789');
     });
@@ -97,7 +101,9 @@ describe('NotificationTemplateService', () => {
       });
 
       expect(msg).toContain('Sayın Fatma Şahin');
-      expect(msg).toContain('INV-2026-0010 numaralı servis faturanız düzenlenmiştir');
+      expect(msg).toContain(
+        'INV-2026-0010 numaralı servis faturanız düzenlenmiştir',
+      );
       expect(msg).toContain('https://app.worksauto.com/pay/inv-10');
       expect(msg).toContain('Anadolu Servis');
     });
@@ -110,7 +116,9 @@ describe('NotificationTemplateService', () => {
       });
 
       expect(msg).toContain('Sayın Ali Veli');
-      expect(msg).toContain('Zirve Oto servis kayıt ve KVKK aydınlatma onayınızı tamamlamak için linke tıklayınız');
+      expect(msg).toContain(
+        'Zirve Oto servis kayıt ve KVKK aydınlatma onayınızı tamamlamak için linke tıklayınız',
+      );
       expect(msg).toContain('https://app.worksauto.com/c/kvkk?token=tok-1');
     });
   });
@@ -138,7 +146,9 @@ describe('NotificationTemplateService', () => {
       expect(html).toContain('WO-100');
       expect(html).toContain('34CAN34');
       expect(html).toContain('alt="WorksAuto"');
-      expect(html).toContain('canlı araç takip altyapısı tarafından otomatik olarak gönderilmiştir');
+      expect(html).toContain(
+        'canlı araç takip altyapısı tarafından otomatik olarak gönderilmiştir',
+      );
     });
   });
 });

@@ -135,17 +135,21 @@ export class NotificationsService {
       let tenantSettings: any = null;
       if (dto.tenantId) {
         try {
-          tenantSettings = await this.prisma.tenantNotificationSetting.findUnique({
-            where: { tenantId: dto.tenantId },
-          });
+          tenantSettings =
+            await this.prisma.tenantNotificationSetting.findUnique({
+              where: { tenantId: dto.tenantId },
+            });
         } catch (e: any) {
-          this.logger.debug(`Could not load tenant notification settings: ${e.message}`);
+          this.logger.debug(
+            `Could not load tenant notification settings: ${e.message}`,
+          );
         }
       }
 
       // Kanal bazlı aktiflik kontrolü (Atölye panelindeki doğrudan tercihlere %100 uyar)
       const canSendWhatsApp =
-        dto.sendWhatsApp && (tenantSettings ? tenantSettings.whatsappEnabled : true);
+        dto.sendWhatsApp &&
+        (tenantSettings ? tenantSettings.whatsappEnabled : true);
       const canSendSms =
         dto.sendSms && (tenantSettings ? tenantSettings.smsEnabled : true);
       const canSendEmail =
@@ -162,7 +166,8 @@ export class NotificationsService {
         const morningEndMinutes = 8 * 60 + 30; // 08:30
 
         const isNightTime =
-          currentTotalMinutes >= nightStartMinutes || currentTotalMinutes < morningEndMinutes;
+          currentTotalMinutes >= nightStartMinutes ||
+          currentTotalMinutes < morningEndMinutes;
 
         if (isNightTime) {
           let minutesUntilNineAm = 0;
@@ -428,6 +433,38 @@ export class NotificationsService {
     const result = await this.provider.sendWhatsApp({
       to: phone,
       message: msg,
+      tenantId,
+    });
+
+    return result;
+  }
+
+  /**
+   * Belirtilen e-posta adresine anlık canlı test e-postası gönderir
+   */
+  async sendEmailTestMessage(
+    to: string,
+    subject?: string,
+    message?: string,
+    tenantId?: string,
+  ) {
+    const sub = subject || '🚗 WorksAuto E-Posta Bildirim Testi';
+    const msg =
+      message ||
+      'WorksAuto E-Posta Entegrasyonu başarıyla aktifleştirildi. Sistem üzerinden servis bildirimleri, iş emri durumları ve fatura bilgilendirmeleri aktif olarak iletilecektir.';
+
+    const result = await this.provider.sendEmail({
+      to,
+      subject: sub,
+      message: msg,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+          <h2 style="color: #0f172a; margin-top: 0;">🚗 WorksAuto E-Posta Testi</h2>
+          <p style="color: #334155; font-size: 15px; line-height: 1.6;">${msg}</p>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="color: #94a3b8; font-size: 12px; margin: 0;">Bu e-posta WorksAuto servis yönetim sistemi tarafından otomatik olarak gönderilmiştir.</p>
+        </div>
+      `,
       tenantId,
     });
 

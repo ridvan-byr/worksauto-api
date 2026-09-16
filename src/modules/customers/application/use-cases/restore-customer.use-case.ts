@@ -22,7 +22,10 @@ export class RestoreCustomerUseCase {
 
   async checkPhone(tenantId: string, rawPhone: string) {
     const cleanPhone = rawPhone.replace(/[\s()-]/g, '');
-    const active = await this.customerRepository.findByPhone(tenantId, cleanPhone);
+    const active = await this.customerRepository.findByPhone(
+      tenantId,
+      cleanPhone,
+    );
     if (active) {
       return {
         exists: true,

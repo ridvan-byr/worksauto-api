@@ -12,14 +12,11 @@ export function isAutomatedTest(): boolean {
 }
 
 export function suppressNotificationDelivery(): boolean {
-  return (
-    isAutomatedTest() ||
-    !['live', 'allowlist'].includes(
-      process.env.NOTIFICATION_DELIVERY_MODE || '',
-    ) ||
-    (process.env.NODE_ENV !== 'production' &&
-      process.env.NOTIFICATION_DELIVERY_MODE !== 'allowlist')
-  );
+  if (isAutomatedTest()) return true;
+  const mode = (process.env.NOTIFICATION_DELIVERY_MODE || '')
+    .trim()
+    .toLowerCase();
+  return !['live', 'direct', 'allowlist'].includes(mode);
 }
 
 /** Runs before any network call. Automated tests cannot opt into live delivery. */
@@ -34,10 +31,10 @@ export function deliveryDecision(
       messageId: 'suppressed-test-delivery',
     };
   }
-  if (
-    process.env.NODE_ENV !== 'production' ||
-    process.env.NOTIFICATION_DELIVERY_MODE === 'allowlist'
-  ) {
+  const mode = (process.env.NOTIFICATION_DELIVERY_MODE || '')
+    .trim()
+    .toLowerCase();
+  if (mode === 'allowlist') {
     const digits = to.replace(/\D/g, '');
     const allowed =
       channel === 'email'

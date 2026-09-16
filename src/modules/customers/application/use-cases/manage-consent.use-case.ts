@@ -30,7 +30,6 @@ export class ManageConsentUseCase {
   }
 
   private maskPhone(phone: string): string {
-
     if (phone.length <= 6) return phone;
     return phone.substring(0, 4) + '****' + phone.substring(phone.length - 2);
   }

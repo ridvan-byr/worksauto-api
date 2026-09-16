@@ -56,7 +56,10 @@ export class LegalController {
     @CurrentTenant() tenantId: string,
     @Body('marketingAccepted') marketingAccepted: boolean,
   ) {
-    return this.legalService.updateMarketingConsent(tenantId, !!marketingAccepted);
+    return this.legalService.updateMarketingConsent(
+      tenantId,
+      !!marketingAccepted,
+    );
   }
 
   @Public()

@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.service';
 import {
   IVehicleRepository,
@@ -104,7 +108,6 @@ export class PrismaVehicleRepository implements IVehicleRepository {
 
     return record ? this.mapToEntity(record) : null;
   }
-
 
   async findAll(
     tenantId: string,
@@ -317,4 +320,3 @@ export class PrismaVehicleRepository implements IVehicleRepository {
     return this.mapToEntity(updated);
   }
 }
-

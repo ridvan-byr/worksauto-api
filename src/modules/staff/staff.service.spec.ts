@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { StaffService } from './staff.service';
 import { LeaveType, LeaveStatus, UserRole } from '@prisma/client';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 
 describe('StaffService - Leaves & Audit Logs', () => {
   let service: StaffService;
@@ -51,7 +55,12 @@ describe('StaffService - Leaves & Audit Logs', () => {
   describe('getLeaves', () => {
     it('returns leaves for tenant', async () => {
       const mockLeaves = [
-        { id: mockLeaveId, tenantId: mockTenantId, userId: mockUserId, leaveType: LeaveType.ANNUAL },
+        {
+          id: mockLeaveId,
+          tenantId: mockTenantId,
+          userId: mockUserId,
+          leaveType: LeaveType.ANNUAL,
+        },
       ];
       mockPrisma.staffLeave.findMany.mockResolvedValue(mockLeaves);
 
@@ -90,7 +99,11 @@ describe('StaffService - Leaves & Audit Logs', () => {
     });
 
     it('throws BadRequestException if start date > end date', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue({ id: mockUserId, name: 'Ali', surname: 'Usta' });
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: mockUserId,
+        name: 'Ali',
+        surname: 'Usta',
+      });
 
       await expect(
         service.createLeave(mockTenantId, {
@@ -103,8 +116,14 @@ describe('StaffService - Leaves & Audit Logs', () => {
     });
 
     it('throws ConflictException if there is overlapping leave', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue({ id: mockUserId, name: 'Ali', surname: 'Usta' });
-      mockPrisma.staffLeave.findFirst.mockResolvedValue({ id: 'existing-leave-id' });
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: mockUserId,
+        name: 'Ali',
+        surname: 'Usta',
+      });
+      mockPrisma.staffLeave.findFirst.mockResolvedValue({
+        id: 'existing-leave-id',
+      });
 
       await expect(
         service.createLeave(mockTenantId, {
@@ -117,7 +136,11 @@ describe('StaffService - Leaves & Audit Logs', () => {
     });
 
     it('creates leave successfully and records audit log', async () => {
-      mockPrisma.user.findFirst.mockResolvedValue({ id: mockUserId, name: 'Ali', surname: 'Usta' });
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: mockUserId,
+        name: 'Ali',
+        surname: 'Usta',
+      });
       mockPrisma.staffLeave.findFirst.mockResolvedValue(null);
       const createdLeave = {
         id: mockLeaveId,
@@ -158,9 +181,9 @@ describe('StaffService - Leaves & Audit Logs', () => {
     it('throws NotFoundException if leave not found', async () => {
       mockPrisma.staffLeave.findFirst.mockResolvedValue(null);
 
-      await expect(service.cancelLeave(mockTenantId, mockLeaveId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.cancelLeave(mockTenantId, mockLeaveId),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('cancels leave successfully and writes audit log', async () => {
@@ -174,7 +197,11 @@ describe('StaffService - Leaves & Audit Logs', () => {
         status: LeaveStatus.CANCELLED,
       });
 
-      const res = await service.cancelLeave(mockTenantId, mockLeaveId, 'actor-id');
+      const res = await service.cancelLeave(
+        mockTenantId,
+        mockLeaveId,
+        'actor-id',
+      );
       expect(res.status).toBe(LeaveStatus.CANCELLED);
       expect(mockAudit.log).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -197,7 +224,12 @@ describe('StaffService - Leaves & Audit Logs', () => {
         },
       ]);
       mockPrisma.user.findMany.mockResolvedValue([
-        { id: mockUserId, name: 'Ahmet', surname: 'Yılmaz', role: UserRole.SERVICE_MANAGER },
+        {
+          id: mockUserId,
+          name: 'Ahmet',
+          surname: 'Yılmaz',
+          role: UserRole.SERVICE_MANAGER,
+        },
       ]);
 
       const logs = await service.getStaffAuditLogs(mockTenantId);

@@ -66,7 +66,8 @@ export class UpdateInvoiceSettingsDto {
 
   @ApiPropertyOptional({
     example: false,
-    description: 'İş emri kapandığında otomatik faturaya dönüştürüp GİB kuyruğuna alsın mı?',
+    description:
+      'İş emri kapandığında otomatik faturaya dönüştürüp GİB kuyruğuna alsın mı?',
   })
   @IsOptional()
   @IsBoolean()

@@ -1,5 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsArray, IsIn, MaxLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsArray,
+  IsIn,
+  MaxLength,
+} from 'class-validator';
 
 export class NotifyWorkOrderStatusDto {
   @ApiPropertyOptional({

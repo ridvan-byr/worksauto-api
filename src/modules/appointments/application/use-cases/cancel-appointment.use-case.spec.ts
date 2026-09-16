@@ -21,6 +21,7 @@ describe('CancelAppointmentUseCase', () => {
       create: vi.fn(),
       save: vi.fn(),
       checkMechanicConflict: vi.fn(),
+      checkMechanicOnLeave: vi.fn(),
       checkLiftConflict: vi.fn(),
       cancelAppointmentAndWorkOrder: vi.fn(),
       findTenantBySlug: vi.fn(),

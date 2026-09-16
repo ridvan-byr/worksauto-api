@@ -132,22 +132,20 @@ export class CreatePublicAppointmentUseCase {
     );
 
     const tenantTitle = tenant.title || 'WorksAuto Servis';
-    const appointmentDate = new Date(dto.slotStartTime).toLocaleDateString(
-      'tr-TR',
-      {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      },
-    );
-    const appointmentTime = new Date(dto.slotStartTime).toLocaleTimeString(
-      'tr-TR',
-      {
-        hour: '2-digit',
-        minute: '2-digit',
-      },
-    );
-    const dateStr = `${appointmentDate} ${appointmentTime}`;
+    const {
+      fullStr: dateStr,
+      dateFormatted,
+      timeFormatted,
+    } = typeof this.templateService?.formatTurkeyDateTime === 'function'
+      ? this.templateService.formatTurkeyDateTime(
+          dto.slotDate,
+          dto.slotStartTime,
+        )
+      : {
+          fullStr: `${dto.slotDate} ${dto.slotStartTime}`,
+          dateFormatted: dto.slotDate,
+          timeFormatted: dto.slotStartTime,
+        };
 
     const customerMsg =
       this.templateService.formatAppointmentCreatedCustomerMessage({
@@ -164,8 +162,8 @@ export class CreatePublicAppointmentUseCase {
       tenantTitle,
       extraDetails: {
         'Araç Plakası': dto.plate,
-        'Randevu Tarihi': appointmentDate,
-        'Randevu Saati': appointmentTime,
+        'Randevu Tarihi': dateFormatted,
+        'Randevu Saati': timeFormatted,
         ...(assignedLift ? { 'Kabul Alanı': assignedLift } : {}),
         ...(dto.customerNotes ? { Notunuz: dto.customerNotes } : {}),
       },

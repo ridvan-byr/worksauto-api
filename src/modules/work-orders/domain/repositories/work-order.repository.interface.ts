@@ -129,5 +129,14 @@ export interface IWorkOrderRepository {
     tenantId: string,
     vehicleId: string,
   ): Promise<any | null>;
+  updateLastNotifiedAt(
+    tenantId: string,
+    id: string,
+    notifiedAt?: Date,
+  ): Promise<void>;
+  updateCustomerFeedback(
+    workOrderId: string,
+    rating: number,
+    comment?: string,
+  ): Promise<any>;
 }
-

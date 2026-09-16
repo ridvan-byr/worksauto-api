@@ -218,10 +218,13 @@ export class AdminTenantService {
     if (dto.phone !== undefined) data.phone = dto.phone.trim();
     if (dto.email !== undefined) data.email = dto.email.trim().toLowerCase();
     if (dto.city !== undefined) data.city = dto.city?.trim() || null;
-    if (dto.district !== undefined) data.district = dto.district?.trim() || null;
+    if (dto.district !== undefined)
+      data.district = dto.district?.trim() || null;
     if (dto.address !== undefined) data.address = dto.address?.trim() || null;
-    if (dto.taxNumber !== undefined) data.taxNumber = dto.taxNumber?.trim() || null;
-    if (dto.taxOffice !== undefined) data.taxOffice = dto.taxOffice?.trim() || null;
+    if (dto.taxNumber !== undefined)
+      data.taxNumber = dto.taxNumber?.trim() || null;
+    if (dto.taxOffice !== undefined)
+      data.taxOffice = dto.taxOffice?.trim() || null;
 
     const updated = await this.prisma.tenant.update({
       where: { id: tenantId },
@@ -254,7 +257,9 @@ export class AdminTenantService {
       this.logger.warn(`Audit log yazılamadı: ${e}`);
     }
 
-    this.logger.log(`✏️ Servis Bilgileri Güncellendi -> ${updated.title} (ID: ${tenantId})`);
+    this.logger.log(
+      `✏️ Servis Bilgileri Güncellendi -> ${updated.title} (ID: ${tenantId})`,
+    );
 
     return {
       success: true,

@@ -30,6 +30,7 @@ import { CreateWorkOrderNoteDto } from '../dto/create-note.dto';
 import { UpdateWorkOrderNoteDto } from '../dto/update-note.dto';
 import { CreateWorkOrderDto } from '../dto/create-work-order.dto';
 import { NotifyWorkOrderStatusDto } from '../dto/notify-status.dto';
+import { SubmitCustomerFeedbackDto } from '../dto/customer-feedback.dto';
 import { GetWorkOrdersUseCase } from '../application/use-cases/get-work-orders.use-case';
 import { CreateWorkOrderUseCase } from '../application/use-cases/create-work-order.use-case';
 import { UpdateWorkOrderStatusUseCase } from '../application/use-cases/update-work-order-status.use-case';
@@ -43,6 +44,7 @@ import { AddWorkOrderNoteUseCase } from '../application/use-cases/add-work-order
 import { UpdateWorkOrderNoteUseCase } from '../application/use-cases/update-work-order-note.use-case';
 import { DeleteWorkOrderNoteUseCase } from '../application/use-cases/delete-work-order-note.use-case';
 import { GetPublicWorkOrderTrackUseCase } from '../application/use-cases/get-public-work-order-track.use-case';
+import { SubmitCustomerFeedbackUseCase } from '../application/use-cases/submit-customer-feedback.use-case';
 
 @ApiTags('Work Orders (Atölye İş Emirleri)')
 @ApiBearerAuth('JWT-auth')
@@ -63,6 +65,7 @@ export class WorkOrdersController {
     private readonly updateWorkOrderNoteUseCase: UpdateWorkOrderNoteUseCase,
     private readonly deleteWorkOrderNoteUseCase: DeleteWorkOrderNoteUseCase,
     private readonly getPublicWorkOrderTrackUseCase: GetPublicWorkOrderTrackUseCase,
+    private readonly submitCustomerFeedbackUseCase: SubmitCustomerFeedbackUseCase,
   ) {}
 
   @Public()
@@ -74,6 +77,20 @@ export class WorkOrdersController {
   })
   getPublicTrack(@Param('token') token: string) {
     return this.getPublicWorkOrderTrackUseCase.execute(token);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Post('public/track/:token/feedback')
+  @ApiOperation({
+    summary:
+      'Dış müşteri canlı takip sayfasından servis deneyimini puanlar ve yorum iletir',
+  })
+  submitPublicFeedback(
+    @Param('token') token: string,
+    @Body() dto: SubmitCustomerFeedbackDto,
+  ) {
+    return this.submitCustomerFeedbackUseCase.execute(token, dto);
   }
 
   @Get()
