@@ -12,7 +12,7 @@ import { RedisService } from '../../shared/infrastructure/redis/redis.service';
   imports: [
     JwtModule.register({
       secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '1h' },
+      signOptions: { expiresIn: '12h' },
     }),
   ],
   controllers: [AdminController],

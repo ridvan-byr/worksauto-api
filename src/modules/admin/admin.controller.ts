@@ -71,12 +71,12 @@ export class AdminController {
     const userAgent = req.headers['user-agent'] || 'Unknown Browser';
     const result = await this.adminAuthService.login(dto, clientIp, userAgent);
 
-    // 1 saat ömürlü, httpOnly, path:/api/v1/admin ile kısıtlı güvenli çerez
+    // 12 saat ömürlü, httpOnly, path:/api/v1/admin ile kısıtlı güvenli çerez
     res.cookie('adminAccessToken', result.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 3600 * 1000,
+      maxAge: 12 * 3600 * 1000,
       path: '/api/v1/admin',
     });
 

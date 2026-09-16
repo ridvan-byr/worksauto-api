@@ -480,10 +480,12 @@ export class AuthService {
 
     const familyId = existingFamilyId || uuidv4();
 
-    // 1 saatlik hızlı erişim anahtarı
+    const isSuperAdmin = user.role === UserRole.SUPER_ADMIN;
+
+    // Super Admin için 12 saat, kiracı kullanıcıları için 15 dakika hızlı erişim anahtarı
     const accessToken = this.jwtService.sign(
       { ...payload, tokenType: 'access', familyId },
-      { expiresIn: '15m' },
+      { expiresIn: isSuperAdmin ? '12h' : '15m' },
     );
     // 30 GÜNLÜK kalıcı yenileme anahtarı (benzersiz jti ile üretilir, eşzamanlı istek çakışması engellenir)
     const refreshToken = this.jwtService.sign(
@@ -511,7 +513,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      expiresIn: 900, // 15 minutes
+      expiresIn: isSuperAdmin ? 12 * 3600 : 900,
     };
   }
 
