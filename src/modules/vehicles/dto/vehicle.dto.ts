@@ -86,7 +86,8 @@ export class CreateVehicleDto {
   kaskoValidUntil?: Date;
 
   @ApiPropertyOptional({
-    description: 'Plaka başka bir müşteride veya arşivde ise sahipliği bu müşteriye devreder',
+    description:
+      'Plaka başka bir müşteride veya arşivde ise sahipliği bu müşteriye devreder',
     default: false,
   })
   @IsOptional()

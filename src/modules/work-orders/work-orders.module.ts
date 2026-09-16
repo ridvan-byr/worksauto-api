@@ -24,6 +24,7 @@ import { UpdateWorkOrderNoteUseCase } from './application/use-cases/update-work-
 import { DeleteWorkOrderNoteUseCase } from './application/use-cases/delete-work-order-note.use-case';
 import { GetPublicWorkOrderTrackUseCase } from './application/use-cases/get-public-work-order-track.use-case';
 import { NotifyWorkOrderStatusUseCase } from './application/use-cases/notify-work-order-status.use-case';
+import { SubmitCustomerFeedbackUseCase } from './application/use-cases/submit-customer-feedback.use-case';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { NotifyWorkOrderStatusUseCase } from './application/use-cases/notify-wor
     UpdateWorkOrderNoteUseCase,
     DeleteWorkOrderNoteUseCase,
     GetPublicWorkOrderTrackUseCase,
+    SubmitCustomerFeedbackUseCase,
   ],
   exports: ['IWorkOrderRepository', NotifyWorkOrderStatusUseCase],
 })

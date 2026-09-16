@@ -48,7 +48,8 @@ export class CreateCustomerDto {
 
   @ApiPropertyOptional({
     example: '11111111111',
-    description: 'Bireysel için 11 haneli TCKN veya Kurumsal için 10 haneli VKN (Boş bırakılırsa 11111111111 atanır)',
+    description:
+      'Bireysel için 11 haneli TCKN veya Kurumsal için 10 haneli VKN (Boş bırakılırsa 11111111111 atanır)',
   })
   @IsOptional()
   @ValidateIf((o) => !!o.taxNumber)

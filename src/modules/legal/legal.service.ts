@@ -162,7 +162,9 @@ export class LegalService {
     meta: { ip: string; userAgent: string },
   ) {
     if (!identifier || !identifier.trim()) {
-      throw new BadRequestException('Geçersiz ret talebi. Tanımlayıcı belirtilmedi.');
+      throw new BadRequestException(
+        'Geçersiz ret talebi. Tanımlayıcı belirtilmedi.',
+      );
     }
 
     const cleanId = identifier.trim();

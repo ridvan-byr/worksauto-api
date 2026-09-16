@@ -15,6 +15,8 @@ import { NotificationsService } from '../../../notifications/notifications.servi
 import { EventsGateway } from '../../../events/events.gateway';
 import { NotificationType } from '@prisma/client';
 
+import { NotificationTemplateService } from '../../../notifications/services/notification-template.service';
+
 export interface RescheduleAppointmentInput {
   slotDate: string; // YYYY-MM-DD
   slotStartTime: string; // ISO
@@ -23,17 +25,23 @@ export interface RescheduleAppointmentInput {
   assignedLift?: string;
   reason?: string;
   notifyCustomer?: boolean;
+  channels?: ('WHATSAPP' | 'SMS' | 'EMAIL')[];
 }
 
 @Injectable()
 export class RescheduleAppointmentUseCase {
+  private readonly templateService: NotificationTemplateService;
+
   constructor(
     @Inject(APPOINTMENT_REPOSITORY)
     private readonly appointmentRepository: IAppointmentRepository,
     private readonly auditService: AuditService,
     private readonly notificationsService: NotificationsService,
     private readonly eventsGateway: EventsGateway,
-  ) {}
+    templateService?: NotificationTemplateService,
+  ) {
+    this.templateService = templateService || new NotificationTemplateService();
+  }
 
   async execute(
     tenantId: string,
@@ -129,11 +137,85 @@ export class RescheduleAppointmentUseCase {
       updated,
     );
 
-    const timeFormatted = new Date(dto.slotStartTime).toLocaleTimeString('tr-TR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    const notificationMessage = `Randevu saati güncellendi: ${dto.slotDate} (${timeFormatted}).${dto.reason ? ` Neden: ${dto.reason}` : ''}`;
+    const details = this.appointmentRepository.getNotificationContext
+      ? await this.appointmentRepository
+          .getNotificationContext(tenantId, app.customerId, app.vehicleId)
+          .catch(() => null)
+      : null;
+
+    const customerName =
+      details?.customerName ||
+      `${app.customer?.firstName || ''} ${app.customer?.lastName || ''}`.trim() ||
+      'Değerli Müşterimiz';
+    const plate =
+      details?.plate && details.plate !== 'Belirtilmedi'
+        ? details.plate
+        : app.vehicle?.plate || '';
+    const phone = details?.phone || app.customer?.phone;
+    const email = details?.email || app.customer?.email;
+    const tenantTitle = details?.tenantTitle || 'WorksAuto Servis';
+
+    const { dateFormatted, timeFormatted } =
+      typeof this.templateService?.formatTurkeyDateTime === 'function'
+        ? this.templateService.formatTurkeyDateTime(
+            dto.slotDate,
+            dto.slotStartTime,
+          )
+        : {
+            dateFormatted: dto.slotDate,
+            timeFormatted: dto.slotStartTime,
+          };
+
+    // Müşteriye WhatsApp ve SMS üzerinden gidecek nazik ve tam formatlı Türkçe mesaj
+    const customerMessage =
+      this.templateService.formatAppointmentRescheduledCustomerMessage({
+        customerName,
+        plate,
+        dateFormatted,
+        timeFormatted,
+        reason: dto.reason,
+        tenantTitle,
+      });
+
+    // Panel içi bildirim metni (kısa ve operasyonel)
+    const internalNotificationMessage = `Randevu saati güncellendi: ${dateFormatted} (${timeFormatted}).${dto.reason ? ` Neden: ${dto.reason}` : ''}`;
+
+    const requestedChannels =
+      dto.channels && dto.channels.length > 0
+        ? dto.channels
+        : ['WHATSAPP', 'SMS', 'EMAIL'];
+
+    const sendWhatsApp = !!(
+      dto.notifyCustomer &&
+      phone &&
+      requestedChannels.includes('WHATSAPP')
+    );
+    const sendSms = !!(
+      dto.notifyCustomer &&
+      phone &&
+      requestedChannels.includes('SMS')
+    );
+    const sendEmail = !!(
+      dto.notifyCustomer &&
+      email &&
+      requestedChannels.includes('EMAIL')
+    );
+
+    let customerHtml: string | undefined;
+    if (sendEmail) {
+      customerHtml = this.templateService.generateBrandedHtmlEmail({
+        title: 'Randevu Tarihiniz Güncellendi',
+        customerName,
+        message: `${plate ? `${plate} plakalı aracınıza ait ` : 'Aracınıza ait '}servis randevunuz yeni bir tarih ve saate güncellenmiştir.${dto.reason ? ` Erteleme Gerekçesi: ${dto.reason}` : ''}`,
+        tenantTitle,
+        extraDetails: {
+          'Yeni Randevu Tarihi': dateFormatted,
+          'Yeni Randevu Saati': timeFormatted,
+          ...(plate ? { 'Araç Plakası': plate } : {}),
+          ...(dto.reason ? { 'Erteleme Nedeni': dto.reason } : {}),
+        },
+      });
+    }
 
     await this.notificationsService.createNotification({
       tenantId,
@@ -142,19 +224,24 @@ export class RescheduleAppointmentUseCase {
       type: NotificationType.INFO,
       category: 'APPOINTMENT',
       title: 'Randevu Yeniden Planlandı',
-      message: notificationMessage,
+      message: internalNotificationMessage,
       link: '/appointments',
       metadata: {
         appointmentId: id,
         reason: dto.reason,
-        notifiedCustomer: !!(dto.notifyCustomer && app.customer?.phone),
+        notifiedCustomer: !!(
+          dto.notifyCustomer &&
+          (sendWhatsApp || sendSms || sendEmail)
+        ),
+        channels: { sendWhatsApp, sendSms, sendEmail },
       },
-      recipientPhone:
-        dto.notifyCustomer && app.customer?.phone
-          ? app.customer.phone
-          : undefined,
-      sendSms: !!(dto.notifyCustomer && app.customer?.phone),
-      sendWhatsApp: !!(dto.notifyCustomer && app.customer?.phone),
+      recipientPhone: phone || undefined,
+      recipientEmail: email || undefined,
+      customerMessage,
+      customerHtml,
+      sendSms,
+      sendWhatsApp,
+      sendEmail,
     });
 
     await this.auditService.log({

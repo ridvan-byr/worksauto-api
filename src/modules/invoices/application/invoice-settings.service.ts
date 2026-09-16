@@ -53,7 +53,9 @@ export class InvoiceSettingsService {
     }
 
     const decryptedApiKey = this.cryptoService.decrypt(config.encryptedApiKey);
-    const decryptedUsername = this.cryptoService.decrypt(config.encryptedUsername);
+    const decryptedUsername = this.cryptoService.decrypt(
+      config.encryptedUsername,
+    );
 
     return {
       provider: config.provider,
@@ -127,21 +129,36 @@ export class InvoiceSettingsService {
     if (!apiKey || !apiSecret) {
       const existing = await this.settingsRepo.findByTenantId(tenantId);
       if (existing) {
-        apiKey = apiKey || this.cryptoService.decrypt(existing.encryptedApiKey) || undefined;
-        apiSecret = apiSecret || this.cryptoService.decrypt(existing.encryptedApiSecret) || undefined;
-        username = username || this.cryptoService.decrypt(existing.encryptedUsername) || undefined;
-        password = password || this.cryptoService.decrypt(existing.encryptedPassword) || undefined;
+        apiKey =
+          apiKey ||
+          this.cryptoService.decrypt(existing.encryptedApiKey) ||
+          undefined;
+        apiSecret =
+          apiSecret ||
+          this.cryptoService.decrypt(existing.encryptedApiSecret) ||
+          undefined;
+        username =
+          username ||
+          this.cryptoService.decrypt(existing.encryptedUsername) ||
+          undefined;
+        password =
+          password ||
+          this.cryptoService.decrypt(existing.encryptedPassword) ||
+          undefined;
       }
     }
 
-    const provider = this.providerFactory.getProviderFromInput(dto.provider as unknown as InvoiceProviderType, {
-      apiKey,
-      apiSecret,
-      username,
-      password,
-      companyTaxId: dto.companyTaxId,
-      isTestMode: dto.isTestMode,
-    });
+    const provider = this.providerFactory.getProviderFromInput(
+      dto.provider as unknown as InvoiceProviderType,
+      {
+        apiKey,
+        apiSecret,
+        username,
+        password,
+        companyTaxId: dto.companyTaxId,
+        isTestMode: dto.isTestMode,
+      },
+    );
 
     return provider.testConnection();
   }

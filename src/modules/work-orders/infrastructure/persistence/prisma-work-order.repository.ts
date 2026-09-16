@@ -206,11 +206,15 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
         },
       });
 
-      // Update vehicle current km
-      await tx.vehicle.update({
-        where: { id: data.vehicleId },
-        data: { currentKm: data.initialKm },
-      });
+      // Update vehicle current km safely:
+      // If initialKm is 0 or empty, preserve vehicle's existing currentKm.
+      // If initialKm > currentKm, advance the vehicle's odometer.
+      if (data.initialKm > 0 && data.initialKm > (vehicle.currentKm ?? 0)) {
+        await tx.vehicle.update({
+          where: { id: data.vehicleId },
+          data: { currentKm: data.initialKm },
+        });
+      }
 
       // Insert line items & deduct stock atomically within the same transaction
       if (data.items && data.items.length > 0) {
@@ -829,10 +833,15 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
     }
   }
 
-  async findPublicTrackByTokenOrNumber(tokenOrNumber: string): Promise<any | null> {
+  async findPublicTrackByTokenOrNumber(
+    tokenOrNumber: string,
+  ): Promise<any | null> {
     const raw = tokenOrNumber.trim();
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
-    
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        raw,
+      );
+
     // Security Defense: Direct enumeration by sequential number (WO-2026-0001) is disallowed to prevent scraping
     if (!isUuid) {
       return null;
@@ -934,5 +943,30 @@ export class PrismaWorkOrderRepository implements IWorkOrderRepository {
       },
     });
   }
-}
 
+  async updateLastNotifiedAt(
+    _tenantId: string,
+    id: string,
+    notifiedAt: Date = new Date(),
+  ): Promise<void> {
+    await this.prisma.workOrder.update({
+      where: { id },
+      data: { lastNotifiedAt: notifiedAt },
+    });
+  }
+
+  async updateCustomerFeedback(
+    workOrderId: string,
+    rating: number,
+    comment?: string,
+  ): Promise<any> {
+    return this.prisma.workOrder.update({
+      where: { id: workOrderId },
+      data: {
+        customerRating: rating,
+        customerComment: comment?.trim() || null,
+        customerRatedAt: new Date(),
+      },
+    });
+  }
+}

@@ -38,7 +38,9 @@ export class NotifyWorkOrderStatusUseCase {
     }
 
     if (!wo.customer) {
-      throw new BadRequestException('İş emrine atanmış bir müşteri bulunamadı.');
+      throw new BadRequestException(
+        'İş emrine atanmış bir müşteri bulunamadı.',
+      );
     }
 
     const currentStatus = wo.status as WorkOrderStatusEnum;
@@ -105,6 +107,7 @@ export class NotifyWorkOrderStatusUseCase {
       buttonText: 'Canlı Takip Sayfasını Aç',
       buttonUrl: trackingUrl,
       tenantTitle,
+      tenantLogoUrl: (wo as any).tenant?.logoUrl || undefined,
       extraDetails: {
         'İş Emri No': wo.workOrderNumber,
         Plaka: plate || 'Belirtilmedi',
@@ -161,6 +164,12 @@ export class NotifyWorkOrderStatusUseCase {
       sendWhatsApp,
       sendEmail,
     });
+
+    await this.workOrderRepository.updateLastNotifiedAt(
+      tenantId,
+      workOrderId,
+      new Date(),
+    );
 
     await this.auditService.log({
       tenantId,

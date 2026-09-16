@@ -148,6 +148,15 @@ model Tenant {
   latitude    Float?
   longitude   Float?
   logoUrl     String?
+  logoWidth   Int?     @default(36) @map("logo_width")
+  logoHeight  Int?     @default(36) @map("logo_height")
+  googleReviewUrl String? @map("google_review_url")
+  bankName    String?  @map("bank_name")
+  iban        String?  @map("iban")
+  accountHolder String? @map("account_holder")
+  paytrMerchantId String? @map("paytr_merchant_id")
+  paytrMerchantKey String? @map("paytr_merchant_key")
+  paytrMerchantSalt String? @map("paytr_merchant_salt")
   isActive    Boolean  @default(true)
   autoInvoiceOnComplete Boolean @default(false) @map("auto_invoice_on_complete")
   workingDays String[] @default(["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"]) @map("working_days")
@@ -455,6 +464,10 @@ model WorkOrder {
   kdvAmount          Decimal         @default(0) @map("kdv_amount") @db.Decimal(12, 2)
   grandTotal         Decimal         @default(0) @map("grand_total") @db.Decimal(12, 2)
   completedAt        DateTime?       @map("completed_at") @db.Timestamptz(6)
+  lastNotifiedAt     DateTime?       @map("last_notified_at") @db.Timestamptz(6)
+  customerRating     Int?            @map("customer_rating")
+  customerComment    String?         @map("customer_comment")
+  customerRatedAt    DateTime?       @map("customer_rated_at") @db.Timestamptz(6)
   createdAt          DateTime        @default(now()) @db.Timestamptz(6)
   updatedAt          DateTime        @updatedAt @db.Timestamptz(6)
 

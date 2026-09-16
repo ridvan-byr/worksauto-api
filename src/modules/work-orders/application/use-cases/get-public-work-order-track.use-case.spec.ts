@@ -14,9 +14,13 @@ describe('GetPublicWorkOrderTrackUseCase', () => {
   });
 
   it('should throw NotFoundException if work order is not found', async () => {
-    mockWorkOrderRepository.findPublicTrackByTokenOrNumber.mockResolvedValue(null);
+    mockWorkOrderRepository.findPublicTrackByTokenOrNumber.mockResolvedValue(
+      null,
+    );
 
-    await expect(useCase.execute('WO-9999-999')).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('WO-9999-999')).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should return masked customer info and sanitized tracking details', async () => {
@@ -26,8 +30,17 @@ describe('GetPublicWorkOrderTrackUseCase', () => {
       status: 'IN_PROGRESS',
       createdAt: new Date(),
       initialKm: 85000,
-      customer: { firstName: 'Mehmet', lastName: 'Demir', phone: '05321234567' },
-      vehicle: { plate: '34XYZ99', brand: 'Renault', model: 'Megane', year: 2021 },
+      customer: {
+        firstName: 'Mehmet',
+        lastName: 'Demir',
+        phone: '05321234567',
+      },
+      vehicle: {
+        plate: '34XYZ99',
+        brand: 'Renault',
+        model: 'Megane',
+        year: 2021,
+      },
       items: [
         { id: '1', itemType: 'SERVICE', name: 'Yağ Değişimi' },
         { id: '2', itemType: 'PART', name: 'Yağ Filtresi', quantity: 1 },

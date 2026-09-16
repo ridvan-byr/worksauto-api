@@ -118,4 +118,3 @@ describe('CreateWorkOrderUseCase', () => {
     expect(mockRepo.create).not.toHaveBeenCalled();
   });
 });
-

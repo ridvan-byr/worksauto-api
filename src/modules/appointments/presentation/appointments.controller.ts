@@ -93,6 +93,11 @@ export class AppointmentsController {
         assignedLift: { type: 'string' },
         reason: { type: 'string', example: 'Yedek parça tedarik süreci' },
         notifyCustomer: { type: 'boolean', example: true },
+        channels: {
+          type: 'array',
+          items: { type: 'string', enum: ['WHATSAPP', 'SMS', 'EMAIL'] },
+          example: ['WHATSAPP', 'EMAIL'],
+        },
       },
       required: ['slotDate', 'slotStartTime', 'slotEndTime'],
     },
@@ -110,6 +115,7 @@ export class AppointmentsController {
       assignedLift?: string;
       reason?: string;
       notifyCustomer?: boolean;
+      channels?: ('WHATSAPP' | 'SMS' | 'EMAIL')[];
     },
   ) {
     return this.rescheduleAppointmentUseCase.execute(

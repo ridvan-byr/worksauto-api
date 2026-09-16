@@ -142,6 +142,22 @@ export class NotificationsController {
     );
   }
 
+  @Post('email/test-message')
+  @ApiOperation({
+    summary: 'Girilen e-posta adresine anlık test e-postası gönderir',
+  })
+  sendEmailTestMessage(
+    @CurrentUser() user: any,
+    @Body() body: { to: string; subject?: string; message?: string },
+  ) {
+    return this.notificationsService.sendEmailTestMessage(
+      body.to,
+      body.subject,
+      body.message,
+      user?.tenantId,
+    );
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Bildirimi listeden siler' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {

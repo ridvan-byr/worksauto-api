@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Put,
-  Post,
-  Body,
-  Param,
-} from '@nestjs/common';
+import { Controller, Get, Put, Post, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CurrentTenant } from '../../../shared/decorators/current-tenant.decorator';
 import { Roles } from '../../../shared/decorators/roles.decorator';
@@ -59,12 +52,16 @@ export class InvoiceSettingsController {
   @Get('check-tax/:taxNumber')
   @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER, UserRole.CASHIER)
   @ApiOperation({
-    summary: 'Müşteri VKN/TCKN sorgulayarak E-Fatura mı E-Arşiv mi olduğunu tespit eder',
+    summary:
+      'Müşteri VKN/TCKN sorgulayarak E-Fatura mı E-Arşiv mi olduğunu tespit eder',
   })
   checkTaxType(
     @CurrentTenant() tenantId: string,
     @Param('taxNumber') taxNumber: string,
   ) {
-    return this.invoiceSettingsService.checkCustomerTaxType(tenantId, taxNumber);
+    return this.invoiceSettingsService.checkCustomerTaxType(
+      tenantId,
+      taxNumber,
+    );
   }
 }

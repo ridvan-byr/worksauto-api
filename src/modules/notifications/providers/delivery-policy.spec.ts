@@ -58,4 +58,18 @@ describe('test delivery isolation', () => {
     );
     expect(deliveryDecision('05550000000', 'whatsapp')?.success).toBe(false);
   });
+
+  it('permits all recipients in live or direct mode when not in automated test', () => {
+    vi.stubEnv('CI', '');
+    vi.stubEnv('VITEST', '');
+    vi.stubEnv('NODE_ENV', 'development');
+
+    vi.stubEnv('NOTIFICATION_DELIVERY_MODE', 'live');
+    expect(deliveryDecision('customer@anydomain.com', 'email')).toBeNull();
+    expect(deliveryDecision('05321112233', 'sms')).toBeNull();
+
+    vi.stubEnv('NOTIFICATION_DELIVERY_MODE', 'direct');
+    expect(deliveryDecision('customer@anydomain.com', 'email')).toBeNull();
+    expect(deliveryDecision('05321112233', 'sms')).toBeNull();
+  });
 });

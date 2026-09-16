@@ -7,7 +7,8 @@ export class CryptoService {
   private readonly key: Buffer;
 
   constructor() {
-    const secret = process.env.ENCRYPTION_KEY || 'worksauto-e-invoice-secret-key-32b';
+    const secret =
+      process.env.ENCRYPTION_KEY || 'worksauto-e-invoice-secret-key-32b';
     this.key = crypto.createHash('sha256').update(String(secret)).digest();
   }
 

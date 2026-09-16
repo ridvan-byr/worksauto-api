@@ -18,6 +18,7 @@ import { RegisterTenantDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { NotificationTemplateService } from '../notifications/services/notification-template.service';
 import { UserRole } from '@prisma/client';
 import * as crypto from 'crypto';
 
@@ -31,6 +32,7 @@ export class AuthService {
     private readonly redis: RedisService,
     @Inject(NOTIFICATION_PROVIDER)
     private readonly notificationProvider: NotificationProvider,
+    private readonly templateService: NotificationTemplateService,
   ) {}
 
   /**
@@ -311,6 +313,32 @@ export class AuthService {
     });
 
     const tokens = await this.generateTokens(user, tenant.id);
+
+    // Yeni kayıt olan servis sahibine WorksAuto kurumsal Hoş Geldiniz e-postası gönder
+    if (user.email) {
+      try {
+        const welcome = this.templateService.formatServiceOwnerWelcomeEmail({
+          ownerName: `${user.name} ${user.surname}`.trim(),
+          tenantTitle: tenant.title,
+          slug: tenant.slug,
+        });
+
+        await this.notificationProvider.sendEmail({
+          to: user.email,
+          subject: welcome.subject,
+          message: welcome.text,
+          html: welcome.html,
+          tenantId: tenant.id,
+        });
+        this.logger.log(
+          `📧 Yeni servis sahibine hoş geldin e-postası başarıyla gönderildi: ${user.email} (${tenant.title})`,
+        );
+      } catch (emailErr: any) {
+        this.logger.warn(
+          `Servis sahibi hoş geldin e-postası gönderilemedi: ${emailErr.message}`,
+        );
+      }
+    }
     return {
       tenant,
       user: {

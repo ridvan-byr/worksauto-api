@@ -40,7 +40,9 @@ describe('CreateAppointmentUseCase', () => {
     };
 
     mockAudit = { log: vi.fn() } as any;
-    mockNotifications = { createNotification: vi.fn().mockResolvedValue({}) } as any;
+    mockNotifications = {
+      createNotification: vi.fn().mockResolvedValue({}),
+    } as any;
     mockEvents = { emitToTenant: vi.fn() } as any;
     mockQueue = { scheduleAppointmentReminder: vi.fn() } as any;
 
@@ -71,7 +73,9 @@ describe('CreateAppointmentUseCase', () => {
         slotStartTime: '2026-12-15T09:00:00.000Z',
         slotEndTime: '2026-12-15T10:00:00.000Z',
       }),
-    ).rejects.toThrow('Seçilen teknisyen randevu tarihinde izinli veya raporludur.');
+    ).rejects.toThrow(
+      'Seçilen teknisyen randevu tarihinde izinli veya raporludur.',
+    );
   });
 
   it('should throw ConflictException if mechanic has a conflicting slot', async () => {

@@ -147,37 +147,35 @@ export class CreateAppointmentUseCase {
 
     // In-app & Customer Notifications (Email, SMS, WhatsApp)
     try {
-      const { customerName, email, phone, plate, tenantTitle } =
-        this.appointmentRepository.getNotificationContext
-          ? await this.appointmentRepository.getNotificationContext(
-              tenantId,
-              dto.customerId,
-              dto.vehicleId,
-            )
-          : {
-              customerName: 'Değerli Müşterimiz',
-              email: undefined,
-              phone: undefined,
-              plate: 'Belirtilmedi',
-              tenantTitle: 'WorksAuto Servis',
-            };
+      const { customerName, email, phone, plate, tenantTitle } = this
+        .appointmentRepository.getNotificationContext
+        ? await this.appointmentRepository.getNotificationContext(
+            tenantId,
+            dto.customerId,
+            dto.vehicleId,
+          )
+        : {
+            customerName: 'Değerli Müşterimiz',
+            email: undefined,
+            phone: undefined,
+            plate: 'Belirtilmedi',
+            tenantTitle: 'WorksAuto Servis',
+          };
 
-      const appointmentDate = new Date(dto.slotStartTime).toLocaleDateString(
-        'tr-TR',
-        {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        },
-      );
-      const appointmentTime = new Date(dto.slotStartTime).toLocaleTimeString(
-        'tr-TR',
-        {
-          hour: '2-digit',
-          minute: '2-digit',
-        },
-      );
-      const dateStr = `${appointmentDate} ${appointmentTime}`;
+      const {
+        fullStr: dateStr,
+        dateFormatted,
+        timeFormatted,
+      } = typeof this.templateService?.formatTurkeyDateTime === 'function'
+        ? this.templateService.formatTurkeyDateTime(
+            dto.slotDate,
+            dto.slotStartTime,
+          )
+        : {
+            fullStr: `${dto.slotDate} ${dto.slotStartTime}`,
+            dateFormatted: dto.slotDate,
+            timeFormatted: dto.slotStartTime,
+          };
 
       const customerMsg =
         this.templateService.formatAppointmentCreatedCustomerMessage({
@@ -193,9 +191,9 @@ export class CreateAppointmentUseCase {
         message: `${tenantTitle} servisimizden almış olduğunuz randevunuz başarıyla oluşturulmuş ve onaylanmıştır. Belirtilen randevu saatinde servisimizde olmanızı rica ederiz.`,
         tenantTitle,
         extraDetails: {
+          'Randevu Tarihi': dateFormatted,
+          'Randevu Saati': timeFormatted,
           'Araç Plakası': plate,
-          'Randevu Tarihi': appointmentDate,
-          'Randevu Saati': appointmentTime,
           ...(dto.assignedLift
             ? { 'Kabul Alanı / Lift': dto.assignedLift }
             : {}),

@@ -54,7 +54,10 @@ export class CreateTenantDto {
   @IsOptional()
   address?: string;
 
-  @ApiProperty({ example: '1234567890', description: '10 haneli VKN veya 11 haneli şahıs TCKN' })
+  @ApiProperty({
+    example: '1234567890',
+    description: '10 haneli VKN veya 11 haneli şahıs TCKN',
+  })
   @IsString()
   @IsNotEmpty({ message: 'Vergi numarası / TCKN zorunludur.' })
   @Matches(/^\d{10,11}$/, {
@@ -62,7 +65,10 @@ export class CreateTenantDto {
   })
   taxNumber: string;
 
-  @ApiProperty({ example: 'Ostim Vergi Dairesi', description: 'Bağlı olunan Vergi Dairesi' })
+  @ApiProperty({
+    example: 'Ostim Vergi Dairesi',
+    description: 'Bağlı olunan Vergi Dairesi',
+  })
   @IsString()
   @IsNotEmpty({ message: 'Vergi dairesi zorunludur.' })
   taxOffice: string;

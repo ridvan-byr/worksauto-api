@@ -36,4 +36,3 @@ import { TransferVehicleUseCase } from './application/use-cases/transfer-vehicle
   ],
 })
 export class VehiclesModule {}
-

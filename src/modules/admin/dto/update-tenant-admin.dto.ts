@@ -37,7 +37,10 @@ export class UpdateTenantAdminDto {
   @IsString()
   address?: string;
 
-  @ApiPropertyOptional({ example: '1234567890', description: '10 haneli VKN veya 11 haneli şahıs TCKN' })
+  @ApiPropertyOptional({
+    example: '1234567890',
+    description: '10 haneli VKN veya 11 haneli şahıs TCKN',
+  })
   @IsOptional()
   @IsString()
   @Matches(/^\d{10,11}$/, {
@@ -45,7 +48,10 @@ export class UpdateTenantAdminDto {
   })
   taxNumber?: string;
 
-  @ApiPropertyOptional({ example: 'Ostim Vergi Dairesi', description: 'Bağlı olunan Vergi Dairesi' })
+  @ApiPropertyOptional({
+    example: 'Ostim Vergi Dairesi',
+    description: 'Bağlı olunan Vergi Dairesi',
+  })
   @IsOptional()
   @IsString()
   taxOffice?: string;

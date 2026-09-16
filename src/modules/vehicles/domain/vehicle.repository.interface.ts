@@ -27,4 +27,3 @@ export interface IVehicleRepository {
     newCustomerId: string,
   ): Promise<VehicleEntity>;
 }
-

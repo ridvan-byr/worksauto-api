@@ -13,6 +13,7 @@ describe('NotifyWorkOrderStatusUseCase', () => {
   beforeEach(() => {
     mockRepo = {
       findById: vi.fn(),
+      updateLastNotifiedAt: vi.fn().mockResolvedValue(undefined),
     } as any;
 
     mockNotifications = {
@@ -33,9 +34,9 @@ describe('NotifyWorkOrderStatusUseCase', () => {
   it('should throw NotFoundException if work order not found', async () => {
     vi.mocked(mockRepo.findById).mockResolvedValue(null);
 
-    await expect(
-      useCase.execute('t-1', 'wo-nonexistent', {}),
-    ).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute('t-1', 'wo-nonexistent', {})).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('should throw BadRequestException if work order has no customer', async () => {

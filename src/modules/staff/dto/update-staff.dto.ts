@@ -14,7 +14,8 @@ export class UpdateStaffDto {
   @IsOptional()
   @IsString()
   @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
-    message: 'Personel adı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
+    message:
+      'Personel adı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
   })
   name?: string;
 
@@ -22,16 +23,21 @@ export class UpdateStaffDto {
   @IsOptional()
   @IsString()
   @Matches(/^[a-zA-ZçÇğĞıIİiöÖşŞüÜ\s]{2,50}$/, {
-    message: 'Personel soyadı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
+    message:
+      'Personel soyadı yalnızca harflerden oluşmalı ve en az 2 karakter olmalıdır (rakam veya simge içeremez).',
   })
   surname?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  @Matches(/^(?:\+90\s?|0\s?)?(?:\(5\d{2}\)|5\d{2})[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$/, {
-    message: 'Personel cep telefonu geçerli bir Türkiye GSM formatında olmalıdır (Örn: 0532 123 45 67)',
-  })
+  @Matches(
+    /^(?:\+90\s?|0\s?)?(?:\(5\d{2}\)|5\d{2})[\s.-]?\d{3}[\s.-]?\d{2}[\s.-]?\d{2}$/,
+    {
+      message:
+        'Personel cep telefonu geçerli bir Türkiye GSM formatında olmalıdır (Örn: 0532 123 45 67)',
+    },
+  )
   phone?: string;
 
   @ApiProperty({ required: false })

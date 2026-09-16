@@ -1,4 +1,9 @@
-import { Injectable, Inject, Optional, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  Optional,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   IInvoiceRepository,
   INVOICE_REPOSITORY,

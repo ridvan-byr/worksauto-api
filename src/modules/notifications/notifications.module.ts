@@ -27,4 +27,3 @@ import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service
   ],
 })
 export class NotificationsModule {}
-

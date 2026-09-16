@@ -53,9 +53,9 @@ describe('CancelInvoiceUseCase', () => {
 
     vi.mocked(mockRepo.findById).mockResolvedValue(invoice);
 
-    await expect(
-      useCase.execute('tenant-1', 'inv-1', 'abc'),
-    ).rejects.toThrow(BadRequestException);
+    await expect(useCase.execute('tenant-1', 'inv-1', 'abc')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('should throw BadRequestException when invoice is already cancelled', async () => {
@@ -101,7 +101,9 @@ describe('CancelInvoiceUseCase', () => {
     });
 
     vi.mocked(mockRepo.findById).mockResolvedValue(paidInvoice);
-    vi.mocked(mockRepo.cancelWithCariReversal).mockResolvedValue(cancelledInvoice);
+    vi.mocked(mockRepo.cancelWithCariReversal).mockResolvedValue(
+      cancelledInvoice,
+    );
 
     const result = await useCase.execute(
       'tenant-1',
@@ -151,7 +153,11 @@ describe('CancelInvoiceUseCase', () => {
       cancelledInvoice,
     );
 
-    const result = await useCase.execute('tenant-1', 'inv-1', 'Hatalı giriş iptali');
+    const result = await useCase.execute(
+      'tenant-1',
+      'inv-1',
+      'Hatalı giriş iptali',
+    );
 
     expect(result.status).toBe('CANCELLED');
     expect(mockRepo.cancelWithCariReversal).toHaveBeenCalledWith(

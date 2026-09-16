@@ -23,7 +23,6 @@ describe('CreateVehicleUseCase', () => {
     useCase = new CreateVehicleUseCase(mockRepo);
   });
 
-
   it('should throw ConflictException if vehicle with plate already exists', async () => {
     const existing = new VehicleEntity({
       id: 'v-1',

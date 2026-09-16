@@ -151,7 +151,9 @@ describe('RescheduleAppointmentUseCase', () => {
         slotStartTime: '2028-10-15T09:00:00.000Z',
         slotEndTime: '2028-10-15T10:00:00.000Z',
       }),
-    ).rejects.toThrow('Seçilen teknisyen randevu tarihinde izinli veya raporludur.');
+    ).rejects.toThrow(
+      'Seçilen teknisyen randevu tarihinde izinli veya raporludur.',
+    );
   });
 
   it('should reschedule successfully and emit event', async () => {
@@ -183,6 +185,51 @@ describe('RescheduleAppointmentUseCase', () => {
     );
     expect(mockAudit.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'appointment.rescheduled' }),
+    );
+  });
+
+  it('should send notification via selected channels including email', async () => {
+    const existing = new AppointmentEntity({
+      id: 'app-1',
+      tenantId: 'tenant-1',
+      customerId: 'cust-1',
+      vehicleId: 'veh-1',
+      slotDate: new Date('2026-09-10'),
+      slotStartTime: new Date('2026-09-10T09:00:00.000Z'),
+      slotEndTime: new Date('2026-09-10T10:00:00.000Z'),
+      status: 'CONFIRMED',
+      customer: {
+        firstName: 'Ahmet',
+        lastName: 'Yılmaz',
+        phone: '05523741500',
+        email: 'ahmet@example.com',
+      },
+      vehicle: {
+        plate: '34 ABC 123',
+      },
+    });
+
+    vi.mocked(mockRepo.findById).mockResolvedValue(existing);
+    vi.mocked(mockRepo.save).mockImplementation(async (item) => item);
+
+    await useCase.execute('tenant-1', 'app-1', {
+      slotDate: '2028-10-15',
+      slotStartTime: '2028-10-15T14:00:00.000Z',
+      slotEndTime: '2028-10-15T15:00:00.000Z',
+      notifyCustomer: true,
+      channels: ['EMAIL', 'WHATSAPP'],
+      reason: 'Yedek parça bekleniyor',
+    });
+
+    expect(mockNotifications.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientEmail: 'ahmet@example.com',
+        recipientPhone: '05523741500',
+        sendEmail: true,
+        sendWhatsApp: true,
+        sendSms: false,
+        customerHtml: expect.any(String),
+      }),
     );
   });
 });

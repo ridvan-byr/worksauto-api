@@ -27,7 +27,9 @@ import { MediaService, UploadedMediaFile } from './media.service';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
-import { WorkOrderPhotoType } from '@prisma/client';
+import { BypassB2bConsent } from '../../shared/decorators/bypass-b2b-consent.decorator';
+import { Roles } from '../../shared/decorators/roles.decorator';
+import { WorkOrderPhotoType, UserRole } from '@prisma/client';
 
 @ApiTags('Media & S3 Storage')
 @ApiBearerAuth()
@@ -37,6 +39,30 @@ export class MediaController {
     private readonly mediaService: MediaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  @Post('tenant/logo')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({
+    summary: 'İşletme kurumsal logosunu yükle (MinIO S3 - Public Stream)',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  async uploadTenantLogo(
+    @CurrentTenant() tenantId: string,
+    @UploadedFile() file: UploadedMediaFile,
+  ) {
+    return this.mediaService.uploadTenantLogo(tenantId, file);
+  }
 
   @Post('work-orders/:workOrderId/photos')
   @ApiOperation({
@@ -122,6 +148,7 @@ export class MediaController {
   }
 
   @Public()
+  @BypassB2bConsent()
   @Get('files/*')
   @ApiOperation({
     summary: 'Medya dosyasını doğrudan göster / stream et (Tenant Korumalı)',
