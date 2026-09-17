@@ -523,7 +523,7 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      include: { tenant: true },
+      include: { tenant: true, mechanic: true },
     });
     if (!user) {
       throw new UnauthorizedException('Kullanıcı bulunamadı.');
@@ -533,6 +533,61 @@ export class AuthService {
         'Bağlı olduğunuz oto servisinin lisansı askıya alınmıştır. Lütfen platform yöneticisi ile görüşünüz.',
       );
     }
+
+    let leaveBalance: any = null;
+    let todayLeave: any = null;
+
+    if (user.tenantId) {
+      const approvedAnnualLeaves = await this.prisma.staffLeave.findMany({
+        where: {
+          tenantId: user.tenantId,
+          userId: user.id,
+          leaveType: 'ANNUAL',
+          status: 'APPROVED',
+        },
+        select: { totalDays: true },
+      });
+
+      const usedDays = approvedAnnualLeaves.reduce(
+        (sum, l) => sum + (Number(l.totalDays) || 0),
+        0,
+      );
+      const annualDays = user.annualLeaveDays ?? 14;
+      const transferredDays = user.transferredLeaveDays ?? 0;
+      const totalDays = annualDays + transferredDays;
+      const remainingDays = Math.max(
+        0,
+        Math.round((totalDays - usedDays) * 10) / 10,
+      );
+
+      leaveBalance = {
+        annualDays,
+        transferredDays,
+        totalDays,
+        usedDays: Math.round(usedDays * 10) / 10,
+        remainingDays,
+      };
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayDate = new Date(todayStr);
+      todayLeave = await this.prisma.staffLeave.findFirst({
+        where: {
+          tenantId: user.tenantId,
+          userId: user.id,
+          status: 'APPROVED',
+          startDate: { lte: todayDate },
+          endDate: { gte: todayDate },
+        },
+        select: {
+          id: true,
+          leaveType: true,
+          startDate: true,
+          endDate: true,
+          totalDays: true,
+        },
+      });
+    }
+
     return {
       user: {
         id: user.id,
@@ -543,6 +598,11 @@ export class AuthService {
         role: user.role,
         tenantId: user.tenantId,
         tenantTitle: user.tenant?.title,
+        annualLeaveDays: user.annualLeaveDays,
+        transferredLeaveDays: user.transferredLeaveDays,
+        leaveBalance,
+        todayLeave,
+        mechanic: user.mechanic,
       },
       tenant: user.tenant,
       id: user.id,
@@ -550,6 +610,9 @@ export class AuthService {
       tenantId: user.tenantId,
       branchId: user.branchId,
       name: `${user.name} ${user.surname}`.trim(),
+      leaveBalance,
+      todayLeave,
+      mechanic: user.mechanic,
     };
   }
 }

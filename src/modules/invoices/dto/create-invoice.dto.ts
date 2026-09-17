@@ -7,13 +7,15 @@ import {
   IsArray,
   ValidateNested,
   Min,
+  MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateInvoiceItemDto {
   @ApiProperty({ example: 'Periyodik Bakım İşçiliği' })
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Kalem adı boş bırakılamaz' })
   @IsString()
+  @MinLength(3, { message: 'Kalem adı en az 3 karakter olmalıdır' })
   name: string;
 
   @ApiProperty({ example: 1 })
@@ -35,6 +37,11 @@ export class CreateInvoiceItemDto {
   @IsOptional()
   @IsNumber()
   totalPrice?: number;
+
+  @ApiPropertyOptional({ example: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' })
+  @IsOptional()
+  @IsString()
+  productId?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

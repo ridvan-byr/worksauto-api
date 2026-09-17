@@ -209,7 +209,9 @@ export class RescheduleAppointmentUseCase {
     let customerHtml: string | undefined;
     if (sendEmail) {
       customerHtml = this.templateService.generateBrandedHtmlEmail({
-        title: isEarlier ? 'Randevu Tarihiniz Erkene Alındı' : 'Randevu Tarihiniz Güncellendi',
+        title: isEarlier
+          ? 'Randevu Tarihiniz Erkene Alındı'
+          : 'Randevu Tarihiniz Güncellendi',
         customerName,
         message: isEarlier
           ? `${plate ? `${plate} plakalı aracınıza ait ` : 'Aracınıza ait '}servis randevunuz talebiniz/oluşan müsaitlik doğrultusunda erkene alınmıştır.${dto.reason ? ` Erkene Alma Nedeni: ${dto.reason}` : ''}`
@@ -217,10 +219,16 @@ export class RescheduleAppointmentUseCase {
         tenantTitle,
         tenantLogoUrl,
         extraDetails: {
-          [isEarlier ? 'Yeni (Erken) Randevu Tarihi' : 'Yeni Randevu Tarihi']: dateFormatted,
+          [isEarlier ? 'Yeni (Erken) Randevu Tarihi' : 'Yeni Randevu Tarihi']:
+            dateFormatted,
           'Yeni Randevu Saati': timeFormatted,
           ...(plate ? { 'Araç Plakası': plate } : {}),
-          ...(dto.reason ? { [isEarlier ? 'Erkene Alma Nedeni' : 'Erteleme Nedeni']: dto.reason } : {}),
+          ...(dto.reason
+            ? {
+                [isEarlier ? 'Erkene Alma Nedeni' : 'Erteleme Nedeni']:
+                  dto.reason,
+              }
+            : {}),
         },
       });
     }

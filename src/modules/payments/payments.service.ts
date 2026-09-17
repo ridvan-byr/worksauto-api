@@ -397,6 +397,23 @@ export class PaymentsService {
         paymentDate: { gte: startOfDay, lte: endOfDay },
         paymentMethod: { not: PaymentMethod.ADVANCE_OFFSET },
       },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            companyTitle: true,
+          },
+        },
+        invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+          },
+        },
+      },
+      orderBy: { paymentDate: 'desc' },
     });
 
     let totalCash = 0;
@@ -423,6 +440,24 @@ export class PaymentsService {
       totalOnline,
       grandTotal,
       transactionCount: payments.length,
+      payments: payments.map((p) => {
+        const customerName = p.customer
+          ? `${p.customer.firstName || ''} ${p.customer.lastName || ''}`.trim() ||
+            p.customer.companyTitle ||
+            'Müşteri'
+          : 'Müşteri';
+        return {
+          id: p.id,
+          customerName,
+          invoiceNumber: p.invoice?.invoiceNumber || '-',
+          method: p.paymentMethod,
+          amount: Number(p.amount),
+          date: p.paymentDate.toISOString(),
+          posSlipNo: p.posSlipNo,
+          notes: p.notes,
+          cashierName: p.cashierName,
+        };
+      }),
     };
   }
 

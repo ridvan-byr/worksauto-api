@@ -152,8 +152,12 @@ describe('NotificationTemplateService', () => {
       });
 
       expect(msg).toContain('Sayın Cemil Demir');
-      expect(msg).toContain('34XYZ99 plakalı aracınızın servis randevusu talebiniz/oluşan müsaitlik doğrultusunda');
-      expect(msg).toContain('16 Eylül 2026 saat 10:00 olarak erkene alınmıştır');
+      expect(msg).toContain(
+        '34XYZ99 plakalı aracınızın servis randevusu talebiniz/oluşan müsaitlik doğrultusunda',
+      );
+      expect(msg).toContain(
+        '16 Eylül 2026 saat 10:00 olarak erkene alınmıştır',
+      );
       expect(msg).toContain('(Müşteri erken teslim talep etti)');
       expect(msg).not.toContain('Erteleme Nedeni');
       expect(msg).toContain('Uzman Otomotiv');

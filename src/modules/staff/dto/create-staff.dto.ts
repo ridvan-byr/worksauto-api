@@ -63,4 +63,14 @@ export class CreateStaffDto {
   @IsOptional()
   @IsNumber()
   dailyCapacityHours?: number;
+
+  @ApiProperty({ example: 14, default: 14, required: false })
+  @IsOptional()
+  @IsNumber()
+  annualLeaveDays?: number;
+
+  @ApiProperty({ example: 0, default: 0, required: false })
+  @IsOptional()
+  @IsNumber()
+  transferredLeaveDays?: number;
 }
