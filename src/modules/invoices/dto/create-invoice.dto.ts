@@ -8,6 +8,7 @@ import {
   ValidateNested,
   Min,
   MinLength,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -125,4 +126,13 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   profileId?: 'TICARIFATURA' | 'TEMELFATURA' | 'EARSIVFATURA';
+
+  @ApiPropertyOptional({
+    example: true,
+    description:
+      'Müşteriye online ödeme linki SMS/WhatsApp/E-posta bildirimi gönderilsin mi? Peşin/anında tahsilatlarda mükerrer mesajı engellemek için false verilebilir.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  sendPaymentLinkNotification?: boolean;
 }

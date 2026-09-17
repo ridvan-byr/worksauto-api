@@ -80,4 +80,42 @@ describe('AdminTenantService', () => {
     expect(result.success).toBe(true);
     expect(result.tenant.isActive).toBe(true);
   });
+
+  it('should normalize phone correctly when creating tenant with 05xx number', async () => {
+    mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.tenant.findUnique.mockResolvedValue(null);
+    mockPrisma.$transaction.mockImplementation(async (cb: any) => {
+      return cb(mockPrisma);
+    });
+    mockPrisma.tenant.create.mockResolvedValue({
+      id: 't-1',
+      slug: 'test-servis',
+      title: 'Test Servis',
+      phone: '+905329998877',
+      email: 'test@servis.com',
+    });
+    mockPrisma.branch.create.mockResolvedValue({ id: 'b-1' });
+    mockPrisma.user.create.mockResolvedValue({ id: 'u-1', phone: '+905329998877' });
+
+    await service.createTenant({
+      title: 'Test Servis',
+      ownerName: 'Ali',
+      ownerSurname: 'Yılmaz',
+      phone: '0532 999 88 77',
+      email: 'test@servis.com',
+      taxNumber: '1234567890',
+      taxOffice: 'Kadıköy',
+    });
+
+    expect(mockPrisma.user.findFirst).toHaveBeenCalledWith({
+      where: { phone: '+905329998877' },
+    });
+    expect(mockPrisma.tenant.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          phone: '+905329998877',
+        }),
+      }),
+    );
+  });
 });

@@ -121,4 +121,45 @@ describe('CreateInvoiceUseCase', () => {
       }),
     );
   });
+
+  it('should suppress customer payment link when sendPaymentLinkNotification is false', async () => {
+    const createdInvoice = new InvoiceEntity({
+      id: 'inv-1',
+      tenantId: 'tenant-1',
+      customerId: 'cust-1',
+      invoiceNumber: 'INV-2026-00001',
+      dueDate: new Date('2026-04-01'),
+      subtotal: 1000,
+      kdvAmount: 200,
+      grandTotal: 1200,
+      remainingAmount: 1200,
+      status: 'UNPAID',
+    });
+
+    vi.mocked(mockRepo.createWithCariMovement).mockResolvedValue({
+      invoice: createdInvoice,
+      newBalance: 1200,
+      creditLimit: 5000,
+      customerName: 'Ahmet Yılmaz',
+      customerPhone: '05321112233',
+    });
+
+    await useCase.execute('tenant-1', {
+      customerId: 'cust-1',
+      dueDate: '2026-04-01',
+      subtotal: 1000,
+      kdvAmount: 200,
+      grandTotal: 1200,
+      sendPaymentLinkNotification: false,
+    });
+
+    expect(mockNotifications.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sendSms: false,
+        sendWhatsApp: false,
+        sendEmail: false,
+        customerMessage: undefined,
+      }),
+    );
+  });
 });

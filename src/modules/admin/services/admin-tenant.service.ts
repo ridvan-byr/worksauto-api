@@ -272,9 +272,16 @@ export class AdminTenantService {
    * Yeni Servis (Tenant) & Kurucu (Owner) Kullanıcı Oluşturma
    */
   async createTenant(dto: CreateTenantDto, adminUserId?: string) {
-    const rawPhone = dto.phone.replace(/\D/g, '');
-    const cleanPhone = rawPhone.startsWith('90') ? rawPhone.slice(2) : rawPhone;
-    const formattedPhone = `+90${cleanPhone}`;
+    const digits = dto.phone.replace(/\D/g, '');
+    let clean10 = digits;
+    if (clean10.startsWith('90')) clean10 = clean10.slice(2);
+    if (clean10.startsWith('0')) clean10 = clean10.slice(1);
+    const formattedPhone =
+      clean10.length === 10
+        ? `+90${clean10}`
+        : dto.phone.startsWith('+')
+          ? dto.phone
+          : `+${digits}`;
 
     const existingUser = await this.prisma.user.findFirst({
       where: { phone: formattedPhone },

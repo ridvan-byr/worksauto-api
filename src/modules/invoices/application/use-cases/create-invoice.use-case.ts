@@ -26,6 +26,7 @@ export interface CreateInvoiceInput {
   items?: any[];
   notes?: string;
   profileId?: 'TICARIFATURA' | 'TEMELFATURA' | 'EARSIVFATURA';
+  sendPaymentLinkNotification?: boolean;
 }
 
 @Injectable()
@@ -199,8 +200,20 @@ export class CreateInvoiceUseCase {
       const tenantTitle = result.tenantTitle || 'WorksAuto Servis';
       const paymentUrl = this.templateService.getPaymentUrl(result.invoice.id);
 
-      const customerMsg =
-        this.templateService.formatInvoiceCreatedCustomerMessage({
+      // Faturanın kalan borcu 0 veya daha az ise (örn. avans ile kapandıysa) veya
+      // fatura kesilirken peşin/anında tahsilat yapıldığı için bildirim kapatıldıysa
+      // müşteriye mükerrer ve kafa karıştırıcı "kredi kartı ile ödeyin" mesajı gönderilmez.
+      const isFullySettled =
+        result.invoice.status === 'PAID' ||
+        Number(result.invoice.remainingAmount) <= 0;
+      const shouldSendCustomerPaymentLink =
+        dto.sendPaymentLinkNotification !== false && !isFullySettled;
+
+      let customerMsg: string | undefined;
+      let customerHtml: string | undefined;
+
+      if (shouldSendCustomerPaymentLink) {
+        customerMsg = this.templateService.formatInvoiceCreatedCustomerMessage({
           customerName,
           invoiceNumber: result.invoice.invoiceNumber,
           grandTotal: dto.grandTotal,
@@ -208,22 +221,23 @@ export class CreateInvoiceUseCase {
           tenantTitle,
         });
 
-      const customerHtml = this.templateService.generateBrandedHtmlEmail({
-        title: `Servis Faturanız Düzenlenmiştir (#${result.invoice.invoiceNumber})`,
-        customerName,
-        message: `${result.invoice.invoiceNumber} numaralı servis faturanız hazırlanmıştır. Fatura dökümünüzü inceleyebilir veya kredi kartınızla online güvenli ödeme yapabilirsiniz.`,
-        buttonText: 'Faturayı İncele & Kredi Kartı ile Öde',
-        buttonUrl: paymentUrl,
-        tenantTitle,
-        extraDetails: {
-          'Fatura No': result.invoice.invoiceNumber,
-          'Toplam Tutar': `${dto.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`,
-          'Vade Tarihi': dto.dueDate
-            ? new Date(dto.dueDate).toLocaleDateString('tr-TR')
-            : 'Peşin',
-          Durum: 'Ödeme Bekliyor',
-        },
-      });
+        customerHtml = this.templateService.generateBrandedHtmlEmail({
+          title: `Servis Faturanız Düzenlenmiştir (#${result.invoice.invoiceNumber})`,
+          customerName,
+          message: `${result.invoice.invoiceNumber} numaralı servis faturanız hazırlanmıştır. Fatura dökümünüzü inceleyebilir veya kredi kartınızla online güvenli ödeme yapabilirsiniz.`,
+          buttonText: 'Faturayı İncele & Kredi Kartı ile Öde',
+          buttonUrl: paymentUrl,
+          tenantTitle,
+          extraDetails: {
+            'Fatura No': result.invoice.invoiceNumber,
+            'Toplam Tutar': `${dto.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`,
+            'Vade Tarihi': dto.dueDate
+              ? new Date(dto.dueDate).toLocaleDateString('tr-TR')
+              : 'Peşin',
+            Durum: 'Ödeme Bekliyor',
+          },
+        });
+      }
 
       await this.notificationsService.createNotification({
         tenantId,
@@ -233,13 +247,17 @@ export class CreateInvoiceUseCase {
         title: `Faturanız Düzenlendi (#${result.invoice.invoiceNumber})`,
         message: `${result.invoice.invoiceNumber} nolu servis faturanız düzenlenmiştir (Tutar: ${dto.grandTotal.toLocaleString('tr-TR')} ₺).`,
         link: `/invoices`,
-        recipientPhone: result.customerPhone || undefined,
-        recipientEmail: result.customerEmail || undefined,
+        recipientPhone: shouldSendCustomerPaymentLink
+          ? result.customerPhone || undefined
+          : undefined,
+        recipientEmail: shouldSendCustomerPaymentLink
+          ? result.customerEmail || undefined
+          : undefined,
         customerMessage: customerMsg,
         customerHtml,
-        sendSms: !!result.customerPhone,
-        sendWhatsApp: !!result.customerPhone,
-        sendEmail: !!result.customerEmail,
+        sendSms: shouldSendCustomerPaymentLink && !!result.customerPhone,
+        sendWhatsApp: shouldSendCustomerPaymentLink && !!result.customerPhone,
+        sendEmail: shouldSendCustomerPaymentLink && !!result.customerEmail,
       });
     } catch (notifErr) {
       console.warn('Invoice customer notification error:', notifErr);
