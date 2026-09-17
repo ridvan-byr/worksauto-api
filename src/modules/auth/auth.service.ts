@@ -136,10 +136,19 @@ export class AuthService {
       tenantId: user.tenantId || undefined,
     });
     if (!delivery.success) {
-      await this.redis.del(redisKey);
-      throw new ServiceUnavailableException(
-        'Doğrulama kodu gönderilemedi. Lütfen tekrar deneyiniz.',
-      );
+      if (
+        process.env.NODE_ENV !== 'production' ||
+        process.env.ENABLE_DEV_OTP_BYPASS === 'true'
+      ) {
+        this.logger.warn(
+          `[AuthService] SMS sağlayıcı yanıt vermedi ancak DEV OTP BYPASS devrede. Kod: ${otpCode}`,
+        );
+      } else {
+        await this.redis.del(redisKey);
+        throw new ServiceUnavailableException(
+          'Doğrulama kodu gönderilemedi. Lütfen tekrar deneyiniz.',
+        );
+      }
     }
 
     // Cooldown (60s) ve saatlik sayacı (3600s) set et
