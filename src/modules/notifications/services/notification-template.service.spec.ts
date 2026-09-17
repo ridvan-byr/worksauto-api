@@ -121,6 +121,47 @@ describe('NotificationTemplateService', () => {
       );
       expect(msg).toContain('https://app.worksauto.com/c/kvkk?token=tok-1');
     });
+
+    it('should format appointment postponed customer message', () => {
+      const msg = service.formatAppointmentRescheduledCustomerMessage({
+        customerName: 'Cemil Demir',
+        plate: '34XYZ99',
+        dateFormatted: '18 Eylül 2026',
+        timeFormatted: '14:30',
+        reason: 'Parça tedariği uzadı',
+        tenantTitle: 'Uzman Otomotiv',
+        isEarlier: false,
+      });
+
+      expect(msg).toContain('Sayın Cemil Demir');
+      expect(msg).toContain('34XYZ99 plakalı aracınızın servis randevusu');
+      expect(msg).toContain('18 Eylül 2026 saat 14:30 olarak güncellenmiştir');
+      expect(msg).toContain('(Erteleme Nedeni: Parça tedariği uzadı)');
+      expect(msg).toContain('Uzman Otomotiv');
+    });
+
+    it('should format appointment earlier customer message with polite tone without Erteleme Nedeni', () => {
+      const msg = service.formatAppointmentRescheduledCustomerMessage({
+        customerName: 'Cemil Demir',
+        plate: '34XYZ99',
+        dateFormatted: '16 Eylül 2026',
+        timeFormatted: '10:00',
+        reason: 'Müşteri erken teslim talep etti',
+        tenantTitle: 'Uzman Otomotiv',
+        isEarlier: true,
+      });
+
+      expect(msg).toContain('Sayın Cemil Demir');
+      expect(msg).toContain(
+        '34XYZ99 plakalı aracınızın servis randevusu talebiniz/oluşan müsaitlik doğrultusunda',
+      );
+      expect(msg).toContain(
+        '16 Eylül 2026 saat 10:00 olarak erkene alınmıştır',
+      );
+      expect(msg).toContain('(Müşteri erken teslim talep etti)');
+      expect(msg).not.toContain('Erteleme Nedeni');
+      expect(msg).toContain('Uzman Otomotiv');
+    });
   });
 
   describe('Branded HTML Email Generator', () => {

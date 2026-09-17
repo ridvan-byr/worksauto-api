@@ -69,4 +69,14 @@ export class UpdateStaffDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({ example: 14, required: false })
+  @IsOptional()
+  @IsNumber()
+  annualLeaveDays?: number;
+
+  @ApiProperty({ example: 0, required: false })
+  @IsOptional()
+  @IsNumber()
+  transferredLeaveDays?: number;
 }

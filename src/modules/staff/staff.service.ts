@@ -31,12 +31,57 @@ export class StaffService {
   }
 
   async findAll(tenantId: string) {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: { tenantId },
       include: {
         mechanic: true,
       },
       orderBy: { createdAt: 'asc' },
+    });
+
+    const userIds = users.map((u) => u.id);
+    const approvedAnnualLeaves = await this.prisma.staffLeave.findMany({
+      where: {
+        tenantId,
+        userId: { in: userIds },
+        leaveType: 'ANNUAL',
+        status: 'APPROVED',
+      },
+      select: {
+        userId: true,
+        totalDays: true,
+      },
+    });
+
+    const usedDaysMap = new Map<string, number>();
+    for (const leave of approvedAnnualLeaves) {
+      const days = Number(leave.totalDays) || 0;
+      usedDaysMap.set(
+        leave.userId,
+        (usedDaysMap.get(leave.userId) || 0) + days,
+      );
+    }
+
+    return users.map((user) => {
+      const annualDays = user.annualLeaveDays ?? 14;
+      const transferredDays = user.transferredLeaveDays ?? 0;
+      const totalDays = annualDays + transferredDays;
+      const usedDays = Math.round((usedDaysMap.get(user.id) || 0) * 10) / 10;
+      const remainingDays = Math.max(
+        0,
+        Math.round((totalDays - usedDays) * 10) / 10,
+      );
+
+      return {
+        ...user,
+        leaveBalance: {
+          annualDays,
+          transferredDays,
+          totalDays,
+          usedDays,
+          remainingDays,
+        },
+      };
     });
   }
 
@@ -50,7 +95,38 @@ export class StaffService {
       throw new NotFoundException('Personel bulunamadı.');
     }
 
-    return user;
+    const approvedAnnualLeaves = await this.prisma.staffLeave.findMany({
+      where: {
+        tenantId,
+        userId: id,
+        leaveType: 'ANNUAL',
+        status: 'APPROVED',
+      },
+      select: { totalDays: true },
+    });
+
+    const usedDays = approvedAnnualLeaves.reduce(
+      (sum, l) => sum + (Number(l.totalDays) || 0),
+      0,
+    );
+    const annualDays = user.annualLeaveDays ?? 14;
+    const transferredDays = user.transferredLeaveDays ?? 0;
+    const totalDays = annualDays + transferredDays;
+    const remainingDays = Math.max(
+      0,
+      Math.round((totalDays - usedDays) * 10) / 10,
+    );
+
+    return {
+      ...user,
+      leaveBalance: {
+        annualDays,
+        transferredDays,
+        totalDays,
+        usedDays: Math.round(usedDays * 10) / 10,
+        remainingDays,
+      },
+    };
   }
 
   async create(
@@ -105,6 +181,12 @@ export class StaffService {
           email: dto.email || null,
           role: dto.role,
           isActive: true,
+          annualLeaveDays:
+            dto.annualLeaveDays !== undefined ? dto.annualLeaveDays : 14,
+          transferredLeaveDays:
+            dto.transferredLeaveDays !== undefined
+              ? dto.transferredLeaveDays
+              : 0,
         },
       });
 
@@ -210,6 +292,10 @@ export class StaffService {
       if (dto.email !== undefined) updateData.email = dto.email;
       if (dto.role) updateData.role = dto.role;
       if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
+      if (dto.annualLeaveDays !== undefined)
+        updateData.annualLeaveDays = dto.annualLeaveDays;
+      if (dto.transferredLeaveDays !== undefined)
+        updateData.transferredLeaveDays = dto.transferredLeaveDays;
 
       const user = await tx.user.update({
         where: { id },

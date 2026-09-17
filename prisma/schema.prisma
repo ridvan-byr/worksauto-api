@@ -164,6 +164,7 @@ model Tenant {
   workEndTime String @default("18:30") @map("work_end_time")
   breakStartTime String? @default("12:30") @map("break_start_time")
   breakEndTime String? @default("13:30") @map("break_end_time")
+  defaultAnnualLeaveDays Int @default(14) @map("default_annual_leave_days")
   appointmentSlotDuration Int @default(45) @map("appointment_slot_duration")
   activeLiftCount Int @default(3) @map("active_lift_count")
   criticalStockThreshold Int @default(5) @map("critical_stock_threshold")
@@ -229,6 +230,8 @@ model User {
   passwordHash String?  @map("password_hash")
   role         UserRole @default(TECHNICIAN)
   isActive     Boolean  @default(true)
+  annualLeaveDays      Int      @default(14) @map("annual_leave_days")
+  transferredLeaveDays Int      @default(0) @map("transferred_leave_days")
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 

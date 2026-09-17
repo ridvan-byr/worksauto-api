@@ -93,7 +93,7 @@ export class AdminAuthService {
       role: user.role,
     };
 
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '1h' });
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '12h' });
 
     try {
       await this.prisma.auditLog.create({

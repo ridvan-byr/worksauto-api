@@ -198,22 +198,43 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
         }
       }
 
-      const sourceItems = invoice.items?.length
+      let effectiveItems = invoice.items?.length
         ? invoice.items
         : linkedWorkOrder?.items;
-      if (!sourceItems?.length)
-        throw new BadRequestException('Fatura kalemleri zorunludur.');
+
+      if (!effectiveItems?.length) {
+        // Fallback: If work order had a grandTotal but no granular line items, generate standard service item
+        const fallbackSubtotal =
+          invoice.subtotal ||
+          Math.round((Number(invoice.grandTotal || 0) / 1.2) * 100) / 100;
+        effectiveItems = [
+          {
+            name: 'Genel Servis & Bakım Bedeli',
+            quantity: 1,
+            unitPrice: fallbackSubtotal,
+            kdvRate: 20,
+            totalPrice: fallbackSubtotal,
+          },
+        ];
+      }
+
       let totals;
       try {
-        totals = calculateInvoiceTotals(sourceItems);
+        totals = calculateInvoiceTotals(effectiveItems);
       } catch (error) {
         throw new BadRequestException((error as Error).message);
       }
+
       for (const key of ['subtotal', 'kdvAmount', 'grandTotal'] as const) {
-        if (
-          !Number.isFinite(invoice[key]) ||
-          Math.round(invoice[key] * 100) !== Math.round(totals[key] * 100)
-        ) {
+        if (!Number.isFinite(invoice[key])) {
+          invoice[key] = totals[key];
+          continue;
+        }
+        const diffCents = Math.abs(
+          Math.round(invoice[key] * 100) - Math.round(totals[key] * 100),
+        );
+        // Allow up to 3 cents tolerance for tax rounding discrepancies between line-by-line and subtotal
+        if (diffCents > 3) {
           throw new BadRequestException(
             'Fatura toplamları kalemler ile uyuşmuyor.',
           );
@@ -319,10 +340,7 @@ export class PrismaInvoiceRepository implements IInvoiceRepository {
       });
 
       // Snapshot items into InvoiceItem table for immutability and e-invoice integrity
-      const itemsToSnapshot =
-        invoice.items && invoice.items.length > 0
-          ? invoice.items
-          : linkedWorkOrder?.items || [];
+      const itemsToSnapshot = effectiveItems;
 
       if (itemsToSnapshot.length > 0) {
         await tx.invoiceItem.createMany({

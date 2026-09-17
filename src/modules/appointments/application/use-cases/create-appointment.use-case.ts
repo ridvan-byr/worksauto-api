@@ -147,21 +147,21 @@ export class CreateAppointmentUseCase {
 
     // In-app & Customer Notifications (Email, SMS, WhatsApp)
     try {
-      const { customerName, email, phone, plate, tenantTitle, tenantLogoUrl } = this
-        .appointmentRepository.getNotificationContext
-        ? await this.appointmentRepository.getNotificationContext(
-            tenantId,
-            dto.customerId,
-            dto.vehicleId,
-          )
-        : {
-            customerName: 'Değerli Müşterimiz',
-            email: undefined,
-            phone: undefined,
-            plate: 'Belirtilmedi',
-            tenantTitle: 'WorksAuto Servis',
-            tenantLogoUrl: undefined,
-          };
+      const { customerName, email, phone, plate, tenantTitle, tenantLogoUrl } =
+        this.appointmentRepository.getNotificationContext
+          ? await this.appointmentRepository.getNotificationContext(
+              tenantId,
+              dto.customerId,
+              dto.vehicleId,
+            )
+          : {
+              customerName: 'Değerli Müşterimiz',
+              email: undefined,
+              phone: undefined,
+              plate: 'Belirtilmedi',
+              tenantTitle: 'WorksAuto Servis',
+              tenantLogoUrl: undefined,
+            };
 
       const {
         fullStr: dateStr,
