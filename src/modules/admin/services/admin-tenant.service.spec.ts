@@ -95,7 +95,10 @@ describe('AdminTenantService', () => {
       email: 'test@servis.com',
     });
     mockPrisma.branch.create.mockResolvedValue({ id: 'b-1' });
-    mockPrisma.user.create.mockResolvedValue({ id: 'u-1', phone: '+905329998877' });
+    mockPrisma.user.create.mockResolvedValue({
+      id: 'u-1',
+      phone: '+905329998877',
+    });
 
     await service.createTenant({
       title: 'Test Servis',

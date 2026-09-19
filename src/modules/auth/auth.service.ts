@@ -69,7 +69,72 @@ export class AuthService {
     const formattedWithSpaces = `${raw10.slice(0, 3)} ${raw10.slice(3, 6)} ${raw10.slice(6, 8)} ${raw10.slice(8, 10)}`;
     const formattedAlt = `${raw10.slice(0, 3)} ${raw10.slice(3, 6)} ${raw10.slice(6)}`;
 
-    // 0. SMS Rate Limiting / Abuse Protection (Cooldown: 60s, Hourly Limit: 5)
+    // Strict non-wildcard phone lookup (prevents account enumeration)
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: normalizedPhone },
+          { phone: '+' + normalizedPhone },
+          { phone: raw10 },
+          { phone: formattedWithSpaces },
+          { phone: formattedAlt },
+        ],
+        isActive: true,
+      },
+      include: { tenant: true },
+    });
+
+    // 0. Trusted Device Doğrulaması (Ayda 1 SMS Kodu Kuralı):
+    // Kullanıcı bu cihazda son 30 gün içinde SMS kodu doğrulamışsa, SMS göndermeden doğrudan oturum açılır.
+    if (
+      dto.trustedDeviceToken &&
+      user &&
+      user.isActive &&
+      (!user.tenant || user.tenant.isActive)
+    ) {
+      try {
+        const decoded: any = this.jwtService.verify(dto.trustedDeviceToken, {
+          secret: process.env.JWT_SECRET,
+        });
+        if (
+          decoded &&
+          decoded.tokenType === 'trusted_device' &&
+          decoded.sub === user.id &&
+          decoded.phone === normalizedPhone
+        ) {
+          const tokens = await this.generateTokens(user, user.tenantId);
+
+          this.logger.log(
+            `📱 Güvenilir Cihaz Doğrulandı -> ${user.name} ${user.surname} (${normalizedPhone.slice(0, 5)}***) - 30 Günlük Yetkiyle SMS Kodu Sorulmadan Giriş Yapıldı.`,
+          );
+
+          return {
+            success: true,
+            trustedDevice: true,
+            message:
+              'Güvenilir cihazınız doğrulandı. Atölye paneline yönlendiriliyorsunuz...',
+            trustedDeviceToken: dto.trustedDeviceToken, // Orijinal 30 günlük süreyi koru (Her girişte süreyi sıfırlamaz, 30 gün sonra kesinlikle SMS ister)
+            user: {
+              id: user.id,
+              name: user.name,
+              surname: user.surname,
+              phone: user.phone,
+              email: user.email,
+              role: user.role,
+              tenantId: user.tenantId,
+              tenantTitle: user.tenant?.title,
+            },
+            ...tokens,
+          };
+        }
+      } catch {
+        this.logger.debug(
+          `[AuthService] Güvenilir cihaz belirtecinin süresi dolmuş veya geçersiz (${normalizedPhone.slice(0, 5)}***). SMS OTP gönderilecek.`,
+        );
+      }
+    }
+
+    // 1. SMS Rate Limiting / Abuse Protection (Cooldown: 60s, Hourly Limit: 5)
     const cooldownKey = `rate:otp:cooldown:${normalizedPhone}`;
     const isCoolingDown = await this.redis.get(cooldownKey);
     if (isCoolingDown) {
@@ -89,21 +154,6 @@ export class AuthService {
       );
     }
 
-    // Strict non-wildcard phone lookup (prevents account enumeration)
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          { phone: normalizedPhone },
-          { phone: '+' + normalizedPhone },
-          { phone: raw10 },
-          { phone: formattedWithSpaces },
-          { phone: formattedAlt },
-        ],
-        isActive: true,
-      },
-      include: { tenant: true },
-    });
-
     // Account Enumeration Defense:
     // If the phone number is not registered or the tenant is suspended,
     // do not disclose account existence. Return generic success message
@@ -120,11 +170,8 @@ export class AuthService {
       };
     }
 
-    // 6 Haneli Kriptografik Olarak Güvenli OTP Kod Üretimi
-    const otpCode =
-      process.env.NODE_ENV === 'production'
-        ? crypto.randomInt(100000, 1000000).toString()
-        : '123456';
+    // 6 Haneli Kriptografik Olarak Güvenli OTP Kod Üretimi (Daima rastgele)
+    const otpCode = crypto.randomInt(100000, 1000000).toString();
 
     // Redis üzerinde 3 dakika (180 saniye) geçerli olarak sakla
     const redisKey = `otp:${normalizedPhone}`;
@@ -136,12 +183,9 @@ export class AuthService {
       tenantId: user.tenantId || undefined,
     });
     if (!delivery.success) {
-      if (
-        process.env.NODE_ENV !== 'production' ||
-        process.env.ENABLE_DEV_OTP_BYPASS === 'true'
-      ) {
+      if (process.env.NODE_ENV !== 'production') {
         this.logger.warn(
-          `[AuthService] SMS sağlayıcı yanıt vermedi ancak DEV OTP BYPASS devrede. Kod: ${otpCode}`,
+          `[AuthService] SMS sağlayıcı yanıt vermedi (Geliştirme ortamı). Üretilen Kod: ${otpCode}`,
         );
       } else {
         await this.redis.del(redisKey);
@@ -168,16 +212,15 @@ export class AuthService {
       );
     }
 
+    const message = delivery.success
+      ? 'Doğrulama kodu telefonunuza SMS ile gönderildi.'
+      : `Doğrulama kodu oluşturuldu (SMS Servisi Bağlanana Kadar Kodunuz: ${otpCode})`;
+
     return {
       success: true,
-      message: 'Doğrulama kodu telefonunuza SMS ile gönderildi.',
+      message,
       phone: normalizedPhone,
       expiresInSeconds: 180,
-      devCode:
-        process.env.NODE_ENV === 'development' &&
-        process.env.ENABLE_DEV_OTP_BYPASS === 'true'
-          ? otpCode
-          : undefined,
     };
   }
 
@@ -230,18 +273,13 @@ export class AuthService {
 
     const cachedCode = await this.redis.get(redisKey);
 
-    // Katı Whitelist: Yalnızca development modunda ve ENABLE_DEV_OTP_BYPASS=true iken 123456 geçerlidir
-    const isMasterDevCode =
-      process.env.NODE_ENV === 'development' &&
-      process.env.ENABLE_DEV_OTP_BYPASS === 'true' &&
-      dto.code === '123456';
-    if (!cachedCode && !isMasterDevCode) {
+    if (!cachedCode) {
       throw new UnauthorizedException(
         'Doğrulama kodunun süresi dolmuş veya hiç istenmemiş.',
       );
     }
 
-    if (cachedCode && cachedCode !== dto.code && !isMasterDevCode) {
+    if (cachedCode !== dto.code) {
       const newAttempts = attempts + 1;
       await this.redis.set(attemptKey, newAttempts.toString(), 900); // 15 dakika TTL
       if (newAttempts >= 5) {
@@ -262,8 +300,18 @@ export class AuthService {
     // 30 GÜNLÜK (1 AY) REFRESH TOKEN ÜRET
     const tokens = await this.generateTokens(user, user.tenantId);
 
+    // 30 GÜNLÜK GÜVENİLİR CİHAZ (TRUSTED DEVICE) TOKEN'I ÜRET
+    const trustedDeviceToken = this.jwtService.sign(
+      {
+        sub: user.id,
+        phone: normalizedPhone,
+        tokenType: 'trusted_device',
+      },
+      { expiresIn: '30d' },
+    );
+
     this.logger.log(
-      `✅ Usta / Yönetici giriş yaptı: ${user.name} ${user.surname} (${user.role}) - 30 Günlük Oturum Başlatıldı.`,
+      `✅ Usta / Yönetici giriş yaptı: ${user.name} ${user.surname} (${user.role}) - 30 Günlük Oturum ve Güvenilir Cihaz Başlatıldı.`,
     );
 
     return {
@@ -277,6 +325,7 @@ export class AuthService {
         tenantId: user.tenantId,
         tenantTitle: user.tenant.title,
       },
+      trustedDeviceToken,
       ...tokens,
     };
   }
@@ -393,8 +442,41 @@ export class AuthService {
         throw new UnauthorizedException('Geçersiz yenileme belirteci.');
       }
 
-      // REUSE DETECTION (Çalınma Tespiti)
-      if (tokenRecord.isRevoked || tokenRecord.expiresAt <= new Date()) {
+      if (tokenRecord.expiresAt <= new Date()) {
+        throw new UnauthorizedException(
+          'Oturum süreniz doldu. Lütfen tekrar giriş yapın.',
+        );
+      }
+
+      // REUSE DETECTION (Çalınma Tespiti & Akıllı Oturum Koruma)
+      if (tokenRecord.isRevoked) {
+        // Kullanıcının sistemde son 30 gün içinde açılmış aktif (isRevoked: false) bir oturumu var mı?
+        const activeToken = await this.prisma.refreshToken.findFirst({
+          where: {
+            userId: tokenRecord.userId,
+            isRevoked: false,
+            expiresAt: { gt: new Date() },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        if (activeToken) {
+          this.logger.log(
+            `Kullanıcının (${tokenRecord.userId}) aktif oturumu (${activeToken.familyId}) tespit edildi. Eski belirteç yerine güncel oturum döndürülüyor.`,
+          );
+          const user = await this.prisma.user.findUnique({
+            where: { id: tokenRecord.userId },
+            include: { tenant: true },
+          });
+          if (user && user.isActive && (!user.tenant || user.tenant.isActive)) {
+            return this.generateTokens(
+              user,
+              user.tenantId,
+              activeToken.familyId,
+            );
+          }
+        }
+
         this.logger.warn(
           `Güvenlik Uyarısı: İptal edilmiş token tekrar kullanılmaya çalışıldı (${tokenRecord.userId}). Tüm aile oturumları kapatılıyor.`,
         );
@@ -433,7 +515,10 @@ export class AuthService {
       }
 
       return this.generateTokens(user, user.tenantId, tokenRecord.familyId);
-    } catch {
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        throw err;
+      }
       throw new UnauthorizedException(
         '30 günlük oturum süreniz doldu. Lütfen SMS ile tekrar giriş yapınız.',
       );

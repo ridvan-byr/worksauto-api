@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CurrentTenant } from '../../shared/decorators/current-tenant.decorator';
@@ -6,6 +6,8 @@ import { Roles } from '../../shared/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 import { GetCurrentAccountsUseCase } from './application/use-cases/get-current-accounts.use-case';
 import { GetCustomerCurrentAccountUseCase } from './application/use-cases/get-customer-current-account.use-case';
+import { UpdateCreditLimitUseCase } from './application/use-cases/update-credit-limit.use-case';
+import { UpdateCreditLimitDto } from './dto/update-credit-limit.dto';
 
 @ApiTags('Current Accounts (Cari Hesaplar & Ekstre)')
 @ApiBearerAuth('JWT-auth')
@@ -15,6 +17,7 @@ export class CurrentAccountsController {
   constructor(
     private readonly getCurrentAccountsUseCase: GetCurrentAccountsUseCase,
     private readonly getCustomerCurrentAccountUseCase: GetCustomerCurrentAccountUseCase,
+    private readonly updateCreditLimitUseCase: UpdateCreditLimitUseCase,
   ) {}
 
   @Get()
@@ -34,5 +37,23 @@ export class CurrentAccountsController {
     @Param('customerId') customerId: string,
   ) {
     return this.getCustomerCurrentAccountUseCase.execute(tenantId, customerId);
+  }
+
+  @Patch('customer/:customerId/limit')
+  @Roles(UserRole.OWNER, UserRole.SERVICE_MANAGER)
+  @ApiOperation({
+    summary: 'Müşteri kredi limitini ve bloke durumunu günceller',
+  })
+  updateLimit(
+    @CurrentTenant() tenantId: string,
+    @Param('customerId') customerId: string,
+    @Body() dto: UpdateCreditLimitDto,
+  ) {
+    return this.updateCreditLimitUseCase.execute(
+      tenantId,
+      customerId,
+      dto.creditLimit,
+      dto.isBlocked,
+    );
   }
 }

@@ -5,6 +5,7 @@ import { CURRENT_ACCOUNT_REPOSITORY } from './domain/current-account.repository.
 import { PrismaCurrentAccountRepository } from './infrastructure/prisma-current-account.repository';
 import { GetCurrentAccountsUseCase } from './application/use-cases/get-current-accounts.use-case';
 import { GetCustomerCurrentAccountUseCase } from './application/use-cases/get-customer-current-account.use-case';
+import { UpdateCreditLimitUseCase } from './application/use-cases/update-credit-limit.use-case';
 
 @Module({
   controllers: [CurrentAccountsController],
@@ -16,11 +17,13 @@ import { GetCustomerCurrentAccountUseCase } from './application/use-cases/get-cu
     },
     GetCurrentAccountsUseCase,
     GetCustomerCurrentAccountUseCase,
+    UpdateCreditLimitUseCase,
   ],
   exports: [
     CURRENT_ACCOUNT_REPOSITORY,
     GetCurrentAccountsUseCase,
     GetCustomerCurrentAccountUseCase,
+    UpdateCreditLimitUseCase,
   ],
 })
 export class CurrentAccountsModule {}

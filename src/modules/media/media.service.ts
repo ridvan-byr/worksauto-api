@@ -20,6 +20,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../shared/infrastructure/prisma/prisma.service';
 import { WorkOrderPhotoType } from '@prisma/client';
+import { EventsGateway } from '../events/events.gateway';
 
 export interface UploadedMediaFile {
   fieldname?: string;
@@ -43,6 +44,7 @@ export class MediaService implements OnModuleInit {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly eventsGateway: EventsGateway,
   ) {
     const endpoint = this.configService.get<string>(
       'S3_ENDPOINT',
@@ -218,9 +220,18 @@ export class MediaService implements OnModuleInit {
     const relativeUrl = `/api/v1/media/files/${objectKey}`;
 
     // Update tenant logoUrl in DB
-    await this.prisma.tenant.update({
+    const updatedTenant = await this.prisma.tenant.update({
       where: { id: tenantId },
       data: { logoUrl: relativeUrl },
+    });
+
+    this.eventsGateway.emitToTenant(tenantId, 'tenant:updated', {
+      tenantId,
+      logoUrl: relativeUrl,
+      title: updatedTenant.title,
+      name: updatedTenant.title,
+      logoWidth: updatedTenant.logoWidth,
+      logoHeight: updatedTenant.logoHeight,
     });
 
     return {

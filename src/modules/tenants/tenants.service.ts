@@ -11,10 +11,14 @@ import {
 } from './dto/workshop-bays.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { UserRole } from '@prisma/client';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class TenantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsGateway: EventsGateway,
+  ) {}
 
   async getCurrent(tenantId: string) {
     const tenant = await this.prisma.tenant.findUnique({
@@ -42,10 +46,22 @@ export class TenantsService {
   async updateCurrent(tenantId: string, dto: UpdateTenantDto) {
     await this.getCurrent(tenantId);
 
-    return this.prisma.tenant.update({
+    const updated = await this.prisma.tenant.update({
       where: { id: tenantId },
       data: dto,
     });
+
+    this.eventsGateway.emitToTenant(tenantId, 'tenant:updated', {
+      tenantId: updated.id,
+      title: updated.title,
+      name: updated.title,
+      legalName: updated.legalName,
+      logoUrl: updated.logoUrl,
+      logoWidth: updated.logoWidth,
+      logoHeight: updated.logoHeight,
+    });
+
+    return updated;
   }
 
   async getBays(tenantId: string) {

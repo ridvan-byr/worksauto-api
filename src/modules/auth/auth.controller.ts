@@ -27,13 +27,25 @@ import { Public } from '../../shared/decorators/public.decorator';
 import { BypassB2bConsent } from '../../shared/decorators/bypass-b2b-consent.decorator';
 import { AuthGuard } from '@nestjs/passport';
 
-const getRefreshTokenCookieOptions = () => ({
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 Gün (milisaniye)
-  path: '/api/v1/auth',
-});
+const getRefreshTokenCookieOptions = (req?: Request) => {
+  const isHttps =
+    process.env.NODE_ENV === 'production' ||
+    req?.secure ||
+    (req?.headers && req.headers['x-forwarded-proto'] === 'https');
+  return {
+    httpOnly: true,
+    secure: Boolean(isHttps),
+    sameSite: 'lax' as const,
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 Gün (milisaniye)
+    path: '/',
+  };
+};
+
+const setRefreshTokenCookie = (res: Response, token: string, req?: Request) => {
+  // Clear any legacy cookie bounded to /api/v1 so path collision never occurs
+  res.clearCookie('refreshToken', { path: '/api/v1' });
+  res.cookie('refreshToken', token, getRefreshTokenCookieOptions(req));
+};
 
 @ApiTags('Authentication & Security (Telefon + SMS OTP)')
 @Controller('auth')
@@ -45,14 +57,23 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:
-      'Kullanıcı telefonuna 6 haneli SMS doğrulama kodu gönderir (Redis 3 dk)',
+      'Kullanıcı telefonuna 6 haneli SMS doğrulama kodu gönderir veya 30 günlük güvenilir cihazı doğrular',
   })
   @ApiResponse({
     status: 200,
-    description: 'SMS OTP kodu başarıyla gönderildi.',
+    description:
+      'SMS OTP kodu başarıyla gönderildi veya güvenilir cihazla oturum açıldı.',
   })
-  sendOtp(@Body() dto: SendOtpDto) {
-    return this.authService.sendOtp(dto);
+  async sendOtp(
+    @Body() dto: SendOtpDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.sendOtp(dto);
+    if ((result as any).refreshToken) {
+      setRefreshTokenCookie(res, (result as any).refreshToken, req);
+    }
+    return result;
   }
 
   @Public()
@@ -68,15 +89,12 @@ export class AuthController {
   })
   async verifyOtp(
     @Body() dto: VerifyOtpDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.verifyOtp(dto);
     if (result.refreshToken) {
-      res.cookie(
-        'refreshToken',
-        result.refreshToken,
-        getRefreshTokenCookieOptions(),
-      );
+      setRefreshTokenCookie(res, result.refreshToken, req);
     }
     return result;
   }
@@ -92,15 +110,12 @@ export class AuthController {
   })
   async register(
     @Body() dto: RegisterTenantDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.registerTenant(dto);
     if (result.refreshToken) {
-      res.cookie(
-        'refreshToken',
-        result.refreshToken,
-        getRefreshTokenCookieOptions(),
-      );
+      setRefreshTokenCookie(res, result.refreshToken, req);
     }
     return result;
   }
@@ -115,7 +130,8 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const token = req.cookies?.refreshToken || dto?.refreshToken;
+    // Body'de açıkça iletilen token'a (localStorage) öncelik ver, yoksa cookie oku
+    const token = dto?.refreshToken || req.cookies?.refreshToken;
     if (!token) {
       throw new UnauthorizedException(
         'Yenileme belirteci (refresh token) bulunamadı.',
@@ -123,11 +139,7 @@ export class AuthController {
     }
     const result = await this.authService.refreshToken({ refreshToken: token });
     if (result.refreshToken) {
-      res.cookie(
-        'refreshToken',
-        result.refreshToken,
-        getRefreshTokenCookieOptions(),
-      );
+      setRefreshTokenCookie(res, result.refreshToken, req);
     }
     return result;
   }
@@ -139,15 +151,17 @@ export class AuthController {
     summary: 'Kullanıcı oturumunu ve httpOnly cookie belirtecini sonlandırır',
   })
   @ApiResponse({ status: 200, description: 'Oturum kapatıldı.' })
-  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const token = req.cookies?.refreshToken;
+  async logout(
+    @Body() dto: RefreshTokenDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const token = dto?.refreshToken || req.cookies?.refreshToken;
     if (token) {
       await this.authService.revokeRefreshToken(token);
     }
-    res.clearCookie('refreshToken', {
-      ...getRefreshTokenCookieOptions(),
-      maxAge: 0,
-    });
+    res.clearCookie('refreshToken', { path: '/api/v1' });
+    res.clearCookie('refreshToken', { path: '/' });
     return { success: true, message: 'Oturum başarıyla sonlandırıldı.' };
   }
 
